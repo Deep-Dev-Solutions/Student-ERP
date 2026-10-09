@@ -18,22 +18,22 @@ interface NavItem {
 const navItems: NavItem[] = [
   {
     label: "Home",
-    href: "/teacher-dashboard",
+    href: "/teacher-portal",
     icon: Home,
   },
   {
     label: "Attendance",
-    href: "/teacher-dashboard/attendance",
+    href: "/teacher-portal/attendance",
     icon: UserCheck,
   },
   {
     label: "Marks",
-    href: "/teacher-dashboard/marks",
+    href: "/teacher-portal/marks",
     icon: Award,
   },
   {
     label: "Paper Maker",
-    href: "/teacher-dashboard/paper-maker",
+    href: "/teacher-portal/paper-maker",
     icon: FileSpreadsheet,
   },
 ];

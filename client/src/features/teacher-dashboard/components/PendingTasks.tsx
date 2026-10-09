@@ -19,7 +19,7 @@ const mockPendingTasks: PendingTaskItem[] = [
     description: "Period 2 ended at 10:05 AM. Please submit today's attendance before administrative roster lock.",
     urgency: "high",
     actionLabel: "Mark Now",
-    actionHref: "/teacher-dashboard/attendance",
+    actionHref: "/teacher-portal/attendance",
   },
   {
     id: "task-2",
@@ -28,7 +28,7 @@ const mockPendingTasks: PendingTaskItem[] = [
     description: "14 answer sheets remaining to enter for Class 9A before the examination lock deadline.",
     urgency: "medium",
     actionLabel: "Enter Marks",
-    actionHref: "/teacher-dashboard/marks",
+    actionHref: "/teacher-portal/marks",
   },
 ];
 

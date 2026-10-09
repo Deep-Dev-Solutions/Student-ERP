@@ -22,22 +22,22 @@ interface NavItem {
 const desktopNavItems: NavItem[] = [
   {
     label: "Overview",
-    href: "/teacher-dashboard",
+    href: "/teacher-portal",
     icon: Home,
   },
   {
     label: "Mark Attendance",
-    href: "/teacher-dashboard/attendance",
+    href: "/teacher-portal/attendance",
     icon: UserCheck,
   },
   {
     label: "Marks & Grades",
-    href: "/teacher-dashboard/marks",
+    href: "/teacher-portal/marks",
     icon: Award,
   },
   {
     label: "Exam Paper Maker",
-    href: "/teacher-dashboard/paper-maker",
+    href: "/teacher-portal/paper-maker",
     icon: FileSpreadsheet,
   },
 ];
