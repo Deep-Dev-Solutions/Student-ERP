@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/EmptyState";
-import type { StatusVariant } from "@/lib/status";
+import { gradeFor } from "@/lib/grades";
 import { StudentMarksRecord } from "../types";
 
 const examOptions = [
@@ -56,15 +56,6 @@ const subjectOptions = [
   { value: "biology", label: "Biology (out of 100)" },
 ];
 
-/** Grade bands used on report cards. */
-function gradeFor(percentage: number | null): { label: string; variant: StatusVariant } {
-  if (percentage === null) return { label: "—", variant: "neutral" };
-  if (percentage >= 80) return { label: "A+", variant: "success" };
-  if (percentage >= 70) return { label: "A", variant: "info" };
-  if (percentage >= 60) return { label: "B", variant: "info" };
-  if (percentage >= 50) return { label: "C", variant: "warning" };
-  return { label: "F", variant: "danger" };
-}
 
 const mockStudents: StudentMarksRecord[] = [
   {

@@ -1,24 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   RefreshCw,
-  Sparkles,
-  HelpCircle,
-  CheckCircle2,
-  ListOrdered,
-  Layers,
-  ArrowRight,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { PaperQuestion } from "../types";
+
+const questionTypeLabels: Record<PaperQuestion["type"], string> = {
+  mcq: "Multiple choice",
+  short: "Short answer",
+  long: "Long answer",
+};
 
 const initialQuestions: PaperQuestion[] = [
   {
@@ -161,106 +156,67 @@ export function PaperReviewStep({
   const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
 
   return (
-    <div className="space-y-6">
-      <Card className="rounded-2xl border border-slate-200/80 bg-white shadow-xs">
-        <CardHeader className="p-5 sm:p-6 border-b border-slate-100 bg-white">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 ring-1 ring-blue-200/70">
-                <ListOrdered className="h-4 w-4" />
-              </div>
-              <div>
-                <CardTitle className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
-                  Step 2: Review & Customize Question Bank
-                </CardTitle>
-                <CardDescription className="text-xs text-slate-500 mt-0.5">
-                  Inspect generated questions. Tap Swap/Regenerate to replace any question instantly.
-                </CardDescription>
-              </div>
-            </div>
+    <Card className="gap-5 px-5 sm:px-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <CardTitle>
+            <h2>Review the questions</h2>
+          </CardTitle>
+          <CardDescription className="mt-0.5">Swap any question for another one from the same chapter.</CardDescription>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          <span className="font-semibold text-foreground">{questions.length}</span> questions ·{" "}
+          <span className="font-semibold text-foreground">{totalMarks}</span> marks
+        </p>
+      </div>
 
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 border border-slate-200">
-                <span>{questions.length} Questions</span>
-                <span className="text-slate-300">•</span>
-                <span className="text-blue-700 font-bold">{totalMarks} Total Marks</span>
-              </span>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="p-5 sm:p-6 space-y-4">
-          {questions.map((q, idx) => {
-            const isSwapping = swappingId === q.id;
-
-            return (
-              <div
-                key={q.id}
-                className="group relative rounded-xl border border-slate-200/80 bg-slate-50/40 p-4 transition-all hover:bg-white hover:border-slate-300 hover:shadow-xs"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-900 text-[11px] font-bold text-white font-mono">
-                        Q{idx + 1}
-                      </span>
-                      <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-700 border border-blue-200/60">
-                        {q.type}
-                      </span>
-                      <span className="text-[11px] text-slate-400 font-medium">
-                        Unit: {q.chapter}
-                      </span>
-                      <span className="text-xs font-mono font-bold text-slate-700 ml-auto sm:ml-0">
-                        [{q.marks} {q.marks === 1 ? "Mark" : "Marks"}]
-                      </span>
-                    </div>
-
-                    <p className="text-sm font-semibold text-slate-900 leading-relaxed">
-                      {q.questionText}
-                    </p>
-
-                    {/* Options for MCQ */}
-                    {q.options && (
-                      <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-2">
-                        {q.options.map((opt, optIdx) => (
-                          <div
-                            key={optIdx}
-                            className="flex items-center gap-2 text-xs text-slate-600 bg-white p-2 rounded-lg border border-slate-200/70"
-                          >
-                            <span className="font-mono font-bold text-slate-400">
-                              {String.fromCharCode(65 + optIdx)}.
-                            </span>
-                            <span>{opt}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+      <ol className="space-y-3">
+        {questions.map((q, idx) => {
+          const isSwapping = swappingId === q.id;
+          const canSwap = (alternativeQuestionPool[q.id] ?? []).length > 0;
+          return (
+            <li key={q.id} className="rounded-xl border border-border bg-card p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex-1 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="font-semibold">Question {idx + 1}</span>
+                    <Badge variant="secondary">{questionTypeLabels[q.type]}</Badge>
+                    <span className="text-muted-foreground">{q.chapter}</span>
+                    <span className="text-muted-foreground">
+                      · {q.marks} {q.marks === 1 ? "mark" : "marks"}
+                    </span>
                   </div>
 
-                  {/* Swap / Regenerate Button */}
-                  <div className="shrink-0 self-end sm:self-start pt-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSwapQuestion(q.id)}
-                      disabled={isSwapping}
-                      className="h-8 gap-1.5 border-slate-200 text-xs font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 shadow-xs transition-colors"
-                    >
-                      <RefreshCw
-                        className={`h-3.5 w-3.5 text-slate-500 ${
-                          isSwapping ? "animate-spin text-blue-600" : ""
-                        }`}
-                      />
-                      <span>{isSwapping ? "Swapping..." : "Swap / Regenerate"}</span>
-                    </Button>
-                  </div>
+                  <p className="leading-relaxed">{q.questionText}</p>
+
+                  {q.options ? (
+                    <ol className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-2" type="A">
+                      {q.options.map((opt, optIdx) => (
+                        <li key={optIdx} className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 p-2 text-sm">
+                          <span className="font-semibold text-muted-foreground">{String.fromCharCode(65 + optIdx)}.</span>
+                          {opt}
+                        </li>
+                      ))}
+                    </ol>
+                  ) : null}
                 </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSwapQuestion(q.id)}
+                  disabled={isSwapping || !canSwap}
+                  aria-label={`Swap question ${idx + 1}`}
+                  className="self-end sm:self-start"
+                >
+                  <RefreshCw data-icon="inline-start" className={isSwapping ? "motion-safe:animate-spin" : undefined} />
+                  {isSwapping ? "Swapping…" : "Swap"}
+                </Button>
               </div>
-            );
-          })}
-        </CardContent>
-      </Card>
-    </div>
+            </li>
+          );
+        })}
+      </ol>
+    </Card>
   );
 }
-

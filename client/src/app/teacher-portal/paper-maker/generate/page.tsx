@@ -1,16 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  ArrowLeft,
-  ArrowRight,
-  BookOpen,
-  Sparkles,
-  FileCheck,
-  CheckCircle2,
-} from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { cn } from "@/lib/utils";
 import {
   PaperScopeStep,
   PaperReviewStep,
@@ -30,10 +25,10 @@ const defaultScopeConfig: PaperScopeConfig = {
 };
 
 const defaultExportConfig: PaperExportConfig = {
-  testDate: new Date().toISOString().split("T")[0],
+  testDate: "",
   totalTime: "60 Minutes",
   totalMarks: 25,
-  institutionHeader: "Apex Grammar & Science Academy — Secondary Campus",
+  institutionHeader: "Apex Grammar & Science Academy, Secondary Campus",
   instructions:
     "Attempt all sections. Write clearly. Use of non-programmable scientific calculator is permitted.",
 };
@@ -83,168 +78,92 @@ const defaultQuestions: PaperQuestion[] = [
   },
 ];
 
+const steps = [
+  { title: "Scope", hint: "Board, class and chapters" },
+  { title: "Questions", hint: "Review and edit" },
+  { title: "Export", hint: "Header and PDF" },
+];
+
 export default function PaperMakerWizardPage() {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [scopeConfig, setScopeConfig] = useState<PaperScopeConfig>(defaultScopeConfig);
   const [questions, setQuestions] = useState<PaperQuestion[]>(defaultQuestions);
-  const [exportConfig, setExportConfig] = useState<PaperExportConfig>(defaultExportConfig);
+  // Today's date is read at render time, not when the module loads.
+  const [exportConfig, setExportConfig] = useState<PaperExportConfig>(() => ({
+    ...defaultExportConfig,
+    testDate: new Date().toISOString().split("T")[0],
+    totalMarks: defaultQuestions.reduce((sum, q) => sum + q.marks, 0),
+  }));
 
-  const totalSteps = 3;
+  const totalSteps = steps.length;
 
-  const handleNext = () => {
-    if (currentStep < totalSteps) {
-      setCurrentStep((prev) => prev + 1);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
+  const goTo = (step: number) => {
+    setCurrentStep(step);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
-
-  const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep((prev) => prev - 1);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  };
-
-  const progressPercentage = (currentStep / totalSteps) * 100;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
-      {/* 1. Header with Breadcrumb & Back */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/teacher-portal"
-              className="text-xs font-semibold text-slate-500 hover:text-blue-600 flex items-center gap-1"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              <span>Back to Portal</span>
-            </Link>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 mt-1">
-            Exam Paper Generator Wizard
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Automated test paper creation with AI question recommendations and syllabus alignment.
-          </p>
-        </div>
+    <div className="mx-auto max-w-4xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader
+        title="Make an exam paper"
+        description="Pick the chapters, review the questions, then export a printable paper."
+      />
 
-        <span className="self-start sm:self-auto inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-          <Sparkles className="h-3 w-3" /> Step {currentStep} of {totalSteps}
-        </span>
-      </div>
+      <Card className="py-4">
+        <ol className="grid grid-cols-3 gap-2 px-4 sm:px-5" aria-label="Steps">
+          {steps.map((step, i) => {
+            const n = i + 1;
+            const state = n < currentStep ? "done" : n === currentStep ? "current" : "todo";
+            return (
+              <li key={step.title} aria-current={state === "current" ? "step" : undefined} className="flex items-center gap-2.5">
+                <span
+                  className={cn(
+                    "flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold",
+                    state === "todo" ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground"
+                  )}
+                >
+                  {state === "done" ? <Check aria-hidden className="size-4" /> : n}
+                  {state === "done" ? <span className="sr-only">Step {n}, done</span> : null}
+                </span>
+                <span className="min-w-0">
+                  <span className={cn("block truncate text-sm font-medium", state === "todo" && "text-muted-foreground")}>
+                    {step.title}
+                  </span>
+                  <span className="hidden truncate text-xs text-muted-foreground sm:block">{step.hint}</span>
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      </Card>
 
-      {/* 2. Top Step Progress Bar */}
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs space-y-3">
-        <div className="flex items-center justify-between text-xs font-semibold">
-          <div className="flex items-center gap-2">
-            <span
-              className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-                currentStep >= 1 ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-400"
-              }`}
-            >
-              1
-            </span>
-            <span className={currentStep >= 1 ? "text-slate-900" : "text-slate-400"}>
-              Scope & Syllabus
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span
-              className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-                currentStep >= 2 ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-400"
-              }`}
-            >
-              2
-            </span>
-            <span className={currentStep >= 2 ? "text-slate-900" : "text-slate-400"}>
-              Review Questions
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span
-              className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-                currentStep === 3 ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-400"
-              }`}
-            >
-              3
-            </span>
-            <span className={currentStep === 3 ? "text-slate-900" : "text-slate-400"}>
-              Export PDF
-            </span>
-          </div>
-        </div>
-
-        {/* Progress track */}
-        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-          <div
-            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${progressPercentage}%` }}
-          />
-        </div>
-      </div>
-
-      {/* 3. Dynamic Step Components */}
       <div>
         {currentStep === 1 && (
-          <PaperScopeStep
-            config={scopeConfig}
-            onChange={(updated) => setScopeConfig((prev) => ({ ...prev, ...updated }))}
-          />
+          <PaperScopeStep config={scopeConfig} onChange={(updated) => setScopeConfig((prev) => ({ ...prev, ...updated }))} />
         )}
-
-        {currentStep === 2 && (
-          <PaperReviewStep
-            questions={questions}
-            onUpdateQuestions={setQuestions}
-          />
-        )}
-
+        {currentStep === 2 && <PaperReviewStep questions={questions} onUpdateQuestions={setQuestions} />}
         {currentStep === 3 && (
-          <PaperExportStep
-            config={exportConfig}
-            onChange={(updated) => setExportConfig((prev) => ({ ...prev, ...updated }))}
-          />
+          <PaperExportStep config={exportConfig} onChange={(updated) => setExportConfig((prev) => ({ ...prev, ...updated }))} />
         )}
       </div>
 
-      {/* 4. Wizard Navigation Bottom Controls */}
-      <div className="flex items-center justify-between pt-2 border-t border-slate-200/80">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleBack}
-          disabled={currentStep === 1}
-          className="h-10 gap-2 border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Previous Step
+      <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+        <Button variant="outline" onClick={() => goTo(currentStep - 1)} disabled={currentStep === 1}>
+          <ArrowLeft data-icon="inline-start" />
+          Back
         </Button>
 
         {currentStep < totalSteps ? (
-          <Button
-            type="button"
-            onClick={handleNext}
-            className="h-10 gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs rounded-xl"
-          >
-            <span>Proceed to Step {currentStep + 1}</span>
-            <ArrowRight className="h-4 w-4" />
+          <Button onClick={() => goTo(currentStep + 1)}>
+            Next: {steps[currentStep].title.toLowerCase()}
+            <ArrowRight data-icon="inline-end" />
           </Button>
         ) : (
-          <Button
-            type="button"
-            onClick={() => setCurrentStep(1)}
-            variant="outline"
-            className="h-10 gap-2 border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs"
-          >
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            Start New Paper
+          <Button variant="outline" onClick={() => goTo(1)}>
+            Start a new paper
           </Button>
         )}
       </div>
     </div>
   );
 }
-

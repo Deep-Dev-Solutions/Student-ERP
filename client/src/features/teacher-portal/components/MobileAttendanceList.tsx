@@ -3,16 +3,12 @@
 import { useState } from "react";
 import {
   Card,
-  CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   CheckCircle2,
   Clock,
-  Sparkles,
-  UserCheck,
   UserX,
-  AlertCircle,
   Save,
 } from "lucide-react";
 
@@ -78,6 +74,17 @@ const mockStudents: StudentAttendanceItem[] = [
   },
 ];
 
+const statusOptions: {
+  value: AttendanceStatus;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  checked: string;
+}[] = [
+  { value: "present", label: "Present", icon: CheckCircle2, checked: "bg-success text-white" },
+  { value: "absent", label: "Absent", icon: UserX, checked: "bg-danger text-white" },
+  { value: "leave", label: "Leave", icon: Clock, checked: "bg-warning text-white" },
+];
+
 export function MobileAttendanceList() {
   const [students, setStudents] = useState<StudentAttendanceItem[]>(mockStudents);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,154 +117,94 @@ export function MobileAttendanceList() {
   const absentCount = students.filter((s) => s.status === "absent").length;
   const leaveCount = students.filter((s) => s.status === "leave").length;
 
+  const tally = [
+    { label: "Present", count: presentCount, dot: "bg-success" },
+    { label: "Absent", count: absentCount, dot: "bg-danger" },
+    { label: "Leave", count: leaveCount, dot: "bg-warning" },
+  ];
+
   return (
-    <div className="space-y-4 pb-20">
-      {/* Quick Summary Pill Bar */}
-      <div className="flex items-center justify-between gap-2 rounded-xl bg-white p-3 border border-slate-200/80 shadow-xs">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            <span>P: {presentCount}</span>
-          </div>
-          <div className="flex items-center gap-1 rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700">
-            <span className="h-2 w-2 rounded-full bg-rose-500" />
-            <span>A: {absentCount}</span>
-          </div>
-          <div className="flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
-            <span className="h-2 w-2 rounded-full bg-amber-500" />
-            <span>L: {leaveCount}</span>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={markAllPresent}
-          className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline active:scale-95 transition-all"
-        >
-          Mark All Present
-        </button>
+    <div className="space-y-4 pb-24">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl border border-border bg-card py-2 pr-2 pl-4">
+        <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm" aria-label="Summary">
+          {tally.map((t) => (
+            <li key={t.label} className="flex items-center gap-1.5">
+              <span aria-hidden className={`size-2 rounded-full ${t.dot}`} />
+              <span className="text-muted-foreground">{t.label}</span>
+              <span className="font-semibold">{t.count}</span>
+            </li>
+          ))}
+        </ul>
+        <Button variant="ghost" size="sm" onClick={markAllPresent}>
+          All present
+        </Button>
       </div>
 
-      {/* Student Attendance Cards with Large Touch Targets */}
-      <div className="space-y-3">
-        {students.map((student) => {
-          return (
-            <Card
-              key={student.id}
-              className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition-all hover:border-slate-300"
-            >
-              <CardContent className="p-0 space-y-3.5">
-                {/* Header: Student Info */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 font-bold text-sm text-slate-700 border border-slate-200/70">
-                      {student.avatar}
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-900 leading-tight">
-                        {student.name}
-                      </h4>
-                      <p className="text-xs font-mono font-medium text-slate-500 mt-0.5">
-                        Roll #{student.rollNo}
-                      </p>
-                    </div>
-                  </div>
+      <ul className="space-y-2">
+        {students.map((student) => (
+          <li key={student.id}>
+            <Card className="gap-3 px-4 py-4">
+              <div className="flex items-center gap-3">
+                <span
+                  aria-hidden
+                  className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-secondary-foreground"
+                >
+                  {student.avatar}
+                </span>
+                <div>
+                  <p className="font-medium">{student.name}</p>
+                  <p className="text-xs text-muted-foreground">Roll {student.rollNo}</p>
+                </div>
+              </div>
 
-                  {/* Active Status Dot Indicator */}
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize ${
-                      student.status === "present"
-                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                        : student.status === "absent"
-                        ? "bg-rose-50 text-rose-700 border border-rose-200"
-                        : "bg-amber-50 text-amber-700 border border-amber-200"
-                    }`}
-                  >
-                    <span
-                      className={`h-1.5 w-1.5 rounded-full ${
-                        student.status === "present"
-                          ? "bg-emerald-500"
-                          : student.status === "absent"
-                          ? "bg-rose-500"
-                          : "bg-amber-500"
+              <div
+                role="radiogroup"
+                aria-label={`Attendance for ${student.name}`}
+                className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-muted p-1"
+              >
+                {statusOptions.map(({ value, label, icon: Icon, checked: checkedClass }) => {
+                  const checked = student.status === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={checked}
+                      onClick={() => handleStatusChange(student.id, value)}
+                      className={`flex h-11 items-center justify-center gap-1.5 rounded-lg text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 ${
+                        checked ? checkedClass : "text-muted-foreground hover:bg-card"
                       }`}
-                    />
-                    {student.status}
-                  </span>
-                </div>
-
-                {/* Large Segmented Toggle Buttons (Touch-friendly minimum 44px height) */}
-                <div className="grid grid-cols-3 gap-2 p-1 rounded-xl bg-slate-100/90 border border-slate-200/80">
-                  {/* Present Button */}
-                  <button
-                    type="button"
-                    onClick={() => handleStatusChange(student.id, "present")}
-                    className={`flex h-11 items-center justify-center gap-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 ${
-                      student.status === "present"
-                        ? "bg-emerald-600 text-white shadow-xs"
-                        : "text-slate-600 hover:bg-slate-200/60"
-                    }`}
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span>Present</span>
-                  </button>
-
-                  {/* Absent Button */}
-                  <button
-                    type="button"
-                    onClick={() => handleStatusChange(student.id, "absent")}
-                    className={`flex h-11 items-center justify-center gap-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 ${
-                      student.status === "absent"
-                        ? "bg-rose-600 text-white shadow-xs"
-                        : "text-slate-600 hover:bg-slate-200/60"
-                    }`}
-                  >
-                    <UserX className="h-4 w-4" />
-                    <span>Absent</span>
-                  </button>
-
-                  {/* Leave Button */}
-                  <button
-                    type="button"
-                    onClick={() => handleStatusChange(student.id, "leave")}
-                    className={`flex h-11 items-center justify-center gap-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 ${
-                      student.status === "leave"
-                        ? "bg-amber-500 text-white shadow-xs"
-                        : "text-slate-600 hover:bg-slate-200/60"
-                    }`}
-                  >
-                    <Clock className="h-4 w-4" />
-                    <span>Leave</span>
-                  </button>
-                </div>
-              </CardContent>
+                    >
+                      <Icon aria-hidden className="size-4" />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </Card>
-          );
-        })}
-      </div>
+          </li>
+        ))}
+      </ul>
 
-      {/* Sticky Bottom Submit Bar (Positioned right above MobileBottomNav) */}
-      <div className="fixed bottom-16 md:bottom-4 left-0 right-0 z-40 p-4 md:pl-66 bg-gradient-to-t from-slate-50 via-slate-50/95 to-transparent pointer-events-none">
-        <div className="max-w-md md:max-w-2xl mx-auto pointer-events-auto">
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="w-full h-12 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/25 rounded-xl gap-2 transition-transform active:scale-[0.99]"
-          >
+      {/* Sits just above the mobile bottom nav; next to the sidebar on desktop. */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-16 z-40 bg-gradient-to-t from-background via-background/95 to-transparent p-4 md:bottom-0 md:pl-66">
+        <div className="pointer-events-auto mx-auto max-w-md space-y-2 md:max-w-2xl">
+          {submitSuccess ? (
+            <p role="status" className="flex items-center justify-center gap-2 rounded-lg border border-success/30 bg-success-tint p-2 text-sm text-success">
+              <CheckCircle2 aria-hidden className="size-4" />
+              Attendance submitted.
+            </p>
+          ) : null}
+          <Button size="lg" onClick={handleSubmit} disabled={isSubmitting} className="h-12 w-full text-base">
             {isSubmitting ? (
               <>
-                <Clock className="h-4 w-4 animate-spin" />
-                Submitting Register...
-              </>
-            ) : submitSuccess ? (
-              <>
-                <CheckCircle2 className="h-4 w-4 text-emerald-300" />
-                Attendance Registered!
+                <Clock data-icon="inline-start" className="motion-safe:animate-spin" />
+                Submitting…
               </>
             ) : (
               <>
-                <Save className="h-4 w-4" />
-                Submit Today's Attendance ({presentCount}/{students.length} Present)
+                <Save data-icon="inline-start" />
+                Submit attendance ({presentCount} of {students.length} present)
               </>
             )}
           </Button>
@@ -266,4 +213,3 @@ export function MobileAttendanceList() {
     </div>
   );
 }
-

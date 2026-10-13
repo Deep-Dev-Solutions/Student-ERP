@@ -3,17 +3,15 @@
 import { useState } from "react";
 import {
   Card,
-  CardContent,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { gradeFor } from "@/lib/grades";
 import {
   CheckCircle2,
   Clock,
   Save,
-  Award,
-  Sparkles,
-  Calculator,
 } from "lucide-react";
 
 export interface StudentMarksItem {
@@ -118,89 +116,47 @@ export function MobileMarksEntry() {
     (totalFilled || 1);
 
   return (
-    <div className="space-y-4 pb-20">
-      {/* Quick Stats Pill Strip */}
-      <div className="flex items-center justify-between rounded-xl bg-white p-3 border border-slate-200/80 shadow-xs text-xs">
-        <div className="flex items-center gap-3">
-          <span className="text-slate-600">
-            Recorded:{" "}
-            <strong className="text-slate-900 font-bold">
-              {totalFilled}/{students.length}
-            </strong>
-          </span>
-          <span className="text-slate-300">•</span>
-          <span className="text-slate-600">
-            Avg:{" "}
-            <strong className="text-blue-600 font-bold font-mono">
-              {averageMarks.toFixed(1)} / 100
-            </strong>
-          </span>
-        </div>
+    <div className="space-y-4 pb-24">
+      <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">
+        <span className="font-semibold text-foreground">
+          {totalFilled} of {students.length}
+        </span>{" "}
+        entered · average <span className="font-semibold text-foreground">{averageMarks.toFixed(1)}</span>
+      </p>
 
-        <span className="text-[11px] font-semibold text-slate-400">
-          Max: 100 Marks
-        </span>
-      </div>
-
-      {/* Student List Cards with Large Touch Number Input */}
-      <div className="space-y-3">
+      <ul className="space-y-2">
         {students.map((student) => {
-          const score =
-            student.obtainedMarks === "" ? null : Number(student.obtainedMarks);
-          let grade = "—";
-          let gradeColor = "text-slate-400 bg-slate-100";
-
-          if (score !== null) {
-            if (score >= 80) {
-              grade = "A+";
-              gradeColor = "text-emerald-700 bg-emerald-50 border-emerald-200";
-            } else if (score >= 70) {
-              grade = "A";
-              gradeColor = "text-blue-700 bg-blue-50 border-blue-200";
-            } else if (score >= 60) {
-              grade = "B";
-              gradeColor = "text-indigo-700 bg-indigo-50 border-indigo-200";
-            } else if (score >= 50) {
-              grade = "C";
-              gradeColor = "text-amber-700 bg-amber-50 border-amber-200";
-            } else {
-              grade = "F";
-              gradeColor = "text-rose-700 bg-rose-50 border-rose-200";
-            }
-          }
-
+          const score = student.obtainedMarks === "" ? null : Number(student.obtainedMarks);
+          const grade = gradeFor(score === null ? null : Math.round((score / student.maxMarks) * 100));
+          const inputId = `marks-${student.id}`;
           return (
-            <Card
-              key={student.id}
-              className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition-all hover:border-slate-300"
-            >
-              <CardContent className="p-0 flex items-center justify-between gap-3">
-                {/* Left: Student Identity */}
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 font-bold text-sm text-slate-700 border border-slate-200/70">
-                    {student.avatar}
-                  </div>
-                  <div className="truncate">
-                    <h4 className="text-sm font-bold text-slate-900 leading-tight truncate">
-                      {student.name}
-                    </h4>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs font-mono font-medium text-slate-500">
-                        Roll #{student.rollNo}
-                      </span>
-                      <span
-                        className={`inline-flex items-center justify-center h-5 px-1.5 rounded text-[10px] font-bold border ${gradeColor}`}
-                      >
-                        {grade}
-                      </span>
+            <li key={student.id}>
+              <Card className="gap-0 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span
+                      aria-hidden
+                      className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-secondary-foreground"
+                    >
+                      {student.avatar}
+                    </span>
+                    <div className="min-w-0">
+                      <label htmlFor={inputId} className="block truncate font-medium">
+                        {student.name}
+                      </label>
+                      <div className="mt-0.5 flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Roll {student.rollNo}</span>
+                        <Badge variant={grade.variant} className="h-5 px-1.5">
+                          <span className="sr-only">Grade </span>
+                          {grade.label}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Right: Large Input for Thumb Typing */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className="relative">
+                  <div className="flex shrink-0 items-center gap-2">
                     <Input
+                      id={inputId}
                       type="number"
                       inputMode="numeric"
                       pattern="[0-9]*"
@@ -208,44 +164,40 @@ export function MobileMarksEntry() {
                       max={student.maxMarks}
                       value={student.obtainedMarks}
                       placeholder="—"
-                      onChange={(e) =>
-                        handleScoreChange(student.id, e.target.value)
-                      }
-                      className="h-12 w-20 text-center font-mono font-bold text-lg bg-slate-50 border-slate-300 focus:bg-white focus-visible:ring-blue-600 rounded-xl"
+                      onChange={(e) => handleScoreChange(student.id, e.target.value)}
+                      aria-describedby={`${inputId}-max`}
+                      className="h-12 w-20 bg-card text-center text-lg font-semibold tabular-nums"
                     />
+                    <span id={`${inputId}-max`} className="text-sm text-muted-foreground">
+                      / {student.maxMarks}
+                    </span>
                   </div>
-                  <span className="text-xs font-mono text-slate-400">
-                    / {student.maxMarks}
-                  </span>
                 </div>
-              </CardContent>
-            </Card>
+              </Card>
+            </li>
           );
         })}
-      </div>
+      </ul>
 
-      {/* Sticky Bottom Save Bar */}
-      <div className="fixed bottom-16 md:bottom-4 left-0 right-0 z-40 p-4 md:pl-66 bg-gradient-to-t from-slate-50 via-slate-50/95 to-transparent pointer-events-none">
-        <div className="max-w-md md:max-w-2xl mx-auto pointer-events-auto">
-          <Button
-            onClick={handleSaveMarks}
-            disabled={isSaving}
-            className="w-full h-12 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/25 rounded-xl gap-2 transition-transform active:scale-[0.99]"
-          >
+      {/* Sits just above the mobile bottom nav; next to the sidebar on desktop. */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-16 z-40 bg-gradient-to-t from-background via-background/95 to-transparent p-4 md:bottom-0 md:pl-66">
+        <div className="pointer-events-auto mx-auto max-w-md space-y-2 md:max-w-2xl">
+          {saveSuccess ? (
+            <p role="status" className="flex items-center justify-center gap-2 rounded-lg border border-success/30 bg-success-tint p-2 text-sm text-success">
+              <CheckCircle2 aria-hidden className="size-4" />
+              Marks saved.
+            </p>
+          ) : null}
+          <Button size="lg" onClick={handleSaveMarks} disabled={isSaving} className="h-12 w-full text-base">
             {isSaving ? (
               <>
-                <Clock className="h-4 w-4 animate-spin" />
-                Saving Scores...
-              </>
-            ) : saveSuccess ? (
-              <>
-                <CheckCircle2 className="h-4 w-4 text-emerald-300" />
-                Marks Saved to Gradebook!
+                <Clock data-icon="inline-start" className="motion-safe:animate-spin" />
+                Saving…
               </>
             ) : (
               <>
-                <Save className="h-4 w-4" />
-                Save Marks ({totalFilled}/{students.length} Entered)
+                <Save data-icon="inline-start" />
+                Save marks ({totalFilled} of {students.length} entered)
               </>
             )}
           </Button>
@@ -254,4 +206,3 @@ export function MobileMarksEntry() {
     </div>
   );
 }
-
