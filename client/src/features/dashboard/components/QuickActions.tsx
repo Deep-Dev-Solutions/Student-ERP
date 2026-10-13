@@ -1,80 +1,37 @@
 import Link from "next/link";
-import {
-  Plus,
-  ArrowUpRight,
-  Wallet,
-  UserCheck,
-  FileText,
-  ChevronRight,
-} from "lucide-react";
-import {
-  Card,
-  CardDescription,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { CalendarCheck, ChevronRight, FileText, Upload, Wallet } from "lucide-react";
+import { Card } from "@/components/ui/card";
+
+const actions = [
+  { href: "/fees", label: "Collect a fee", hint: "Issue a receipt at the counter", icon: Wallet },
+  { href: "/attendance", label: "Lock today's attendance", hint: "Review and lock open registers", icon: CalendarCheck },
+  { href: "/fees", label: "Defaulter report", hint: "Overdue vouchers by class", icon: FileText },
+  { href: "/students", label: "Import students", hint: "Add admissions from a spreadsheet", icon: Upload },
+];
 
 export function QuickActions() {
   return (
-    <Card className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-xs">
-      <div className="border-b border-slate-100 pb-4">
-        <CardTitle className="text-base font-bold text-slate-900">
-          Quick Actions
-        </CardTitle>
-        <CardDescription className="text-xs text-slate-500 mt-0.5">
-          Rapid workflows for daily administrative routines.
-        </CardDescription>
-      </div>
-
-      <div className="mt-5 space-y-3">
-        {/* Primary Action Button (Brand solid blue) */}
-        <Link href="/students" className="block">
-          <Button className="w-full justify-between bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-xs h-11 px-4 rounded-lg group">
-            <div className="flex items-center gap-2.5">
-              <Plus className="h-4 w-4 transition-transform group-hover:scale-110" />
-              <span>Admit New Student</span>
-            </div>
-            <ArrowUpRight className="h-4 w-4 opacity-70 group-hover:opacity-100" />
-          </Button>
-        </Link>
-
-        {/* Secondary Clean Outline Action Buttons */}
-        <Button
-          variant="outline"
-          className="w-full justify-between border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 font-medium h-11 px-4 rounded-lg shadow-xs group"
-        >
-          <div className="flex items-center gap-2.5">
-            <Wallet className="h-4 w-4 text-slate-500 group-hover:text-blue-600 transition-colors" />
-            <span>Collect Fee (Issue Voucher)</span>
-          </div>
-          <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-slate-600" />
-        </Button>
-
-        <Link href="/attendance" className="block">
-          <Button
-            variant="outline"
-            className="w-full justify-between border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 font-medium h-11 px-4 rounded-lg shadow-xs group"
-          >
-            <div className="flex items-center gap-2.5">
-              <UserCheck className="h-4 w-4 text-slate-500 group-hover:text-emerald-600 transition-colors" />
-              <span>Lock Today's Attendance</span>
-            </div>
-            <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-slate-600" />
-          </Button>
-        </Link>
-
-        <Button
-          variant="outline"
-          className="w-full justify-between border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 font-medium h-11 px-4 rounded-lg shadow-xs group"
-        >
-          <div className="flex items-center gap-2.5">
-            <FileText className="h-4 w-4 text-slate-500 group-hover:text-indigo-600 transition-colors" />
-            <span>Generate Defaulter Report</span>
-          </div>
-          <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-slate-600" />
-        </Button>
-      </div>
+    <Card className="gap-3 px-3">
+      <h2 className="px-2 text-base font-semibold">Quick actions</h2>
+      <ul className="space-y-0.5">
+        {actions.map(({ href, label, hint, icon: Icon }) => (
+          <li key={label}>
+            <Link
+              href={href}
+              className="group flex items-center gap-3 rounded-lg px-2 py-2.5 outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/40"
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
+                <Icon aria-hidden className="size-4" />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col leading-tight">
+                <span className="text-sm font-medium">{label}</span>
+                <span className="truncate text-xs text-muted-foreground">{hint}</span>
+              </span>
+              <ChevronRight aria-hidden className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </li>
+        ))}
+      </ul>
     </Card>
   );
 }
-

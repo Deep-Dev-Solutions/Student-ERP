@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { Menu, Bell, Search } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Bell, ChevronRight, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -10,70 +12,92 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { BranchSwitcher } from "@/components/layout/BranchSwitcher";
-import { UserProfileNav } from "@/components/layout/UserProfileNav";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { getBreadcrumbs, type NavGroup } from "@/components/layout/nav-config";
 
-export function Header() {
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+interface HeaderProps {
+  groups: NavGroup[];
+  /** Right-hand controls (campus switcher, profile menu, …). */
+  actions?: React.ReactNode;
+  /** Render the slide-out navigation on small screens. Off when a bottom nav is used. */
+  mobileMenu?: {
+    subtitle?: string;
+    footer?: (close: () => void) => React.ReactNode;
+  };
+}
+
+export function Header({ groups, actions, mobileMenu }: HeaderProps) {
+  const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const crumbs = getBreadcrumbs(pathname, groups);
+  const current = crumbs.at(-1);
+  const close = () => setMenuOpen(false);
 
   return (
-    <header className="sticky top-0 z-50 flex h-16 w-full items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 sm:px-6 backdrop-blur-md shadow-xs">
-      {/* Left Side: Mobile Hamburger Menu (visible only on max-md) */}
-      <div className="flex items-center gap-3">
-        <div className="block md:hidden">
-          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-            <SheetTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-9 rounded-lg border border-slate-200/80 bg-white text-slate-700 hover:bg-slate-100 shadow-xs"
-                  aria-label="Open navigation sidebar"
+    <header className="sticky top-0 z-40 flex h-16 w-full shrink-0 items-center justify-between gap-3 border-b border-border bg-card/90 px-4 backdrop-blur-md sm:px-6">
+      <div className="flex min-w-0 items-center gap-3">
+        {mobileMenu ? (
+          <div className="md:hidden">
+            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+              <SheetTrigger
+                render={<Button variant="outline" size="icon" aria-label="Open navigation" />}
+              >
+                <Menu className="size-5" />
+              </SheetTrigger>
+              <SheetContent side="left" showCloseButton={false} className="w-64 gap-0 p-0">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Navigation</SheetTitle>
+                </SheetHeader>
+                <Sidebar
+                  groups={groups}
+                  subtitle={mobileMenu.subtitle}
+                  footer={mobileMenu.footer?.(close)}
+                  onItemClick={close}
                 />
-              }
-            >
-              <Menu className="size-5" />
-            </SheetTrigger>
-            <SheetContent
-              side="left"
-              className="w-72 p-0 bg-white border-r border-slate-200"
-            >
-              <SheetHeader className="sr-only">
-                <SheetTitle>Navigation Menu</SheetTitle>
-              </SheetHeader>
-              <Sidebar onItemClick={() => setMobileMenuOpen(false)} />
-            </SheetContent>
-          </Sheet>
-        </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+        ) : null}
 
-        {/* Search quick button or breadcrumb hint */}
-        <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
-          <span className="font-semibold text-slate-700">Apex Enterprise ERP</span>
-          <span>/</span>
-          <span className="text-slate-500">Administration Console</span>
-        </div>
+        {crumbs.length > 0 ? (
+          <nav aria-label="Breadcrumb" className="min-w-0">
+            {/* Small screens: just the current page. */}
+            <p className="truncate text-sm font-semibold sm:hidden">{current?.label}</p>
+            <ol className="hidden items-center gap-1.5 text-sm sm:flex">
+              {crumbs.map((crumb, i) => {
+                const isLast = i === crumbs.length - 1;
+                return (
+                  <li key={crumb.label} className="flex items-center gap-1.5">
+                    {i > 0 ? <ChevronRight aria-hidden className="size-3.5 text-muted-foreground" /> : null}
+                    {isLast ? (
+                      <span aria-current="page" className="font-semibold text-foreground">
+                        {crumb.label}
+                      </span>
+                    ) : crumb.href ? (
+                      <Link
+                        href={crumb.href}
+                        className="rounded text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
+                      >
+                        {crumb.label}
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground">{crumb.label}</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+        ) : null}
       </div>
 
-      {/* Right Side: BranchSwitcher + UserProfileNav with gap-4 */}
-      <div className="flex items-center gap-3 sm:gap-4">
-        {/* Notification bell button */}
-        <button
-          type="button"
-          className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200/80 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 shadow-xs transition-colors"
-          aria-label="View notifications"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-blue-600 ring-2 ring-white" />
-        </button>
-
-        {/* Branch Switcher (Multi-campus selector) */}
-        <BranchSwitcher />
-
-        {/* User Profile Navigation */}
-        <UserProfileNav />
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <Button variant="outline" size="icon" aria-label="Notifications" className="relative">
+          <Bell className="size-4" />
+          <span aria-hidden className="absolute top-2 right-2 size-2 rounded-full bg-highlight ring-2 ring-card" />
+        </Button>
+        {actions}
       </div>
     </header>
   );
 }
-

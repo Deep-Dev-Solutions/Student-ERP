@@ -1,16 +1,20 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { IBM_Plex_Sans } from "next/font/google";
+import { BRAND } from "@/lib/brand";
 import "./globals.css";
 
-const inter = Inter({
+const plexSans = IBM_Plex_Sans({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-inter",
+  variable: "--font-plex-sans",
 });
 
 export const metadata: Metadata = {
-  title: "EduCore ERP | School Management System",
-  description: "Enterprise SaaS platform for modern educational institutions.",
+  title: {
+    default: BRAND.name,
+    template: `%s | ${BRAND.name}`,
+  },
+  description: BRAND.description,
 };
 
 export default function RootLayout({
@@ -19,11 +23,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className={`${inter.className} min-h-full flex flex-col antialiased bg-slate-50 text-slate-900`}>
+    <html lang="en" className={`${plexSans.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col">
         {children}
       </body>
     </html>
   );
 }
-

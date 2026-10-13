@@ -112,7 +112,7 @@ export function AbsenceAlerts({
           <div className="mt-4 space-y-3">
             <div className="rounded-xl border border-emerald-200/80 bg-[#e7f8ef] p-4 text-xs text-slate-800 shadow-xs relative">
               <div className="flex items-center gap-2 font-bold text-emerald-800 mb-2">
-                <span>EduCore ERP • Attendance Notice</span>
+                <span>DeepDev ERP • Attendance Notice</span>
               </div>
               <p className="leading-relaxed">
                 "Respected Parent, your child{" "}

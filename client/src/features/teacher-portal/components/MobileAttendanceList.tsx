@@ -237,7 +237,7 @@ export function MobileAttendanceList() {
       </div>
 
       {/* Sticky Bottom Submit Bar (Positioned right above MobileBottomNav) */}
-      <div className="fixed bottom-16 md:bottom-4 left-0 right-0 z-40 p-4 md:pl-68 bg-gradient-to-t from-slate-50 via-slate-50/95 to-transparent pointer-events-none">
+      <div className="fixed bottom-16 md:bottom-4 left-0 right-0 z-40 p-4 md:pl-66 bg-gradient-to-t from-slate-50 via-slate-50/95 to-transparent pointer-events-none">
         <div className="max-w-md md:max-w-2xl mx-auto pointer-events-auto">
           <Button
             onClick={handleSubmit}

@@ -1,108 +1,93 @@
-import {
-  Card,
-  CardDescription,
-  CardTitle,
-} from "@/components/ui/card";
+import { CalendarCheck, FileStack, UserPlus, Wallet } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { studentsSummary, todayRegister } from "@/features/dashboard/data";
 
-interface ActivityLogItem {
+const nineB = todayRegister.find((s) => s.section === "9-B")!;
+
+interface ActivityItem {
   id: string;
   title: string;
   description: React.ReactNode;
   time: string;
-  indicatorColor: string;
+  icon: React.ComponentType<{ className?: string }>;
 }
 
-const recentActivities: ActivityLogItem[] = [
+const recentActivities: ActivityItem[] = [
   {
     id: "act-1",
-    title: "Fee Collected",
+    title: "Fee collected",
     description: (
       <>
-        <span className="font-medium text-slate-800">Ali (Accountant)</span>{" "}
-        collected Rs 3,000 via Cash for Student #1042 (Ahmed Khan).
+        <span className="font-medium text-foreground">Ali (Accountant)</span> collected Rs 3,000
+        in cash for student #1042, Ahmed Khan.
       </>
     ),
-    time: "10m ago",
-    indicatorColor: "bg-blue-600",
+    time: "10 min ago",
+    icon: Wallet,
   },
   {
     id: "act-2",
-    title: "Attendance Locked",
+    title: "Attendance locked",
     description: (
       <>
-        <span className="font-medium text-slate-800">Usman (Principal)</span>{" "}
-        verified and locked Class 9-A attendance record (34 present, 2 absent).
+        <span className="font-medium text-foreground">Usman (Principal)</span> locked the class 9-B
+        register: {nineB.present} present,{" "}
+        {nineB.enrolled - nineB.present} absent.
       </>
     ),
-    time: "1h ago",
-    indicatorColor: "bg-emerald-500",
+    time: "1 hr ago",
+    icon: CalendarCheck,
   },
   {
     id: "act-3",
-    title: "New Student Registered",
+    title: "Student admitted",
     description: (
       <>
-        <span className="font-medium text-slate-800">Admin</span> registered{" "}
-        Zainab Bilal into Class 10-B. Voucher generated automatically.
+        <span className="font-medium text-foreground">Admin</span> admitted Zainab Bilal to class
+        10-B. Her first fee voucher was generated.
       </>
     ),
-    time: "3h ago",
-    indicatorColor: "bg-indigo-500",
+    time: "3 hr ago",
+    icon: UserPlus,
   },
   {
     id: "act-4",
-    title: "Monthly Fee Vouchers Generated",
+    title: "Monthly vouchers generated",
     description: (
       <>
-        System generated 1,245 fee challans for the November billing cycle.
+        {studentsSummary.total.toLocaleString()} fee vouchers were generated for the October
+        billing cycle.
       </>
     ),
     time: "Yesterday",
-    indicatorColor: "bg-slate-400",
+    icon: FileStack,
   },
 ];
 
 export function ActivityFeed() {
   return (
-    <Card className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-xs">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-        <div>
-          <CardTitle className="text-base font-bold text-slate-900">
-            Recent Activity Log
-          </CardTitle>
-          <CardDescription className="text-xs text-slate-500 mt-0.5">
-            Audit trail of administrative actions across this branch.
-          </CardDescription>
-        </div>
-        <span className="text-xs font-medium text-blue-600 hover:text-blue-700 cursor-pointer">
-          View all
-        </span>
+    <Card className="gap-4 px-5 sm:px-6">
+      <div>
+        <h2 className="text-base font-semibold">Recent activity</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">Actions taken at this campus</p>
       </div>
 
-      {/* Timeline UI with Continuous Stem */}
-      <div className="mt-5 relative pl-6 space-y-6 before:absolute before:top-2 before:bottom-2 before:left-2 before:w-0.5 before:bg-slate-200">
-        {recentActivities.map((activity) => (
-          <div key={activity.id} className="relative group">
-            <div
-              className={`absolute -left-6 top-1 h-2.5 w-2.5 rounded-full ${activity.indicatorColor} ring-4 ring-white`}
-            />
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-sm font-semibold text-slate-900">
-                  {activity.title}
-                </p>
-                <p className="mt-0.5 text-xs text-slate-600 leading-relaxed">
-                  {activity.description}
-                </p>
+      <ol className="space-y-4">
+        {recentActivities.map(({ id, title, description, time, icon: Icon }) => (
+          <li key={id} className="flex gap-3">
+            <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <Icon aria-hidden className="size-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="text-sm font-medium">{title}</p>
+                <span className="shrink-0 text-xs text-muted-foreground">{time}</span>
               </div>
-              <span className="text-[11px] font-medium text-slate-400 shrink-0">
-                {activity.time}
-              </span>
+              <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
             </div>
-          </div>
+          </li>
         ))}
-      </div>
+      </ol>
     </Card>
   );
 }
-

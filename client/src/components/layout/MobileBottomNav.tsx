@@ -2,87 +2,55 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Home,
-  UserCheck,
-  Award,
-  FileSpreadsheet,
-} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { isNavItemActive, teacherNavGroups } from "@/components/layout/nav-config";
 
-interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
+const shortLabels: Record<string, string> = {
+  "/teacher-portal": "Home",
+  "/teacher-portal/attendance": "Attendance",
+  "/teacher-portal/marks": "Marks",
+  "/teacher-portal/paper-maker": "Papers",
+};
 
-const navItems: NavItem[] = [
-  {
-    label: "Home",
-    href: "/teacher-portal",
-    icon: Home,
-  },
-  {
-    label: "Attendance",
-    href: "/teacher-portal/attendance",
-    icon: UserCheck,
-  },
-  {
-    label: "Marks",
-    href: "/teacher-portal/marks",
-    icon: Award,
-  },
-  {
-    label: "Paper Maker",
-    href: "/teacher-portal/paper-maker",
-    icon: FileSpreadsheet,
-  },
-];
+const navItems = teacherNavGroups.flatMap((group) => group.items);
 
 export function MobileBottomNav() {
   const pathname = usePathname();
 
   return (
     <nav
-      aria-label="Mobile Navigation Bar"
-      className="fixed bottom-0 left-0 right-0 z-50 block border-t border-slate-200/80 bg-white/95 backdrop-blur-md pb-safe md:hidden shadow-lg shadow-slate-900/5"
+      aria-label="Teacher portal"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
     >
-      <div className="mx-auto flex max-w-md items-center justify-around px-2 py-2">
+      <ul className="mx-auto flex max-w-md items-center justify-around px-2 py-1.5">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive =
-            pathname === item.href ||
-            (item.href !== "/teacher-dashboard" &&
-              pathname?.startsWith(item.href)) ||
-            (item.href === "/teacher-dashboard" &&
-              (pathname === "/teacher-dashboard" || pathname === "/"));
+          const active = isNavItemActive(pathname, item);
 
           return (
-            <Link
-              key={item.label}
-              href={item.href}
-              className={`flex flex-col items-center justify-center gap-1 rounded-xl px-3 py-1.5 transition-all ${
-                isActive
-                  ? "text-blue-600 font-semibold"
-                  : "text-slate-500 hover:text-slate-900 active:scale-95"
-              }`}
-            >
-              <div
-                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
-                  isActive
-                    ? "bg-blue-50 text-blue-600"
-                    : "text-slate-500 group-hover:text-slate-700"
-                }`}
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "flex min-w-16 flex-col items-center gap-1 rounded-lg px-3 py-1.5 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40",
+                  active ? "font-semibold text-primary" : "text-muted-foreground hover:text-foreground"
+                )}
               >
-                <Icon className="h-5 w-5" />
-              </div>
-              <span className="text-[10px] tracking-tight leading-none">
-                {item.label}
-              </span>
-            </Link>
+                <span
+                  className={cn(
+                    "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
+                    active && "bg-secondary"
+                  )}
+                >
+                  <Icon className="size-5" />
+                </span>
+                {shortLabels[item.href] ?? item.label}
+              </Link>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </nav>
   );
 }
-
