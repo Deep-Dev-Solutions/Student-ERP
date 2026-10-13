@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useUrlTab } from "@/hooks/use-url-state";
 import {
   Tabs,
   TabsContent,
@@ -20,8 +20,10 @@ import {
   MarksEntryGrid,
 } from "@/features/exams/components";
 
+const TABS = ["setup", "marks"] as const;
+
 export default function ExamsPage() {
-  const [activeTab, setActiveTab] = useState("setup");
+  const [activeTab, setActiveTab] = useUrlTab("setup", TABS);
 
   return (
     <div className="space-y-6">

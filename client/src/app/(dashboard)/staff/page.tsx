@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCan } from "@/hooks/use-session";
+import { useUrlTab } from "@/hooks/use-url-state";
 import {
   Tabs,
   TabsContent,
@@ -22,8 +23,11 @@ import {
   PayrollList,
 } from "@/features/staff/components";
 
+const TABS = ["directory", "allocations", "payroll"] as const;
+
 export default function StaffPage() {
-  const [activeTab, setActiveTab] = useState("directory");
+  const canSeePayroll = useCan("fin_manage_payroll");
+  const [activeTab, setActiveTab] = useUrlTab("directory", canSeePayroll ? TABS : ["directory", "allocations"]);
 
   return (
     <div className="space-y-6">
@@ -54,10 +58,12 @@ export default function StaffPage() {
             <GraduationCap />
             Teaching allocations
           </TabsTrigger>
-          <TabsTrigger value="payroll">
-            <Banknote />
-            Payroll
-          </TabsTrigger>
+          {canSeePayroll ? (
+            <TabsTrigger value="payroll">
+              <Banknote />
+              Payroll
+            </TabsTrigger>
+          ) : null}
         </TabsList>
 
         <TabsContent value="directory">
@@ -66,9 +72,11 @@ export default function StaffPage() {
         <TabsContent value="allocations">
           <TeacherAllocations />
         </TabsContent>
-        <TabsContent value="payroll">
-          <PayrollList />
-        </TabsContent>
+        {canSeePayroll ? (
+          <TabsContent value="payroll">
+            <PayrollList />
+          </TabsContent>
+        ) : null}
       </Tabs>
     </div>
   );

@@ -30,7 +30,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { gradeFor } from "@/lib/grades";
+import { useClassSectionPicker, useClassSubjects, useGrader, useReadOnly } from "@/hooks/use-academics";
+import { useGetMarksQuery } from "@/store/api";
 import { StudentMarksRecord } from "../types";
 
 const examOptions = [
@@ -38,107 +39,21 @@ const examOptions = [
   { value: "monthly-sep", label: "Monthly test, September" },
   { value: "final-2026", label: "Annual board exam" },
 ];
-const classOptions = [
-  { value: "class-8", label: "Class 8" },
-  { value: "class-9", label: "Class 9" },
-  { value: "class-10", label: "Class 10" },
-];
-const sectionOptions = [
-  { value: "sec-a", label: "Section A" },
-  { value: "sec-b", label: "Section B" },
-  { value: "sec-c", label: "Section C" },
-];
-const subjectOptions = [
-  { value: "physics", label: "Physics (out of 100)" },
-  { value: "mathematics", label: "Mathematics (out of 100)" },
-  { value: "chemistry", label: "Chemistry (out of 100)" },
-  { value: "english", label: "English (out of 100)" },
-  { value: "biology", label: "Biology (out of 100)" },
-];
 
-
-const mockStudents: StudentMarksRecord[] = [
-  {
-    id: "std-1",
-    studentId: "STD-1042",
-    rollNo: "10-A-01",
-    studentName: "Ahmed Khan",
-    avatar: "AK",
-    className: "Class 10",
-    section: "Section A",
-    obtainedMarks: 85,
-    maxMarks: 100,
-    remarks: "Excellent problem solving",
-  },
-  {
-    id: "std-2",
-    studentId: "STD-1043",
-    rollNo: "10-A-02",
-    studentName: "Fatima Ali",
-    avatar: "FA",
-    className: "Class 10",
-    section: "Section A",
-    obtainedMarks: 92,
-    maxMarks: 100,
-    remarks: "Outstanding presentation",
-  },
-  {
-    id: "std-3",
-    studentId: "STD-1044",
-    rollNo: "10-A-03",
-    studentName: "Bilal Sheikh",
-    avatar: "BS",
-    className: "Class 10",
-    section: "Section A",
-    obtainedMarks: 58,
-    maxMarks: 100,
-    remarks: "Needs improvement in derivations",
-  },
-  {
-    id: "std-4",
-    studentId: "STD-1045",
-    rollNo: "10-A-04",
-    studentName: "Zubair Shah",
-    avatar: "ZS",
-    className: "Class 10",
-    section: "Section A",
-    obtainedMarks: 74,
-    maxMarks: 100,
-    remarks: "Good conceptual grasp",
-  },
-  {
-    id: "std-5",
-    studentId: "STD-1046",
-    rollNo: "10-A-05",
-    studentName: "Sara Mansoor",
-    avatar: "SM",
-    className: "Class 10",
-    section: "Section A",
-    obtainedMarks: 88,
-    maxMarks: 100,
-    remarks: "Very thorough answer sheet",
-  },
-  {
-    id: "std-6",
-    studentId: "STD-1047",
-    rollNo: "10-A-06",
-    studentName: "Hamza Abbasi",
-    avatar: "HA",
-    className: "Class 10",
-    section: "Section A",
-    obtainedMarks: 46,
-    maxMarks: 100,
-    remarks: "Remedial coaching recommended",
-  },
-];
 
 export function MarksEntryGrid() {
+  const readOnly = useReadOnly();
+  const { data: initialMarks = [] } = useGetMarksQuery();
   const [selectedExam, setSelectedExam] = useState("midterm-2026");
-  const [selectedClass, setSelectedClass] = useState("class-10");
-  const [selectedSection, setSelectedSection] = useState("sec-a");
-  const [selectedSubject, setSelectedSubject] = useState("physics");
+  const picker = useClassSectionPicker({ className: "Class 10", section: "A" });
+  const classSubjects = useClassSubjects(picker.classId);
+  const [pickedSubjectId, setPickedSubjectId] = useState("sub-phy");
+  const selectedSubject = classSubjects.some((s) => s.id === pickedSubjectId) ? pickedSubjectId : (classSubjects[0]?.id ?? "");
+  // Out-of marks come from the date sheet once it exists (Phase G).
+  const subjectOptions = classSubjects.map((s) => ({ value: s.id, label: `${s.name} (out of 100)` }));
+  const gradeFor = useGrader();
   const [searchQuery, setSearchQuery] = useState("");
-  const [marksData, setMarksData] = useState<StudentMarksRecord[]>(mockStudents);
+  const [marksData, setMarksData] = useState<StudentMarksRecord[]>(initialMarks);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -181,13 +96,13 @@ export function MarksEntryGrid() {
 
   const filters = [
     { id: "marks-exam", label: "Exam", items: examOptions, value: selectedExam, set: setSelectedExam },
-    { id: "marks-class", label: "Class", items: classOptions, value: selectedClass, set: setSelectedClass },
-    { id: "marks-section", label: "Section", items: sectionOptions, value: selectedSection, set: setSelectedSection },
-    { id: "marks-subject", label: "Subject", items: subjectOptions, value: selectedSubject, set: setSelectedSubject },
+    { id: "marks-class", label: "Class", items: picker.classOptions, value: picker.classId, set: picker.setClassId },
+    { id: "marks-section", label: "Section", items: picker.sectionOptions, value: picker.sectionId, set: picker.setSectionId },
+    { id: "marks-subject", label: "Subject", items: subjectOptions, value: selectedSubject, set: setPickedSubjectId },
   ];
 
   const saveButton = (
-    <Button onClick={handleSaveMarks} disabled={isSaving}>
+    <Button onClick={handleSaveMarks} disabled={readOnly || isSaving}>
       {isSaving ? (
         <>
           <Clock data-icon="inline-start" className="motion-safe:animate-spin" />

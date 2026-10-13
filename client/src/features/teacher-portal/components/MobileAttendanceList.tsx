@@ -12,67 +12,8 @@ import {
   Save,
 } from "lucide-react";
 
-export type AttendanceStatus = "present" | "absent" | "leave";
-
-export interface StudentAttendanceItem {
-  id: string;
-  rollNo: string;
-  name: string;
-  avatar: string;
-  status: AttendanceStatus;
-}
-
-const mockStudents: StudentAttendanceItem[] = [
-  {
-    id: "std-1",
-    rollNo: "10-B-01",
-    name: "Ahmed Khan",
-    avatar: "AK",
-    status: "present",
-  },
-  {
-    id: "std-2",
-    rollNo: "10-B-02",
-    name: "Fatima Ali",
-    avatar: "FA",
-    status: "present",
-  },
-  {
-    id: "std-3",
-    rollNo: "10-B-03",
-    name: "Bilal Sheikh",
-    avatar: "BS",
-    status: "absent",
-  },
-  {
-    id: "std-4",
-    rollNo: "10-B-04",
-    name: "Zubair Shah",
-    avatar: "ZS",
-    status: "present",
-  },
-  {
-    id: "std-5",
-    rollNo: "10-B-05",
-    name: "Sara Mansoor",
-    avatar: "SM",
-    status: "leave",
-  },
-  {
-    id: "std-6",
-    rollNo: "10-B-06",
-    name: "Hamza Abbasi",
-    avatar: "HA",
-    status: "present",
-  },
-  {
-    id: "std-7",
-    rollNo: "10-B-07",
-    name: "Mariam Farooq",
-    avatar: "MF",
-    status: "present",
-  },
-];
+import { useGetTeacherRosterQuery } from "@/store/api";
+import type { AttendanceStatus, StudentAttendanceItem } from "@/types";
 
 const statusOptions: {
   value: AttendanceStatus;
@@ -86,7 +27,8 @@ const statusOptions: {
 ];
 
 export function MobileAttendanceList() {
-  const [students, setStudents] = useState<StudentAttendanceItem[]>(mockStudents);
+  const { data: roster = [] } = useGetTeacherRosterQuery();
+  const [students, setStudents] = useState<StudentAttendanceItem[]>(roster);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 

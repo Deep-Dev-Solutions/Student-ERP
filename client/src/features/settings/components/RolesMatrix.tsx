@@ -21,14 +21,14 @@ import {
   RotateCcw,
   Info,
 } from "lucide-react";
+import { ROLE_LABELS, ROLE_SCOPES } from "@/lib/auth/permissions";
+import { useGetRolePermissionsQuery, useUpdateRolePermissionsMutation } from "@/store/api";
 import { PermissionItem, RoleKey, RolePermissionsState } from "../types";
 
-const roles: { key: RoleKey; label: string; hint: string }[] = [
-  { key: "admin", label: "Administrator", hint: "Full access" },
-  { key: "teacher", label: "Teacher", hint: "Classes and marks" },
-  { key: "front_desk", label: "Front desk", hint: "Counter and admissions" },
-  { key: "accountant", label: "Accountant", hint: "Fees and payroll" },
-];
+// The hint under each role is the level its permissions apply at.
+const roles: { key: RoleKey; label: string; hint: string }[] = (
+  ["owner", "branch_admin", "teacher", "front_desk", "accountant"] as const
+).map((key) => ({ key, label: ROLE_LABELS[key], hint: ROLE_SCOPES[key] }));
 
 const permissionSections: {
   module: "academic" | "financial" | "attendance" | "administrative";
@@ -162,36 +162,16 @@ const permissionSections: {
   },
 ];
 
-const defaultPermissions: RolePermissionsState = {
-  fin_collect_fee: { admin: true, teacher: false, front_desk: true, accountant: true },
-  fin_view_defaulters: { admin: true, teacher: false, front_desk: true, accountant: true },
-  fin_send_sms: { admin: true, teacher: false, front_desk: true, accountant: true },
-  fin_waive_fee: { admin: true, teacher: false, front_desk: false, accountant: false },
-  fin_manage_payroll: { admin: true, teacher: false, front_desk: false, accountant: true },
-
-  acad_create_exam: { admin: true, teacher: false, front_desk: false, accountant: false },
-  acad_enter_marks: { admin: true, teacher: true, front_desk: false, accountant: false },
-  acad_lock_gradebook: { admin: true, teacher: false, front_desk: false, accountant: false },
-  acad_manage_allocations: { admin: true, teacher: false, front_desk: false, accountant: false },
-
-  att_mark_daily: { admin: true, teacher: true, front_desk: true, accountant: false },
-  att_lock_roster: { admin: true, teacher: false, front_desk: false, accountant: false },
-  att_send_alerts: { admin: true, teacher: false, front_desk: true, accountant: false },
-
-  adm_admit_student: { admin: true, teacher: false, front_desk: true, accountant: false },
-  adm_edit_student: { admin: true, teacher: false, front_desk: true, accountant: false },
-  adm_onboard_staff: { admin: true, teacher: false, front_desk: false, accountant: false },
-  adm_system_settings: { admin: true, teacher: false, front_desk: false, accountant: false },
-};
-
 export function RolesMatrix() {
+  const { data: defaultPermissions = {} } = useGetRolePermissionsQuery();
   const [matrix, setMatrix] = useState<RolePermissionsState>(defaultPermissions);
-  const [isSaving, setIsSaving] = useState(false);
+  const [savePermissions, { isLoading: isSaving }] = useUpdateRolePermissionsMutation();
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   const togglePermission = (permId: string, role: RoleKey) => {
-    // Admin permissions are locked for safety
-    if (role === "admin") return;
+    // The owner always has every permission.
+    if (role === "owner") return;
+    setSaveSuccess(false);
 
     setMatrix((prev) => ({
       ...prev,
@@ -202,13 +182,10 @@ export function RolesMatrix() {
     }));
   };
 
-  const handleSave = () => {
-    setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3500);
-    }, 700);
+  const handleSave = async () => {
+    const result = await savePermissions(matrix);
+    if ("error" in result) return;
+    setSaveSuccess(true);
   };
 
   const handleReset = () => {
@@ -238,7 +215,7 @@ export function RolesMatrix() {
           <div>
             <h2 className="text-base font-semibold">Roles and permissions</h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Choose what each of the {roles.length} roles can do. Administrators always have full access.
+              Choose what each of the {roles.length} roles can do. Owners always have full access.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -287,7 +264,8 @@ export function RolesMatrix() {
 
                 {section.permissions.map((perm) => {
                   const permState = matrix[perm.id] || {
-                    admin: true,
+                    owner: true,
+                    branch_admin: false,
                     teacher: false,
                     front_desk: false,
                     accountant: false,
@@ -303,7 +281,7 @@ export function RolesMatrix() {
                           <div className="flex items-center justify-center">
                             <Checkbox
                               checked={permState[role.key]}
-                              disabled={role.key === "admin"}
+                              disabled={role.key === "owner"}
                               onCheckedChange={() => togglePermission(perm.id, role.key)}
                               aria-label={`${role.label}: ${perm.name}`}
                             />
@@ -322,7 +300,7 @@ export function RolesMatrix() {
         <div className="flex flex-col gap-3 border-t border-border bg-muted/50 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <Info aria-hidden className="size-4 shrink-0" />
-            Administrator permissions can&apos;t be removed.
+            Owner permissions can&apos;t be removed.
           </p>
           {saveButton}
         </div>

@@ -2,6 +2,7 @@ import {
   CalendarCheck,
   ClipboardList,
   FileText,
+  GraduationCap,
   IdCard,
   LayoutDashboard,
   Settings,
@@ -42,7 +43,10 @@ export const adminNavGroups: NavGroup[] = [
   },
   {
     label: "Academics",
-    items: [{ href: "/exams", label: "Exams & marks", icon: ClipboardList }],
+    items: [
+      { href: "/academics", label: "Classes & subjects", icon: GraduationCap },
+      { href: "/exams", label: "Exams & marks", icon: ClipboardList },
+    ],
   },
   {
     label: "Admin",

@@ -34,14 +34,12 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { StatCard } from "@/components/shared/StatCard";
 import { statusVariant } from "@/lib/status";
+import { useBranchClasses, useReadOnly } from "@/hooks/use-academics";
+import { useUrlParam } from "@/hooks/use-url-state";
+import { formatRupees } from "@/lib/format";
+import { useGetDefaultersQuery } from "@/store/api";
 import { DefaulterRecord } from "../types";
 
-const classOptions = [
-  { value: "all", label: "All classes" },
-  { value: "class-8", label: "Class 8" },
-  { value: "class-9", label: "Class 9" },
-  { value: "class-10", label: "Class 10" },
-];
 
 const severityOptions = [
   { value: "all", label: "Any time overdue" },
@@ -56,108 +54,21 @@ const severityLabels: Record<DefaulterRecord["status"], string> = {
   critical: "Over 60 days",
 };
 
-const mockDefaulters: DefaulterRecord[] = [
-  {
-    id: "def-1",
-    studentId: "STD-1004",
-    studentName: "Bilal Sheikh",
-    avatar: "BS",
-    className: "Class 10",
-    section: "Section A",
-    guardianName: "Sheikh Tariq",
-    guardianPhone: "+92 301 5551234",
-    monthsUnpaid: ["August", "September", "October"],
-    totalArrears: 11400,
-    daysOverdue: 72,
-    lastPaymentDate: "Jul 28, 2026",
-    status: "critical",
-  },
-  {
-    id: "def-2",
-    studentId: "STD-1008",
-    studentName: "Zainab Malik",
-    avatar: "ZM",
-    className: "Class 9",
-    section: "Section B",
-    guardianName: "Malik Naveed",
-    guardianPhone: "+92 321 9876543",
-    monthsUnpaid: ["September", "October"],
-    totalArrears: 7600,
-    daysOverdue: 42,
-    lastPaymentDate: "Aug 15, 2026",
-    status: "defaulter",
-  },
-  {
-    id: "def-3",
-    studentId: "STD-1015",
-    studentName: "Hamza Abbasi",
-    avatar: "HA",
-    className: "Class 10",
-    section: "Section B",
-    guardianName: "Kashif Abbasi",
-    guardianPhone: "+92 334 1122334",
-    monthsUnpaid: ["July", "August", "September", "October"],
-    totalArrears: 15200,
-    daysOverdue: 104,
-    lastPaymentDate: "Jun 20, 2026",
-    status: "critical",
-  },
-  {
-    id: "def-4",
-    studentId: "STD-1022",
-    studentName: "Ayesha Noor",
-    avatar: "AN",
-    className: "Class 8",
-    section: "Section A",
-    guardianName: "Dr. Farooq Noor",
-    guardianPhone: "+92 300 4455667",
-    monthsUnpaid: ["October"],
-    totalArrears: 3800,
-    daysOverdue: 24,
-    lastPaymentDate: "Sep 05, 2026",
-    status: "warning",
-  },
-  {
-    id: "def-5",
-    studentId: "STD-1031",
-    studentName: "Usman Raza",
-    avatar: "UR",
-    className: "Class 9",
-    section: "Section A",
-    guardianName: "Raza Haider",
-    guardianPhone: "+92 312 8899001",
-    monthsUnpaid: ["August", "September", "October"],
-    totalArrears: 11400,
-    daysOverdue: 65,
-    lastPaymentDate: "Jul 31, 2026",
-    status: "critical",
-  },
-  {
-    id: "def-6",
-    studentId: "STD-1049",
-    studentName: "Mariam Farooq",
-    avatar: "MF",
-    className: "Class 8",
-    section: "Section C",
-    guardianName: "Farooq Siddiqui",
-    guardianPhone: "+92 345 7766554",
-    monthsUnpaid: ["September", "October"],
-    totalArrears: 7200,
-    daysOverdue: 38,
-    lastPaymentDate: "Aug 22, 2026",
-    status: "defaulter",
-  },
-];
-
 export function DefaultersTable() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedClass, setSelectedClass] = useState("all");
-  const [selectedSeverity, setSelectedSeverity] = useState("all");
+  const readOnly = useReadOnly();
+  const { data: defaulters = [] } = useGetDefaultersQuery();
+  const classOptions = [
+    { value: "all", label: "All classes" },
+    ...useBranchClasses().map((c) => ({ value: c.name.toLowerCase().replace(/\s+/g, "-"), label: c.name })),
+  ];
+  const [searchQuery, setSearchQuery] = useUrlParam("q", "");
+  const [selectedClass, setSelectedClass] = useUrlParam("class", "all");
+  const [selectedSeverity, setSelectedSeverity] = useUrlParam("severity", "all");
   const [sentReminders, setSentReminders] = useState<string[]>([]);
   const [isBulkSending, setIsBulkSending] = useState(false);
   const [bulkSentSuccess, setBulkSentSuccess] = useState(false);
 
-  const filteredDefaulters = mockDefaulters.filter((student) => {
+  const filteredDefaulters = defaulters.filter((student) => {
     const matchesSearch =
       student.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.studentId.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -174,11 +85,11 @@ export function DefaultersTable() {
     return matchesSearch && matchesClass && matchesSeverity;
   });
 
-  const totalOutstanding = mockDefaulters.reduce(
+  const totalOutstanding = defaulters.reduce(
     (sum, d) => sum + d.totalArrears,
     0
   );
-  const criticalCount = mockDefaulters.filter(
+  const criticalCount = defaulters.filter(
     (d) => d.status === "critical"
   ).length;
 
@@ -192,7 +103,7 @@ export function DefaultersTable() {
     setTimeout(() => {
       setIsBulkSending(false);
       setBulkSentSuccess(true);
-      setSentReminders(mockDefaulters.map((d) => d.id));
+      setSentReminders(defaulters.map((d) => d.id));
       setTimeout(() => setBulkSentSuccess(false), 4000);
     }, 1000);
   };
@@ -208,8 +119,8 @@ export function DefaultersTable() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard label="Total arrears" value={`Rs ${totalOutstanding.toLocaleString()}`} footer="Outstanding across all classes" />
-        <StatCard label="Students with overdue fees" value={mockDefaulters.length} footer="More than 15 days overdue" />
+        <StatCard label="Total arrears" value={formatRupees(totalOutstanding)} footer="Outstanding across all classes" />
+        <StatCard label="Students with overdue fees" value={defaulters.length} footer="More than 15 days overdue" />
         <StatCard
           label="Over 60 days"
           value={criticalCount}
@@ -217,7 +128,7 @@ export function DefaultersTable() {
         />
         <StatCard
           label="Reminders sent today"
-          value={`${sentReminders.length} of ${mockDefaulters.length}`}
+          value={`${sentReminders.length} of ${defaulters.length}`}
           footer="SMS to guardians"
         />
       </div>
@@ -236,7 +147,7 @@ export function DefaultersTable() {
                 <Download data-icon="inline-start" />
                 Export CSV
               </Button>
-              <Button onClick={handleBulkReminders} disabled={isBulkSending || sentReminders.length === mockDefaulters.length}>
+              <Button onClick={handleBulkReminders} disabled={readOnly || isBulkSending || sentReminders.length === defaulters.length}>
                 {isBulkSending ? (
                   <>
                     <Clock data-icon="inline-start" className="motion-safe:animate-spin" />
@@ -255,7 +166,7 @@ export function DefaultersTable() {
           {bulkSentSuccess ? (
             <p role="status" className="flex items-center gap-2 rounded-lg border border-success/30 bg-success-tint p-3 text-sm text-success">
               <CheckCircle2 aria-hidden className="size-4 shrink-0" />
-              SMS reminders sent to all {mockDefaulters.length} guardians.
+              SMS reminders sent to all {defaulters.length} guardians.
             </p>
           ) : null}
 
@@ -356,7 +267,7 @@ export function DefaultersTable() {
                       <p className="text-xs text-muted-foreground">{student.daysOverdue} days past due</p>
                     </TableCell>
                     <TableCell className="text-right">
-                      <p className="font-semibold">Rs {student.totalArrears.toLocaleString()}</p>
+                      <p className="font-semibold">{formatRupees(student.totalArrears)}</p>
                       <p className="hidden text-xs text-muted-foreground lg:block">Last paid {student.lastPaymentDate || "never"}</p>
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
@@ -389,10 +300,10 @@ export function DefaultersTable() {
 
         <div className="flex flex-col gap-1 border-t border-border bg-muted/50 px-5 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>
-            Showing {filteredDefaulters.length} of {mockDefaulters.length} accounts
+            Showing {filteredDefaulters.length} of {defaulters.length} accounts
           </p>
           <p>
-            Total shown: <span className="font-semibold text-foreground">Rs {filteredTotal.toLocaleString()}</span>
+            Total shown: <span className="font-semibold text-foreground">{formatRupees(filteredTotal)}</span>
           </p>
         </div>
       </Card>

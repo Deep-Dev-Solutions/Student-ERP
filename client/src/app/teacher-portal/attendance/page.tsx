@@ -1,25 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LabeledSelect } from "@/components/shared/LabeledSelect";
+import { useClassSectionPicker } from "@/hooks/use-academics";
 import { MobileAttendanceList } from "@/features/teacher-portal/components/MobileAttendanceList";
 
-const classOptions = [
-  { value: "class-8", label: "Class 8" },
-  { value: "class-9", label: "Class 9" },
-  { value: "class-10", label: "Class 10" },
-];
-const sectionOptions = [
-  { value: "section-a", label: "Section A" },
-  { value: "section-b", label: "Section B" },
-  { value: "section-c", label: "Section C" },
-];
 
 export default function TeacherAttendancePage() {
-  const [selectedClass, setSelectedClass] = useState("class-10");
-  const [selectedSection, setSelectedSection] = useState("section-b");
+  const picker = useClassSectionPicker({ className: "Class 10", section: "B" });
 
   // Rendered on the client at request time (see teacher-portal/loading.tsx).
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
@@ -35,8 +24,8 @@ export default function TeacherAttendancePage() {
           <Badge variant="info">Period 2</Badge>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <LabeledSelect label="Class" options={classOptions} value={selectedClass} onValueChange={setSelectedClass} />
-          <LabeledSelect label="Section" options={sectionOptions} value={selectedSection} onValueChange={setSelectedSection} />
+          <LabeledSelect label="Class" options={picker.classOptions} value={picker.classId} onValueChange={picker.setClassId} />
+          <LabeledSelect label="Section" options={picker.sectionOptions} value={picker.sectionId} onValueChange={picker.setSectionId} />
         </div>
       </Card>
 

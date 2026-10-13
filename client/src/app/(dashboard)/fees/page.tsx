@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useUrlTab } from "@/hooks/use-url-state";
 import {
   Tabs,
   TabsContent,
@@ -17,8 +17,10 @@ import {
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PointOfSale, DefaultersTable } from "@/features/fees/components";
 
+const TABS = ["pos", "defaulters"] as const;
+
 export default function FeesPage() {
-  const [activeTab, setActiveTab] = useState("pos");
+  const [activeTab, setActiveTab] = useUrlTab("pos", TABS);
 
   return (
     <div className="space-y-6">

@@ -4,21 +4,23 @@ import { ArrowLeftRight, LayoutDashboard } from "lucide-react";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { PortalSwitch, Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
-import { UserProfileNav, type ProfileUser } from "@/components/layout/UserProfileNav";
+import { toProfileUser, UserProfileNav } from "@/components/layout/UserProfileNav";
 import { teacherNavGroups } from "@/components/layout/nav-config";
-
-const teacher: ProfileUser = {
-  name: "Dr. Tariq Mahmood",
-  email: "tariq.mahmood@erp.com",
-  role: "Physics faculty",
-  initials: "TM",
-};
+import { useCanAccess, useCurrentUser } from "@/hooks/use-session";
+import { DEMO_TEACHER_ID } from "@/mocks/users";
+import { useGetUsersQuery } from "@/store/api";
 
 export default function TeacherPortalLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const currentUser = useCurrentUser();
+  const { data: users } = useGetUsersQuery();
+  const canOpenAdmin = useCanAccess("/dashboard");
+  // Admins who open the portal see it as the demo teacher until real accounts exist.
+  const teacher = currentUser?.role === "teacher" ? currentUser : users?.find((u) => u.id === DEMO_TEACHER_ID);
+
   return (
     <div className="flex min-h-screen flex-col bg-background md:flex-row">
       <div className="hidden md:fixed md:inset-y-0 md:z-40 md:block md:w-62">
@@ -26,12 +28,14 @@ export default function TeacherPortalLayout({
           groups={teacherNavGroups}
           subtitle="Teacher portal"
           footer={
-            <PortalSwitch
-              href="/dashboard"
-              label="Admin console"
-              description="Switch to admin view"
-              icon={ArrowLeftRight}
-            />
+            canOpenAdmin ? (
+              <PortalSwitch
+                href="/dashboard"
+                label="Admin console"
+                description="Switch to admin view"
+                icon={ArrowLeftRight}
+              />
+            ) : null
           }
         />
       </div>
@@ -41,7 +45,7 @@ export default function TeacherPortalLayout({
           groups={teacherNavGroups}
           actions={
             <UserProfileNav
-              user={teacher}
+              user={teacher ? toProfileUser(teacher) : undefined}
               links={[{ href: "/teacher-portal", label: "My overview", icon: LayoutDashboard }]}
             />
           }

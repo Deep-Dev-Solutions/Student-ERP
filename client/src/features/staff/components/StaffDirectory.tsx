@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Card,
 } from "@/components/ui/card";
@@ -32,6 +31,8 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { StatCard } from "@/components/shared/StatCard";
 import { statusVariant } from "@/lib/status";
+import { useUrlParam } from "@/hooks/use-url-state";
+import { useGetStaffQuery } from "@/store/api";
 import { StaffMember } from "../types";
 
 const departmentOptions = [
@@ -56,87 +57,13 @@ const staffStatusLabels: Record<StaffMember["status"], string> = {
   terminated: "Left",
 };
 
-const mockStaff: StaffMember[] = [
-  {
-    id: "st-1",
-    staffId: "STF-201",
-    name: "Dr. Tariq Mahmood",
-    avatar: "TM",
-    email: "tariq.mahmood@school.edu.pk",
-    role: "Senior Physics Lecturer",
-    department: "Science",
-    phone: "+92 300 1122334",
-    joinDate: "Aug 15, 2021",
-    status: "active",
-  },
-  {
-    id: "st-2",
-    staffId: "STF-202",
-    name: "Saima Nazir",
-    avatar: "SN",
-    email: "saima.nazir@school.edu.pk",
-    role: "Head of Mathematics",
-    department: "Mathematics",
-    phone: "+92 321 9988776",
-    joinDate: "Jan 10, 2019",
-    status: "active",
-  },
-  {
-    id: "st-3",
-    staffId: "STF-203",
-    name: "Rashid Minhas",
-    avatar: "RM",
-    email: "rashid.minhas@school.edu.pk",
-    role: "Chemistry Teacher",
-    department: "Science",
-    phone: "+92 333 4455667",
-    joinDate: "Sep 01, 2022",
-    status: "on_leave",
-  },
-  {
-    id: "st-4",
-    staffId: "STF-204",
-    name: "Ayesha Siddiqua",
-    avatar: "AS",
-    email: "ayesha.s@school.edu.pk",
-    role: "English Literature Instructor",
-    department: "Humanities",
-    phone: "+92 312 8899001",
-    joinDate: "Mar 12, 2023",
-    status: "active",
-  },
-  {
-    id: "st-5",
-    staffId: "STF-205",
-    name: "Kamran Akram",
-    avatar: "KA",
-    email: "kamran.akram@school.edu.pk",
-    role: "Computer Science Teacher",
-    department: "IT & CS",
-    phone: "+92 345 6677889",
-    joinDate: "Oct 05, 2020",
-    status: "active",
-  },
-  {
-    id: "st-6",
-    staffId: "STF-206",
-    name: "Farhan Ali",
-    avatar: "FA",
-    email: "farhan.ali@school.edu.pk",
-    role: "Physical Education Coach",
-    department: "Sports",
-    phone: "+92 301 2233445",
-    joinDate: "Feb 01, 2024",
-    status: "terminated",
-  },
-];
-
 export function StaffDirectory() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedDept, setSelectedDept] = useState("all");
-  const [selectedStatus, setSelectedStatus] = useState("all");
+  const { data: staffMembers = [] } = useGetStaffQuery();
+  const [searchQuery, setSearchQuery] = useUrlParam("q", "");
+  const [selectedDept, setSelectedDept] = useUrlParam("dept", "all");
+  const [selectedStatus, setSelectedStatus] = useUrlParam("status", "all");
 
-  const filteredStaff = mockStaff.filter((staff) => {
+  const filteredStaff = staffMembers.filter((staff) => {
     const matchesSearch =
       staff.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       staff.staffId.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -154,10 +81,10 @@ export function StaffDirectory() {
     return matchesSearch && matchesDept && matchesStatus;
   });
 
-  const activeStaffCount = mockStaff.filter((s) => s.status === "active").length;
-  const onLeaveCount = mockStaff.filter((s) => s.status === "on_leave").length;
+  const activeStaffCount = staffMembers.filter((s) => s.status === "active").length;
+  const onLeaveCount = staffMembers.filter((s) => s.status === "on_leave").length;
 
-  const departments = [...new Set(mockStaff.map((s) => s.department))];
+  const departments = [...new Set(staffMembers.map((s) => s.department))];
   const isFiltered = searchQuery !== "" || selectedDept !== "all" || selectedStatus !== "all";
   const clearFilters = () => {
     setSearchQuery("");
@@ -168,7 +95,7 @@ export function StaffDirectory() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard label="Staff members" value={mockStaff.length} footer={`Across ${departments.length} departments`} />
+        <StatCard label="Staff members" value={staffMembers.length} footer={`Across ${departments.length} departments`} />
         <StatCard label="Active" value={activeStaffCount} footer="On the roster today" />
         <StatCard label="On leave" value={onLeaveCount} footer="Approved medical or casual leave" />
         <StatCard label="Departments" value={departments.length} footer={departments.join(", ")} />
@@ -297,7 +224,7 @@ export function StaffDirectory() {
         )}
 
         <div className="border-t border-border bg-muted/50 px-5 py-3 text-sm text-muted-foreground sm:px-6">
-          Showing {filteredStaff.length} of {mockStaff.length} staff members
+          Showing {filteredStaff.length} of {staffMembers.length} staff members
         </div>
       </Card>
     </div>

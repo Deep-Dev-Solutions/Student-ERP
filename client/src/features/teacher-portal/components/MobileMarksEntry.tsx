@@ -7,83 +7,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { gradeFor } from "@/lib/grades";
+import { useGrader } from "@/hooks/use-academics";
 import {
   CheckCircle2,
   Clock,
   Save,
 } from "lucide-react";
 
-export interface StudentMarksItem {
-  id: string;
-  rollNo: string;
-  name: string;
-  avatar: string;
-  obtainedMarks: number | "";
-  maxMarks: number;
-}
-
-const mockMarksData: StudentMarksItem[] = [
-  {
-    id: "std-1",
-    rollNo: "10-B-01",
-    name: "Ahmed Khan",
-    avatar: "AK",
-    obtainedMarks: 85,
-    maxMarks: 100,
-  },
-  {
-    id: "std-2",
-    rollNo: "10-B-02",
-    name: "Fatima Ali",
-    avatar: "FA",
-    obtainedMarks: 94,
-    maxMarks: 100,
-  },
-  {
-    id: "std-3",
-    rollNo: "10-B-03",
-    name: "Bilal Sheikh",
-    avatar: "BS",
-    obtainedMarks: 58,
-    maxMarks: 100,
-  },
-  {
-    id: "std-4",
-    rollNo: "10-B-04",
-    name: "Zubair Shah",
-    avatar: "ZS",
-    obtainedMarks: 76,
-    maxMarks: 100,
-  },
-  {
-    id: "std-5",
-    rollNo: "10-B-05",
-    name: "Sara Mansoor",
-    avatar: "SM",
-    obtainedMarks: 89,
-    maxMarks: 100,
-  },
-  {
-    id: "std-6",
-    rollNo: "10-B-06",
-    name: "Hamza Abbasi",
-    avatar: "HA",
-    obtainedMarks: 48,
-    maxMarks: 100,
-  },
-  {
-    id: "std-7",
-    rollNo: "10-B-07",
-    name: "Mariam Farooq",
-    avatar: "MF",
-    obtainedMarks: "",
-    maxMarks: 100,
-  },
-];
+import { useGetTeacherMarksQuery } from "@/store/api";
+import type { StudentMarksItem } from "@/types";
 
 export function MobileMarksEntry() {
-  const [students, setStudents] = useState<StudentMarksItem[]>(mockMarksData);
+  const { data: marks = [] } = useGetTeacherMarksQuery();
+  const gradeFor = useGrader();
+  const [students, setStudents] = useState<StudentMarksItem[]>(marks);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 

@@ -38,16 +38,15 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { useBranchClasses } from "@/hooks/use-academics";
+import { useUrlParam } from "@/hooks/use-url-state";
+import { formatPercent } from "@/lib/format";
 import { statusVariant } from "@/lib/status";
+import { useGetStudentsQuery } from "@/store/api";
 import { studentStatusLabels } from "../status";
 import { Student } from "../types";
 import { StudentProfileDrawer } from "./StudentProfileDrawer";
 
-const classOptions = [
-  { value: "all", label: "All classes" },
-  { value: "Class 9", label: "Class 9" },
-  { value: "Class 10", label: "Class 10" },
-];
 
 const statusOptions = [
   { value: "all", label: "All statuses" },
@@ -56,83 +55,17 @@ const statusOptions = [
   { value: "pending", label: "Fee pending" },
 ];
 
-const mockStudents: Student[] = [
-  {
-    id: "STD-1042",
-    name: "Ahmed Khan",
-    email: "ahmed.k@student.edu",
-    avatar: "AK",
-    class: "Class 9",
-    section: "Section A",
-    guardian: "Muhammad Khan",
-    phone: "0300-1234567",
-    status: "active",
-    attendance: "94%",
-    balance: "Rs 0",
-  },
-  {
-    id: "STD-1043",
-    name: "Fatima Ali",
-    email: "fatima.ali@student.edu",
-    avatar: "FA",
-    class: "Class 10",
-    section: "Section B",
-    guardian: "Ali Asghar",
-    phone: "0333-7654321",
-    status: "defaulter",
-    attendance: "88%",
-    balance: "Rs 6,000",
-  },
-  {
-    id: "STD-1044",
-    name: "Muhammad Bilal",
-    email: "m.bilal@student.edu",
-    avatar: "MB",
-    class: "Class 9",
-    section: "Section A",
-    guardian: "Bilal Tariq",
-    phone: "0321-9876543",
-    status: "active",
-    attendance: "98%",
-    balance: "Rs 0",
-  },
-  {
-    id: "STD-1045",
-    name: "Ayesha Noor",
-    email: "ayesha.n@student.edu",
-    avatar: "AN",
-    class: "Class 10",
-    section: "Section A",
-    guardian: "Noor Hassan",
-    phone: "0345-5544332",
-    status: "active",
-    attendance: "91%",
-    balance: "Rs 0",
-  },
-  {
-    id: "STD-1046",
-    name: "Zainab Tariq",
-    email: "zainab.t@student.edu",
-    avatar: "ZT",
-    class: "Class 9",
-    section: "Section C",
-    guardian: "Tariq Mehmood",
-    phone: "0312-3322110",
-    status: "pending",
-    attendance: "82%",
-    balance: "Rs 3,000",
-  },
-];
-
 export function StudentDirectory() {
-  const [students] = useState<Student[]>(mockStudents);
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(
-    mockStudents[0]
-  );
+  const { data: students = [] } = useGetStudentsQuery();
+  const classOptions = [
+    { value: "all", label: "All classes" },
+    ...useBranchClasses().map((c) => ({ value: c.name, label: c.name })),
+  ];
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(students[0] ?? null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [classFilter, setClassFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useUrlParam("q", "");
+  const [classFilter, setClassFilter] = useUrlParam("class", "all");
+  const [statusFilter, setStatusFilter] = useUrlParam("status", "all");
 
   const openProfile = (student: Student) => {
     setSelectedStudent(student);
@@ -291,12 +224,12 @@ export function StudentDirectory() {
                       <div className="h-1.5 w-14 overflow-hidden rounded-full bg-muted">
                         <div
                           className={`h-full rounded-full ${
-                            parseInt(student.attendance) >= 90 ? "bg-success" : "bg-warning"
+                            student.attendance >= 90 ? "bg-success" : "bg-warning"
                           }`}
-                          style={{ width: student.attendance }}
+                          style={{ width: formatPercent(student.attendance) }}
                         />
                       </div>
-                      <span className="font-medium">{student.attendance}</span>
+                      <span className="font-medium">{formatPercent(student.attendance)}</span>
                     </div>
                   </TableCell>
 

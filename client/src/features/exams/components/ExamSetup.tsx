@@ -29,6 +29,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { statusVariant } from "@/lib/status";
+import { useBranchClasses, useCurrentSession, useReadOnly } from "@/hooks/use-academics";
+import { useGetExamsQuery } from "@/store/api";
 import { ExamTerm } from "../types";
 
 const termTypeOptions = [
@@ -41,13 +43,6 @@ const termTypeLabels = Object.fromEntries(termTypeOptions.map((o) => [o.value, o
   ExamTerm["termType"],
   string
 >;
-
-const classOptions = [
-  { value: "all", label: "Classes 8 to 10" },
-  { value: "Class 8", label: "Class 8" },
-  { value: "Class 9", label: "Class 9" },
-  { value: "Class 10", label: "Class 10" },
-];
 
 const examStatusLabels: Record<ExamTerm["status"], string> = {
   upcoming: "Upcoming",
@@ -66,47 +61,18 @@ function formatDateRange(start: string, end: string) {
   return `${sd} ${MONTHS[sm - 1]} ${sy} – ${ed} ${MONTHS[em - 1]} ${ey}`;
 }
 
-const initialExams: ExamTerm[] = [
-  {
-    id: "ex-1",
-    title: "Mid-Term Examination 2026",
-    termType: "midterm",
-    academicYear: "2026-2027",
-    startDate: "2026-10-20",
-    endDate: "2026-10-31",
-    totalSubjects: 8,
-    classesIncluded: ["Class 8", "Class 9", "Class 10"],
-    status: "ongoing",
-  },
-  {
-    id: "ex-2",
-    title: "Monthly Assessment - September",
-    termType: "monthly",
-    academicYear: "2026-2027",
-    startDate: "2026-09-25",
-    endDate: "2026-09-30",
-    totalSubjects: 6,
-    classesIncluded: ["Class 9", "Class 10"],
-    status: "completed",
-  },
-  {
-    id: "ex-3",
-    title: "Annual Board Preparation Exam",
-    termType: "final",
-    academicYear: "2026-2027",
-    startDate: "2026-12-10",
-    endDate: "2026-12-24",
-    totalSubjects: 8,
-    classesIncluded: ["Class 10"],
-    status: "upcoming",
-  },
-];
-
 export function ExamSetup() {
+  const readOnly = useReadOnly();
+  const { data: initialExams = [] } = useGetExamsQuery();
   const [exams, setExams] = useState<ExamTerm[]>(initialExams);
   const [title, setTitle] = useState("");
   const [termType, setTermType] = useState<ExamTerm["termType"]>("midterm");
-  const [academicYear] = useState("2026-2027");
+  const academicYear = useCurrentSession()?.label ?? "";
+  const branchClasses = useBranchClasses();
+  const classOptions = [
+    { value: "all", label: "All classes" },
+    ...branchClasses.map((c) => ({ value: c.name, label: c.name })),
+  ];
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [selectedClass, setSelectedClass] = useState("all");
@@ -126,7 +92,7 @@ export function ExamSetup() {
       totalSubjects: 8,
       classesIncluded:
         selectedClass === "all"
-          ? ["Class 8", "Class 9", "Class 10"]
+          ? branchClasses.map((c) => c.name)
           : [selectedClass],
       status: "upcoming",
     };
@@ -242,7 +208,7 @@ export function ExamSetup() {
                 </span>
               ) : null}
             </p>
-            <Button type="submit" disabled={!title || !startDate || !endDate || Boolean(dateError)}>
+            <Button type="submit" disabled={readOnly || !title || !startDate || !endDate || Boolean(dateError)}>
               <Plus data-icon="inline-start" />
               Schedule exam
             </Button>

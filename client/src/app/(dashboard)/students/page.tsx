@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCan } from "@/hooks/use-session";
+import { useUrlTab } from "@/hooks/use-url-state";
 import {
   Tabs,
   TabsContent,
@@ -21,8 +22,11 @@ import {
   BulkImport,
 } from "@/features/students/components";
 
+const TABS = ["directory", "admission", "import"] as const;
+
 export default function StudentsPage() {
-  const [activeTab, setActiveTab] = useState("directory");
+  const canAdmit = useCan("adm_admit_student");
+  const [activeTab, setActiveTab] = useUrlTab("directory", canAdmit ? TABS : ["directory"]);
 
   return (
     <div className="space-y-6">
@@ -35,10 +39,12 @@ export default function StudentsPage() {
               <FileDown data-icon="inline-start" />
               Export CSV
             </Button>
-            <Button onClick={() => setActiveTab("admission")}>
-              <UserPlus data-icon="inline-start" />
-              New admission
-            </Button>
+            {canAdmit ? (
+              <Button onClick={() => setActiveTab("admission")}>
+                <UserPlus data-icon="inline-start" />
+                New admission
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -49,25 +55,33 @@ export default function StudentsPage() {
             <Users />
             Directory
           </TabsTrigger>
-          <TabsTrigger value="admission">
-            <UserPlus />
-            Admission form
-          </TabsTrigger>
-          <TabsTrigger value="import">
-            <UploadCloud />
-            Bulk import
-          </TabsTrigger>
+          {canAdmit ? (
+            <>
+              <TabsTrigger value="admission">
+                <UserPlus />
+                Admission form
+              </TabsTrigger>
+              <TabsTrigger value="import">
+                <UploadCloud />
+                Bulk import
+              </TabsTrigger>
+            </>
+          ) : null}
         </TabsList>
 
         <TabsContent value="directory">
           <StudentDirectory />
         </TabsContent>
-        <TabsContent value="admission">
-          <AdmissionForm />
-        </TabsContent>
-        <TabsContent value="import">
-          <BulkImport />
-        </TabsContent>
+        {canAdmit ? (
+          <>
+            <TabsContent value="admission">
+              <AdmissionForm />
+            </TabsContent>
+            <TabsContent value="import">
+              <BulkImport />
+            </TabsContent>
+          </>
+        ) : null}
       </Tabs>
     </div>
   );

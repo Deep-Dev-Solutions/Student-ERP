@@ -29,107 +29,44 @@ import {
   Layers,
 } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { sectionLabel, useBranchClasses, useReadOnly } from "@/hooks/use-academics";
+import { useGetAllocationsQuery, useGetSectionsQuery, useGetSubjectsQuery, useGetTeachersQuery } from "@/store/api";
 import { TeacherAllocation } from "../types";
 
-const initialAllocations: TeacherAllocation[] = [
-  {
-    id: "alc-1",
-    teacherId: "STF-201",
-    teacherName: "Dr. Tariq Mahmood",
-    avatar: "TM",
-    subject: "Physics",
-    className: "Class 10",
-    section: "Section A",
-    weeklyPeriods: 6,
-    roomNumber: "Lab 02",
-  },
-  {
-    id: "alc-2",
-    teacherId: "STF-201",
-    teacherName: "Dr. Tariq Mahmood",
-    avatar: "TM",
-    subject: "Physics",
-    className: "Class 9",
-    section: "Section B",
-    weeklyPeriods: 5,
-    roomNumber: "Room 104",
-  },
-  {
-    id: "alc-3",
-    teacherId: "STF-202",
-    teacherName: "Saima Nazir",
-    avatar: "SN",
-    subject: "Mathematics",
-    className: "Class 10",
-    section: "Section A",
-    weeklyPeriods: 7,
-    roomNumber: "Room 201",
-  },
-  {
-    id: "alc-4",
-    teacherId: "STF-204",
-    teacherName: "Ayesha Siddiqua",
-    avatar: "AS",
-    subject: "English Literature",
-    className: "Class 8",
-    section: "Section C",
-    weeklyPeriods: 5,
-    roomNumber: "Room 108",
-  },
-  {
-    id: "alc-5",
-    teacherId: "STF-205",
-    teacherName: "Kamran Akram",
-    avatar: "KA",
-    subject: "Computer Science",
-    className: "Class 9",
-    section: "Section A",
-    weeklyPeriods: 6,
-    roomNumber: "CS Lab 01",
-  },
-];
-
-const availableTeachers = [
-  { id: "STF-201", name: "Dr. Tariq Mahmood", avatar: "TM" },
-  { id: "STF-202", name: "Saima Nazir", avatar: "SN" },
-  { id: "STF-203", name: "Rashid Minhas", avatar: "RM" },
-  { id: "STF-204", name: "Ayesha Siddiqua", avatar: "AS" },
-  { id: "STF-205", name: "Kamran Akram", avatar: "KA" },
-];
-
-const availableSubjects = [
-  "Physics",
-  "Mathematics",
-  "Chemistry",
-  "Biology",
-  "English Literature",
-  "Computer Science",
-  "Urdu",
-  "Pakistan Studies",
-];
-
-const availableClasses = ["Class 8", "Class 9", "Class 10"];
-const availableSections = ["Section A", "Section B", "Section C"];
-
 const toOptions = (values: string[]) => values.map((v) => ({ value: v, label: v }));
-const teacherOptions = availableTeachers.map((t) => ({ value: t.id, label: t.name }));
-const subjectOptions = toOptions(availableSubjects);
-const classOptions = toOptions(availableClasses);
-const sectionOptions = toOptions(availableSections);
 
 export function TeacherAllocations() {
-  const [allocations, setAllocations] = useState<TeacherAllocation[]>(
-    initialAllocations
-  );
+  const readOnly = useReadOnly();
+  const { data: initialAllocations = [] } = useGetAllocationsQuery();
+  const { data: availableTeachers = [] } = useGetTeachersQuery();
+  const { data: availableSubjects = [] } = useGetSubjectsQuery();
+  const teacherOptions = availableTeachers.map((t) => ({ value: t.id, label: t.name }));
+  const subjectOptions = toOptions(availableSubjects.map((s) => s.name));
+  const branchClasses = useBranchClasses();
+  const { data: allSections = [] } = useGetSectionsQuery();
+  const classOptions = toOptions(branchClasses.map((c) => c.name));
+  const [allocations, setAllocations] = useState<TeacherAllocation[]>(initialAllocations);
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedSection, setSelectedSection] = useState("Section A");
+  // Sections of the chosen class, or every section letter at this campus before a class is chosen.
+  const chosenClass = branchClasses.find((c) => c.name === selectedClass);
+  const sectionNames = [
+    ...new Set(
+      allSections
+        .filter((s) => (chosenClass ? s.classId === chosenClass.id : branchClasses.some((c) => c.id === s.classId)))
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((s) => sectionLabel(s))
+    ),
+  ];
+  const sectionOptions = toOptions(sectionNames);
+  const section = sectionNames.includes(selectedSection) ? selectedSection : (sectionNames[0] ?? "");
   const [successNotice, setSuccessNotice] = useState(false);
 
   const handleAddAllocation = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTeacherId || !selectedSubject || !selectedClass) return;
+    if (!selectedTeacherId || !selectedSubject || !selectedClass || !section) return;
 
     const teacher = availableTeachers.find((t) => t.id === selectedTeacherId);
     if (!teacher) return;
@@ -141,7 +78,7 @@ export function TeacherAllocations() {
       avatar: teacher.avatar,
       subject: selectedSubject,
       className: selectedClass,
-      section: selectedSection,
+      section,
       weeklyPeriods: 5,
       roomNumber: "Room 105",
     };
@@ -162,7 +99,7 @@ export function TeacherAllocations() {
     { id: "alloc-teacher", label: "Teacher", items: teacherOptions, value: selectedTeacherId, set: setSelectedTeacherId, placeholder: "Choose a teacher" },
     { id: "alloc-subject", label: "Subject", items: subjectOptions, value: selectedSubject, set: setSelectedSubject, placeholder: "Choose a subject" },
     { id: "alloc-class", label: "Class", items: classOptions, value: selectedClass, set: setSelectedClass, placeholder: "Choose a class" },
-    { id: "alloc-section", label: "Section", items: sectionOptions, value: selectedSection, set: setSelectedSection, placeholder: "Choose a section" },
+    { id: "alloc-section", label: "Section", items: sectionOptions, value: section, set: setSelectedSection, placeholder: "Choose a section" },
   ];
 
   return (
@@ -211,7 +148,7 @@ export function TeacherAllocations() {
                 `${allocations.length} allocations this term`
               )}
             </p>
-            <Button type="submit" disabled={!selectedTeacherId || !selectedSubject || !selectedClass}>
+            <Button type="submit" disabled={readOnly || !selectedTeacherId || !selectedSubject || !selectedClass}>
               <Plus data-icon="inline-start" />
               Assign subject
             </Button>
@@ -269,6 +206,7 @@ export function TeacherAllocations() {
                       variant="ghost"
                       size="icon-sm"
                       onClick={() => handleDeleteAllocation(item.id)}
+                      disabled={readOnly}
                       aria-label={`Remove ${item.subject} for ${item.className}, ${item.section} from ${item.teacherName}`}
                       className="text-muted-foreground hover:bg-danger-tint hover:text-danger"
                     >

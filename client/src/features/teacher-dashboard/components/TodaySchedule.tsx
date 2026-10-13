@@ -1,11 +1,14 @@
+"use client";
+
 import { CheckCircle2, Clock, MapPin, UserCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { todayClasses } from "../data";
+import { useGetTeacherDayQuery } from "@/store/api";
 
 export function TodaySchedule() {
+  const todayClasses = useGetTeacherDayQuery().data?.todayClasses ?? [];
   return (
     <section aria-labelledby="schedule-heading" className="space-y-3">
       <div className="flex items-center justify-between gap-3">

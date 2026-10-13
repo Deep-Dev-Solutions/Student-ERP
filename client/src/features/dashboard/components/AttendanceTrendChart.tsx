@@ -8,7 +8,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { attendanceTrend } from "@/features/dashboard/data";
+import { attendanceTrend } from "@/services/dashboard";
 import { ChartDataTable } from "./ChartDataTable";
 
 const config = {

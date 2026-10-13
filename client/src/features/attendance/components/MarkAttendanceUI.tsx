@@ -20,98 +20,22 @@ import {
 } from "@/components/ui/select";
 import { Search, CheckCircle2 } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { useClassSectionPicker, useReadOnly } from "@/hooks/use-academics";
+import { useGetAttendanceRosterQuery } from "@/store/api";
 import { AttendanceStatus, StudentAttendanceRecord } from "../types";
 
-const classOptions = [
-  { value: "9", label: "Class 9" },
-  { value: "10", label: "Class 10" },
-];
-
-const sectionOptions = [
-  { value: "a", label: "Section A" },
-  { value: "b", label: "Section B" },
-  { value: "c", label: "Section C" },
-];
-
-const defaultStudents: StudentAttendanceRecord[] = [
-  {
-    id: "STD-1042",
-    name: "Ahmed Khan",
-    email: "ahmed.k@student.edu",
-    avatar: "AK",
-    status: "P",
-    guardianPhone: "0300-1234567",
-  },
-  {
-    id: "STD-1043",
-    name: "Fatima Ali",
-    email: "fatima.ali@student.edu",
-    avatar: "FA",
-    status: "A",
-    remark: "Unannounced absence",
-    guardianPhone: "0333-7654321",
-  },
-  {
-    id: "STD-1044",
-    name: "Muhammad Bilal",
-    email: "m.bilal@student.edu",
-    avatar: "MB",
-    status: "P",
-    guardianPhone: "0321-9876543",
-  },
-  {
-    id: "STD-1045",
-    name: "Ayesha Noor",
-    email: "ayesha.n@student.edu",
-    avatar: "AN",
-    status: "P",
-    guardianPhone: "0345-5544332",
-  },
-  {
-    id: "STD-1046",
-    name: "Zainab Tariq",
-    email: "zainab.t@student.edu",
-    avatar: "ZT",
-    status: "L",
-    remark: "Medical leave approved",
-    guardianPhone: "0312-3322110",
-  },
-  {
-    id: "STD-1047",
-    name: "Hamza Farooq",
-    email: "hamza.f@student.edu",
-    avatar: "HF",
-    status: "P",
-    guardianPhone: "0301-4455667",
-  },
-  {
-    id: "STD-1048",
-    name: "Mariam Javed",
-    email: "mariam.j@student.edu",
-    avatar: "MJ",
-    status: "P",
-    guardianPhone: "0322-8877665",
-  },
-  {
-    id: "STD-1049",
-    name: "Usman Ghani",
-    email: "usman.g@student.edu",
-    avatar: "UG",
-    status: "A",
-    remark: "Sick - fever reported",
-    guardianPhone: "0341-9988776",
-  },
-];
 
 const statusOptions: {
   value: AttendanceStatus;
+  /** Shown on the button: P, A or L. */
+  letter: string;
   label: string;
   checked: string;
   hover: string;
 }[] = [
-  { value: "P", label: "Present", checked: "bg-success text-success-foreground", hover: "hover:bg-success-tint hover:text-success" },
-  { value: "A", label: "Absent", checked: "bg-danger text-danger-foreground", hover: "hover:bg-danger-tint hover:text-danger" },
-  { value: "L", label: "Leave", checked: "bg-warning text-warning-foreground", hover: "hover:bg-warning-tint hover:text-warning" },
+  { value: "present", letter: "P", label: "Present", checked: "bg-success text-success-foreground", hover: "hover:bg-success-tint hover:text-success" },
+  { value: "absent", letter: "A", label: "Absent", checked: "bg-danger text-danger-foreground", hover: "hover:bg-danger-tint hover:text-danger" },
+  { value: "leave", letter: "L", label: "Leave", checked: "bg-warning text-warning-foreground", hover: "hover:bg-warning-tint hover:text-warning" },
 ];
 
 interface MarkAttendanceUIProps {
@@ -120,18 +44,20 @@ interface MarkAttendanceUIProps {
 }
 
 export function MarkAttendanceUI({
-  initialRecords = defaultStudents,
+  initialRecords,
   onRosterUpdate,
 }: MarkAttendanceUIProps) {
-  const [students, setStudents] = useState<StudentAttendanceRecord[]>(initialRecords);
-  const [selectedClass, setSelectedClass] = useState("9");
-  const [selectedSection, setSelectedSection] = useState("a");
+  const readOnly = useReadOnly();
+  const { data: roster = [] } = useGetAttendanceRosterQuery();
+  const records = initialRecords ?? roster;
+  const [students, setStudents] = useState<StudentAttendanceRecord[]>(records);
+  const picker = useClassSectionPicker({ className: "Class 9", section: "A" });
   const [selectedDate, setSelectedDate] = useState("2026-10-09");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const presentCount = students.filter((s) => s.status === "P").length;
-  const absentCount = students.filter((s) => s.status === "A").length;
-  const leaveCount = students.filter((s) => s.status === "L").length;
+  const presentCount = students.filter((s) => s.status === "present").length;
+  const absentCount = students.filter((s) => s.status === "absent").length;
+  const leaveCount = students.filter((s) => s.status === "leave").length;
 
   const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
     const updated = students.map((s) =>
@@ -144,9 +70,9 @@ export function MarkAttendanceUI({
   const [submitted, setSubmitted] = useState(false);
 
   const handleReset = () => {
-    setStudents(initialRecords);
+    setStudents(records);
     setSubmitted(false);
-    onRosterUpdate?.(initialRecords);
+    onRosterUpdate?.(records);
   };
 
   const tally = [
@@ -175,12 +101,12 @@ export function MarkAttendanceUI({
             <label htmlFor="mark-class" className="mb-1.5 block text-sm font-medium">
               Class
             </label>
-            <Select items={classOptions} value={selectedClass} onValueChange={(val) => val && setSelectedClass(val)}>
+            <Select items={picker.classOptions} value={picker.classId} onValueChange={(val) => val && picker.setClassId(val)}>
               <SelectTrigger id="mark-class" className="h-9 w-full bg-card">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {classOptions.map((o) => (
+                {picker.classOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
                     {o.label}
                   </SelectItem>
@@ -193,12 +119,12 @@ export function MarkAttendanceUI({
             <label htmlFor="mark-section" className="mb-1.5 block text-sm font-medium">
               Section
             </label>
-            <Select items={sectionOptions} value={selectedSection} onValueChange={(val) => val && setSelectedSection(val)}>
+            <Select items={picker.sectionOptions} value={picker.sectionId} onValueChange={(val) => val && picker.setSectionId(val)}>
               <SelectTrigger id="mark-section" className="h-9 w-full bg-card">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {sectionOptions.map((o) => (
+                {picker.sectionOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
                     {o.label}
                   </SelectItem>
@@ -238,7 +164,7 @@ export function MarkAttendanceUI({
           </div>
         </div>
 
-        <Button variant="outline" onClick={() => handleMarkAll("P")}>
+        <Button variant="outline" onClick={() => handleMarkAll("present")} disabled={readOnly}>
           Mark all present
         </Button>
       </div>
@@ -317,11 +243,12 @@ export function MarkAttendanceUI({
                             aria-label={opt.label}
                             title={opt.label}
                             onClick={() => handleStatusChange(student.id, opt.value)}
+                            disabled={readOnly}
                             className={`flex h-8 w-9 items-center justify-center rounded-md text-sm font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 ${
                               checked ? opt.checked : `text-muted-foreground ${opt.hover}`
                             }`}
                           >
-                            {opt.value}
+                            {opt.letter}
                           </button>
                         );
                       })}
@@ -348,7 +275,7 @@ export function MarkAttendanceUI({
             <Button variant="outline" size="sm" onClick={handleReset}>
               Reset changes
             </Button>
-            <Button size="sm" onClick={() => setSubmitted(true)}>
+            <Button size="sm" onClick={() => setSubmitted(true)} disabled={readOnly}>
               Submit register
             </Button>
           </div>

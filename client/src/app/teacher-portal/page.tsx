@@ -2,7 +2,7 @@
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PendingTasks, TodaySchedule } from "@/features/teacher-dashboard/components";
-import { teacherSummary, todayClasses } from "@/features/teacher-dashboard/data";
+import { useGetTeacherDayQuery } from "@/store/api";
 
 function greeting(hour: number) {
   if (hour < 12) return "Good morning";
@@ -12,6 +12,9 @@ function greeting(hour: number) {
 
 export default function TeacherPortalPage() {
   // Rendered on the client at request time (see teacher-portal/loading.tsx).
+  const { data } = useGetTeacherDayQuery();
+  if (!data) return null;
+  const { todayClasses, teacherSummary } = data;
   const now = new Date();
   const today = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
   const done = todayClasses.filter((c) => c.status === "completed").length;

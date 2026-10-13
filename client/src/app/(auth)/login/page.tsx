@@ -7,17 +7,40 @@ import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { landingPath } from "@/lib/auth/permissions";
+import { writeSessionCookie } from "@/lib/auth/session-cookie";
+import { DEFAULT_USER_ID } from "@/mocks/users";
+import { useGetUsersQuery } from "@/store/api";
+import { useAppDispatch } from "@/store/hooks";
+import { signedIn } from "@/store/sessionSlice";
 
 export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const dispatch = useAppDispatch();
+  const { data: users = [] } = useGetUsersQuery();
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    // Mock sign-in until the API exists: a demo account's email signs in as
+    // that role, and any other email signs in as the owner.
+    const email = String(new FormData(e.currentTarget).get("email")).trim().toLowerCase();
+    const user = users.find((u) => u.email === email) ?? users.find((u) => u.id === DEFAULT_USER_ID);
+    if (!user) return;
+    if (user.status === "disabled") {
+      setError("This account's access has been turned off. Ask your school's owner to turn it back on.");
+      return;
+    }
+    setError(null);
     setSubmitting(true);
-    // TODO: authenticate against the API once it exists.
-    router.push("/dashboard");
+    writeSessionCookie(user.id);
+    dispatch(signedIn(user.id));
+    // Return to the page that sent the user here, if it's a path on this site.
+    const next = new URLSearchParams(window.location.search).get("next");
+    router.push(next?.startsWith("/") && !next.startsWith("//") ? next : landingPath(user.role));
   };
 
   return (
@@ -69,6 +92,12 @@ export default function LoginPage() {
             </Button>
           </div>
         </div>
+
+        {error ? (
+          <p role="alert" className="text-sm text-danger">
+            {error}
+          </p>
+        ) : null}
 
         <Button type="submit" size="lg" className="w-full" disabled={submitting}>
           {submitting ? "Signing in…" : "Sign in"}

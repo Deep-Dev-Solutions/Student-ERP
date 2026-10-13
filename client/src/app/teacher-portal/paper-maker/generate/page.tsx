@@ -11,6 +11,7 @@ import {
   PaperReviewStep,
   PaperExportStep,
 } from "@/features/paper-maker/components";
+import { useGetPaperQuestionsQuery } from "@/store/api";
 import {
   PaperScopeConfig,
   PaperQuestion,
@@ -33,51 +34,6 @@ const defaultExportConfig: PaperExportConfig = {
     "Attempt all sections. Write clearly. Use of non-programmable scientific calculator is permitted.",
 };
 
-const defaultQuestions: PaperQuestion[] = [
-  {
-    id: "q-1",
-    type: "mcq",
-    chapter: "Kinematics",
-    marks: 1,
-    questionText:
-      "A car accelerates uniformly from 15 m/s to 35 m/s in 5 seconds. What is its acceleration?",
-    options: ["2 m/s²", "4 m/s²", "5 m/s²", "10 m/s²"],
-  },
-  {
-    id: "q-2",
-    type: "mcq",
-    chapter: "Physical Quantities",
-    marks: 1,
-    questionText:
-      "Which of the following is a derived physical quantity in SI system?",
-    options: ["Length", "Mass", "Velocity", "Electric Current"],
-  },
-  {
-    id: "q-3",
-    type: "short",
-    chapter: "Dynamics",
-    marks: 3,
-    questionText:
-      "State Newton's Second Law of Motion and prove that F = ma from first principles.",
-  },
-  {
-    id: "q-4",
-    type: "short",
-    chapter: "Turning Effect of Forces",
-    marks: 3,
-    questionText:
-      "Define Center of Gravity and explain why racing cars are designed with broad wheelbases and low height.",
-  },
-  {
-    id: "q-5",
-    type: "long",
-    chapter: "Work & Energy",
-    marks: 6,
-    questionText:
-      "Derive the mathematical expression for Kinetic Energy of a body of mass m moving with velocity v. Also describe how energy is conserved in a simple pendulum.",
-  },
-];
-
 const steps = [
   { title: "Scope", hint: "Board, class and chapters" },
   { title: "Questions", hint: "Review and edit" },
@@ -85,6 +41,7 @@ const steps = [
 ];
 
 export default function PaperMakerWizardPage() {
+  const { data: defaultQuestions = [] } = useGetPaperQuestionsQuery();
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [scopeConfig, setScopeConfig] = useState<PaperScopeConfig>(defaultScopeConfig);
   const [questions, setQuestions] = useState<PaperQuestion[]>(defaultQuestions);

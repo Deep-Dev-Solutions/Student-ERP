@@ -14,77 +14,20 @@ import { StatCard } from "@/components/shared/StatCard";
 import { statusVariant } from "@/lib/status";
 import { Button } from "@/components/ui/button";
 import { Lock, Unlock, ShieldCheck } from "lucide-react";
+import { useGetClassLocksQuery } from "@/store/api";
 import { ClassLockRecord } from "../types";
-
-const defaultClasses: ClassLockRecord[] = [
-  {
-    id: "CLS-9A",
-    className: "Class 9",
-    section: "Section A",
-    teacher: "Sir Rashid Minhas",
-    totalStudents: 36,
-    present: 33,
-    absent: 2,
-    leave: 1,
-    status: "pending",
-  },
-  {
-    id: "CLS-9B",
-    className: "Class 9",
-    section: "Section B",
-    teacher: "Ms. Saima Akram",
-    totalStudents: 35,
-    present: 31,
-    absent: 3,
-    leave: 1,
-    status: "locked",
-    lockedAt: "9:05 AM by Ms. Saima",
-  },
-  {
-    id: "CLS-10A",
-    className: "Class 10",
-    section: "Section A",
-    teacher: "Mr. Tariq Jamil",
-    totalStudents: 38,
-    present: 36,
-    absent: 2,
-    leave: 0,
-    status: "locked",
-    lockedAt: "8:50 AM by Mr. Tariq",
-  },
-  {
-    id: "CLS-10B",
-    className: "Class 10",
-    section: "Section B",
-    teacher: "Ms. Nida Parveen",
-    totalStudents: 34,
-    present: 29,
-    absent: 4,
-    leave: 1,
-    status: "locked",
-    lockedAt: "9:20 AM by Ms. Nida",
-  },
-  {
-    id: "CLS-10C",
-    className: "Class 10",
-    section: "Section C",
-    teacher: "Sir Asif Mehmood",
-    totalStudents: 32,
-    present: 30,
-    absent: 1,
-    leave: 1,
-    status: "pending",
-  },
-];
+import { useReadOnly } from "@/hooks/use-academics";
 
 interface ReviewAndLockProps {
   initialClasses?: ClassLockRecord[];
 }
 
 export function ReviewAndLock({
-  initialClasses = defaultClasses,
+  initialClasses,
 }: ReviewAndLockProps) {
-  const [classes, setClasses] = useState<ClassLockRecord[]>(initialClasses);
+  const readOnly = useReadOnly();
+  const { data: classLocks = [] } = useGetClassLocksQuery();
+  const [classes, setClasses] = useState<ClassLockRecord[]>(initialClasses ?? classLocks);
 
   const handleToggleLock = (classId: string) => {
     setClasses((prev) =>
@@ -145,7 +88,7 @@ export function ReviewAndLock({
               Check the counts, then lock each register so it can&apos;t be edited after the day ends.
             </p>
           </div>
-          <Button onClick={handleLockAll} disabled={pendingCount === 0}>
+          <Button onClick={handleLockAll} disabled={readOnly || pendingCount === 0}>
             <ShieldCheck data-icon="inline-start" />
             Lock all open registers
           </Button>
@@ -196,13 +139,14 @@ export function ReviewAndLock({
                         variant="ghost"
                         size="sm"
                         onClick={() => handleToggleLock(cls.id)}
+                        disabled={readOnly}
                         aria-label={`Unlock ${name}`}
                       >
                         <Unlock />
                         <span className="hidden lg:inline">Unlock</span>
                       </Button>
                     ) : (
-                      <Button size="sm" onClick={() => handleToggleLock(cls.id)} aria-label={`Lock ${name}`}>
+                      <Button size="sm" onClick={() => handleToggleLock(cls.id)} disabled={readOnly} aria-label={`Lock ${name}`}>
                         <Lock />
                         <span className="hidden lg:inline">Lock</span>
                       </Button>

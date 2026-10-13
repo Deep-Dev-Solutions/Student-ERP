@@ -11,6 +11,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useCurrentUser } from "@/hooks/use-session";
+import { canAccessPath } from "@/lib/auth/permissions";
+import { clearSessionCookie } from "@/lib/auth/session-cookie";
+import { useAppDispatch } from "@/store/hooks";
+import { signedOut } from "@/store/sessionSlice";
+import type { User } from "@/types";
 
 export interface ProfileUser {
   name: string;
@@ -26,13 +32,6 @@ export interface ProfileLink {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-const defaultUser: ProfileUser = {
-  name: "Tayyab Saeed",
-  email: "tayyab@erp.com",
-  role: "System administrator",
-  initials: "TS",
-};
-
 const defaultLinks: ProfileLink[] = [
   { href: "/settings", label: "Account settings", icon: Settings },
   { href: "/fees", label: "Billing & subscriptions", icon: CreditCard },
@@ -42,11 +41,27 @@ const itemClass =
   "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium cursor-pointer";
 
 interface UserProfileNavProps {
+  /** Who to show; defaults to the signed-in user. */
   user?: ProfileUser;
   links?: ProfileLink[];
 }
 
-export function UserProfileNav({ user = defaultUser, links = defaultLinks }: UserProfileNavProps) {
+export function toProfileUser(user: User): ProfileUser {
+  return { name: user.name, email: user.email, role: user.title, initials: user.initials, avatarUrl: user.avatarUrl };
+}
+
+export function UserProfileNav({ user: userProp, links = defaultLinks }: UserProfileNavProps) {
+  const dispatch = useAppDispatch();
+  const currentUser = useCurrentUser();
+  const user = userProp ?? (currentUser ? toProfileUser(currentUser) : undefined);
+  if (!user) return null;
+  const visibleLinks = currentUser ? links.filter((l) => canAccessPath(currentUser.role, l.href)) : links;
+
+  const signOut = () => {
+    clearSessionCookie();
+    dispatch(signedOut());
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -75,7 +90,7 @@ export function UserProfileNav({ user = defaultUser, links = defaultLinks }: Use
 
         <DropdownMenuSeparator />
 
-        {links.map(({ href, label, icon: Icon }) => (
+        {visibleLinks.map(({ href, label, icon: Icon }) => (
           <DropdownMenuItem key={href} render={<Link href={href} className={itemClass} />}>
             <Icon className="size-4 text-muted-foreground" />
             <span>{label}</span>
@@ -84,7 +99,7 @@ export function UserProfileNav({ user = defaultUser, links = defaultLinks }: Use
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem variant="destructive" render={<Link href="/login" className={itemClass} />}>
+        <DropdownMenuItem variant="destructive" onClick={signOut} render={<Link href="/login" className={itemClass} />}>
           <LogOut className="size-4" />
           <span>Log out</span>
         </DropdownMenuItem>

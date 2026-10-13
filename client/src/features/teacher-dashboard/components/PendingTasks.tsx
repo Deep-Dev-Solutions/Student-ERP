@@ -1,10 +1,13 @@
+"use client";
+
 import { AlertTriangle, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { pendingTasks } from "../data";
+import { useGetTeacherDayQuery } from "@/store/api";
 
 export function PendingTasks() {
+  const pendingTasks = useGetTeacherDayQuery().data?.pendingTasks ?? [];
   if (pendingTasks.length === 0) return null;
 
   return (

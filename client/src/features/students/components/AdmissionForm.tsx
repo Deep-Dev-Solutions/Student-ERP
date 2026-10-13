@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Card,
@@ -18,6 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CheckCircle2, PlusCircle } from "lucide-react";
+import { sectionLabel, useClassSectionPicker, useClassSections, useReadOnly } from "@/hooks/use-academics";
+import { useGetSectionsQuery } from "@/store/api";
 import {
   admissionDefaults,
   admissionSchema,
@@ -39,16 +41,6 @@ const bloodGroupOptions = [
   { value: "other", label: "Other" },
 ];
 
-const classOptions = [
-  { value: "9", label: "Class 9 (Matric)" },
-  { value: "10", label: "Class 10 (Matric)" },
-];
-
-const sectionOptions = [
-  { value: "a", label: "Section A (morning)" },
-  { value: "b", label: "Section B (morning)" },
-  { value: "c", label: "Section C (evening)" },
-];
 
 const inputClass = "h-9 bg-card";
 const selectTriggerClass = "h-9 w-full bg-card";
@@ -116,25 +108,37 @@ interface AdmissionFormProps {
 }
 
 export function AdmissionForm({ onSubmit, onSaveDraft }: AdmissionFormProps) {
+  const readOnly = useReadOnly();
   const [submitted, setSubmitted] = useState(false);
+  // New admissions default to Class 9, section A when the campus has them.
+  const picker = useClassSectionPicker({ className: "Class 9", section: "A" }, { withStage: true, withShift: true });
+  const classOptions = picker.classOptions;
+  const defaults: AdmissionFormInput = { ...admissionDefaults, enrollingClass: picker.classId, section: picker.sectionId };
   const {
     register,
     control,
     handleSubmit,
     getValues,
+    setValue,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<AdmissionFormInput, unknown, AdmissionFormValues>({
     resolver: zodResolver(admissionSchema),
-    defaultValues: admissionDefaults,
+    defaultValues: defaults,
     mode: "onTouched",
   });
+  // The section list follows the chosen class.
+  const chosenClassId = useWatch({ control, name: "enrollingClass" });
+  const sectionOptions = useClassSections(chosenClassId).map((s) => ({ value: s.id, label: sectionLabel(s, true) }));
+  const { data: allSections = [] } = useGetSectionsQuery();
+  const firstSectionOf = (classId: string) =>
+    allSections.filter((s) => s.classId === classId).sort((a, b) => a.name.localeCompare(b.name))[0]?.id ?? "";
 
   const submit = handleSubmit(async (values) => {
     // TODO: replace with the admissions API call once the data layer exists.
     await onSubmit?.(values);
     setSubmitted(true);
-    reset(admissionDefaults);
+    reset(defaults);
   });
 
   const a11y = (name: keyof AdmissionFormInput) => ({
@@ -302,7 +306,14 @@ export function AdmissionForm({ onSubmit, onSaveDraft }: AdmissionFormProps) {
               name="enrollingClass"
               control={control}
               render={({ field }) => (
-                <Select items={classOptions} value={field.value} onValueChange={(v) => field.onChange(v)}>
+                <Select
+                  items={classOptions}
+                  value={field.value}
+                  onValueChange={(v) => {
+                    field.onChange(v);
+                    if (v) setValue("section", firstSectionOf(v));
+                  }}
+                >
                   <SelectTrigger className={selectTriggerClass} {...a11y("enrollingClass")} onBlur={field.onBlur}>
                     <SelectValue placeholder="Select class" />
                   </SelectTrigger>
@@ -363,7 +374,7 @@ export function AdmissionForm({ onSubmit, onSaveDraft }: AdmissionFormProps) {
         </Button>
         <Button
           type="submit"
-          disabled={isSubmitting}
+          disabled={readOnly || isSubmitting}
           size="lg"
         >
           <PlusCircle data-icon="inline-start" />

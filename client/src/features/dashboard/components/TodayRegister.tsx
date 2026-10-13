@@ -2,11 +2,9 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  registerSummary,
-  todayRegister,
-  type RegisterStatus,
-} from "@/features/dashboard/data";
+import { registerSummary, todayRegister } from "@/services/dashboard";
+import type { RegisterStatus } from "@/types";
+import { formatNumber } from "@/lib/format";
 
 const statusMeta: Record<RegisterStatus, { label: string; cell: string; swatch: string }> = {
   locked: {
@@ -43,7 +41,7 @@ export function TodayRegister() {
           </p>
           <p className="mt-4 text-5xl font-semibold tracking-tight">{rate}%</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            {present.toLocaleString()} of {enrolledInMarked.toLocaleString()} students present in
+            {formatNumber(present)} of {formatNumber(enrolledInMarked)} students present in
             marked sections
           </p>
         </div>
@@ -54,7 +52,7 @@ export function TodayRegister() {
             <span className="text-muted-foreground"> of {sections} sections locked</span>
           </p>
           {needsAction > 0 ? (
-            <ButtonLink href="/attendance" size="sm" className="mt-2">
+            <ButtonLink href="/attendance?tab=review" size="sm" className="mt-2">
               Review {needsAction} open {needsAction === 1 ? "register" : "registers"}
             </ButtonLink>
           ) : null}
@@ -72,7 +70,7 @@ export function TodayRegister() {
           return (
             <li key={s.section}>
               <Link
-                href="/attendance"
+                href="/attendance?tab=review"
                 title={`Class ${s.section}: ${meta.label.toLowerCase()}, ${detail}`}
                 aria-label={`Class ${s.section}: ${meta.label}, ${detail}`}
                 className={cn(

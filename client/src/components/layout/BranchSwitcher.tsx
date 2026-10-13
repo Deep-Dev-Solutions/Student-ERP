@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { Building2, Check, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
@@ -11,42 +10,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export interface Branch {
-  id: string;
-  name: string;
-  code: string;
-  location: string;
-}
-
-const branches: Branch[] = [
-  {
-    id: "br-1",
-    name: "Lahore Central Campus",
-    code: "LHR-01",
-    location: "Main Boulevard, Gulberg III",
-  },
-  {
-    id: "br-2",
-    name: "Gulberg Campus",
-    code: "GLB-02",
-    location: "Block B, Gulberg II",
-  },
-  {
-    id: "br-3",
-    name: "DHA Branch",
-    code: "DHA-03",
-    location: "Phase 5 Commercial, DHA",
-  },
-  {
-    id: "br-4",
-    name: "Johar Town Campus",
-    code: "JT-04",
-    location: "G-Block, Johar Town",
-  },
-];
+import { useCurrentBranch } from "@/hooks/use-session";
+import { useGetBranchesQuery } from "@/store/api";
+import { useAppDispatch } from "@/store/hooks";
+import { branchSelected } from "@/store/sessionSlice";
 
 export function BranchSwitcher() {
-  const [selectedBranch, setSelectedBranch] = React.useState<Branch>(branches[0]);
+  const dispatch = useAppDispatch();
+  const { data: branches = [] } = useGetBranchesQuery();
+  const selectedBranch = useCurrentBranch();
+  if (!selectedBranch) return null;
 
   return (
     <DropdownMenu>
@@ -70,7 +43,7 @@ export function BranchSwitcher() {
             return (
               <DropdownMenuItem
                 key={branch.id}
-                onClick={() => setSelectedBranch(branch)}
+                onClick={() => dispatch(branchSelected(branch.id))}
                 className="items-start gap-2.5 rounded-md px-2.5 py-2"
               >
                 <Building2

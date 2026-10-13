@@ -1,6 +1,7 @@
 import { CalendarCheck, FileStack, UserPlus, Wallet } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { studentsSummary, todayRegister } from "@/features/dashboard/data";
+import { studentsSummary, todayRegister } from "@/services/dashboard";
+import { formatNumber } from "@/lib/format";
 
 const nineB = todayRegister.find((s) => s.section === "9-B")!;
 
@@ -55,7 +56,7 @@ const recentActivities: ActivityItem[] = [
     title: "Monthly vouchers generated",
     description: (
       <>
-        {studentsSummary.total.toLocaleString()} fee vouchers were generated for the October
+        {formatNumber(studentsSummary.total)} fee vouchers were generated for the October
         billing cycle.
       </>
     ),

@@ -8,7 +8,8 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { feeCollection, feeTarget, formatRupees } from "@/features/dashboard/data";
+import { formatRupeesCompact } from "@/lib/format";
+import { feeCollection, feeTarget } from "@/services/dashboard";
 import { ChartDataTable } from "./ChartDataTable";
 
 const config = {
@@ -23,7 +24,7 @@ export function FeeCollectionChart() {
       <div>
         <h2 className="text-base font-semibold">Monthly fee collection</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          This academic year against the {formatRupees(feeTarget.target)} monthly target. October
+          This academic year against the {formatRupeesCompact(feeTarget.target)} monthly target. October
           is month to date.
         </p>
       </div>
@@ -38,7 +39,7 @@ export function FeeCollectionChart() {
             width={64}
             domain={[0, 2_000_000]}
             ticks={[0, 500_000, 1_000_000, 1_500_000, 2_000_000]}
-            tickFormatter={(v: number) => (v === 0 ? "0" : formatRupees(v))}
+            tickFormatter={(v: number) => (v === 0 ? "0" : formatRupeesCompact(v))}
           />
           <ReferenceLine
             y={feeTarget.target}
@@ -57,7 +58,7 @@ export function FeeCollectionChart() {
               <ChartTooltipContent
                 hideIndicator
                 formatter={(value) => (
-                  <span className="font-medium text-foreground">{formatRupees(Number(value))}</span>
+                  <span className="font-medium text-foreground">{formatRupeesCompact(Number(value))}</span>
                 )}
               />
             }
@@ -81,7 +82,7 @@ export function FeeCollectionChart() {
                     fontSize={12}
                     className="fill-foreground font-medium"
                   >
-                    {formatRupees(Number(value))}
+                    {formatRupeesCompact(Number(value))}
                   </text>
                 );
               }}
@@ -95,7 +96,7 @@ export function FeeCollectionChart() {
         columns={["Month", "Collected", "Of target"]}
         rows={feeCollection.map((m) => [
           m.current ? `${m.month} (to date)` : m.month,
-          formatRupees(m.collected),
+          formatRupeesCompact(m.collected),
           `${Math.round((m.collected / feeTarget.target) * 100)}%`,
         ])}
       />

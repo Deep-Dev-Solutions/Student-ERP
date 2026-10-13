@@ -24,7 +24,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { statusVariant } from "@/lib/status";
+import { formatRupees } from "@/lib/format";
+import { useGetVouchersQuery, useRecordPaymentMutation } from "@/store/api";
 import { FeeVoucher, PaymentMethod } from "../types";
+import { useReadOnly } from "@/hooks/use-academics";
 
 const voucherStatusLabels: Record<FeeVoucher["status"], string> = {
   unpaid: "Unpaid",
@@ -40,117 +43,26 @@ const paymentMethods: { value: PaymentMethod; label: string; icon: React.Compone
   { value: "cheque", label: "Cheque", icon: Receipt },
 ];
 
-const mockVouchers: FeeVoucher[] = [
-  {
-    id: "vch-1",
-    voucherNumber: "VCH-2026-1042",
-    studentId: "STD-1042",
-    studentName: "Ahmed Khan",
-    avatar: "AK",
-    className: "Class 9",
-    section: "Section A",
-    guardianName: "Muhammad Khan",
-    guardianPhone: "0300-1234567",
-    month: "October 2026",
-    dueDate: "Oct 15, 2026",
-    tuitionFee: 3000,
-    examFee: 500,
-    labFee: 300,
-    arrears: 0,
-    totalAmount: 3800,
-    status: "unpaid",
-  },
-  {
-    id: "vch-2",
-    voucherNumber: "VCH-2026-1043",
-    studentId: "STD-1043",
-    studentName: "Fatima Ali",
-    avatar: "FA",
-    className: "Class 10",
-    section: "Section B",
-    guardianName: "Ali Asghar",
-    guardianPhone: "0333-7654321",
-    month: "October 2026",
-    dueDate: "Oct 10, 2026",
-    tuitionFee: 3000,
-    examFee: 500,
-    labFee: 500,
-    arrears: 6000,
-    totalAmount: 10000,
-    status: "overdue",
-  },
-  {
-    id: "vch-3",
-    voucherNumber: "VCH-2026-1044",
-    studentId: "STD-1044",
-    studentName: "Muhammad Bilal",
-    avatar: "MB",
-    className: "Class 9",
-    section: "Section A",
-    guardianName: "Bilal Tariq",
-    guardianPhone: "0321-9876543",
-    month: "October 2026",
-    dueDate: "Oct 15, 2026",
-    tuitionFee: 3000,
-    examFee: 500,
-    labFee: 0,
-    arrears: 0,
-    totalAmount: 3500,
-    status: "unpaid",
-  },
-  {
-    id: "vch-4",
-    voucherNumber: "VCH-2026-1045",
-    studentId: "STD-1045",
-    studentName: "Ayesha Noor",
-    avatar: "AN",
-    className: "Class 10",
-    section: "Section A",
-    guardianName: "Noor Hassan",
-    guardianPhone: "0345-5544332",
-    month: "October 2026",
-    dueDate: "Oct 12, 2026",
-    tuitionFee: 3000,
-    examFee: 500,
-    labFee: 500,
-    arrears: 1500,
-    totalAmount: 5500,
-    status: "partial",
-  },
-  {
-    id: "vch-5",
-    voucherNumber: "VCH-2026-1046",
-    studentId: "STD-1046",
-    studentName: "Zainab Tariq",
-    avatar: "ZT",
-    className: "Class 9",
-    section: "Section C",
-    guardianName: "Tariq Mehmood",
-    guardianPhone: "0312-3322110",
-    month: "October 2026",
-    dueDate: "Oct 15, 2026",
-    tuitionFee: 3000,
-    examFee: 0,
-    labFee: 0,
-    arrears: 3000,
-    totalAmount: 6000,
-    status: "overdue",
-  },
-];
-
 export function PointOfSale() {
-  const [vouchers, setVouchers] = useState<FeeVoucher[]>(mockVouchers);
-  const [selectedVoucher, setSelectedVoucher] = useState<FeeVoucher>(mockVouchers[0]);
+  const readOnly = useReadOnly();
+  const { data: vouchers = [] } = useGetVouchersQuery();
+  const [recordPayment] = useRecordPaymentMutation();
+  // Keep only the id, so the selected voucher always reflects the latest
+  // data: once paid, it reads as paid and can't be collected again.
+  const [selectedId, setSelectedId] = useState(vouchers[0]?.id);
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [amountReceived, setAmountReceived] = useState<string>(
-    mockVouchers[0].totalAmount.toString()
+    vouchers[0]?.totalAmount.toString() ?? ""
   );
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [lastReceiptNumber, setLastReceiptNumber] = useState<string>("");
 
+  const selectedVoucher = vouchers.find((v) => v.id === selectedId) ?? vouchers[0];
+  if (!selectedVoucher) return null;
+
   const handleSelectVoucher = (voucher: FeeVoucher) => {
-    setSelectedVoucher(voucher);
+    setSelectedId(voucher.id);
     setAmountReceived(voucher.totalAmount.toString());
     setPaymentSuccess(false);
   };
@@ -158,19 +70,15 @@ export function PointOfSale() {
   const numericReceived = parseFloat(amountReceived) || 0;
   const balanceReturn = Math.max(0, numericReceived - selectedVoucher.totalAmount);
 
-  const handleRecordPayment = () => {
-    const receiptNo = `REC-${Math.floor(100000 + Math.random() * 900000)}`;
-    setLastReceiptNumber(receiptNo);
+  const handleRecordPayment = async () => {
+    const result = await recordPayment({
+      voucherId: selectedVoucher.id,
+      method: paymentMethod,
+      amount: numericReceived,
+    });
+    if ("error" in result) return;
+    setLastReceiptNumber(`REC-${Math.floor(100000 + Math.random() * 900000)}`);
     setPaymentSuccess(true);
-
-    // Update local voucher list to marked as paid
-    setVouchers((prev) =>
-      prev.map((v) =>
-        v.id === selectedVoucher.id
-          ? { ...v, status: "paid" }
-          : v
-      )
-    );
   };
 
   const filteredVouchers = vouchers.filter(
@@ -262,10 +170,10 @@ export function PointOfSale() {
 
                       <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:gap-1">
                         <p className="text-right">
-                          <span className="text-base font-semibold">Rs {voucher.totalAmount.toLocaleString()}</span>
+                          <span className="text-base font-semibold">{formatRupees(voucher.totalAmount)}</span>
                           {voucher.arrears > 0 ? (
                             <span className="block text-xs text-muted-foreground">
-                              includes Rs {voucher.arrears.toLocaleString()} arrears
+                              includes {formatRupees(voucher.arrears)} arrears
                             </span>
                           ) : null}
                         </p>
@@ -335,13 +243,13 @@ export function PointOfSale() {
                 {breakdown.map((row) => (
                   <div key={row.label} className="flex items-center justify-between border-b border-border py-2">
                     <dt className="text-muted-foreground">{row.label}</dt>
-                    <dd className="tabular-nums">Rs {row.amount.toLocaleString()}</dd>
+                    <dd className="tabular-nums">{formatRupees(row.amount)}</dd>
                   </div>
                 ))}
                 <div className="flex items-center justify-between pt-3">
                   <dt className="font-semibold">Total payable</dt>
                   <dd className="text-lg font-semibold tabular-nums">
-                    Rs {selectedVoucher.totalAmount.toLocaleString()}
+                    {formatRupees(selectedVoucher.totalAmount)}
                   </dd>
                 </div>
               </dl>
@@ -393,7 +301,7 @@ export function PointOfSale() {
                     />
                     <p className="mt-2 flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm">
                       <span className="text-muted-foreground">Change to return</span>
-                      <span className="font-semibold tabular-nums">Rs {balanceReturn.toLocaleString()}</span>
+                      <span className="font-semibold tabular-nums">{formatRupees(balanceReturn)}</span>
                     </p>
                   </div>
 
@@ -401,10 +309,10 @@ export function PointOfSale() {
                     size="lg"
                     className="h-12 w-full text-base"
                     onClick={handleRecordPayment}
-                    disabled={numericReceived < selectedVoucher.totalAmount}
+                    disabled={readOnly || numericReceived < selectedVoucher.totalAmount}
                   >
                     <ShieldCheck data-icon="inline-start" className="size-5" />
-                    Record payment of Rs {selectedVoucher.totalAmount.toLocaleString()}
+                    Record payment of {formatRupees(selectedVoucher.totalAmount)}
                   </Button>
                   {numericReceived < selectedVoucher.totalAmount ? (
                     <p className="-mt-2 text-center text-sm text-muted-foreground">

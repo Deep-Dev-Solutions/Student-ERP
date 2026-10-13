@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
+import { formatPercent, formatRupees } from "@/lib/format";
 import { statusVariant } from "@/lib/status";
 import { studentStatusLabels } from "../status";
 import { Student } from "../types";
@@ -66,11 +67,11 @@ export function StudentProfileDrawer({ student, open, onOpenChange }: StudentPro
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">Attendance this term</dt>
-              <dd className="mt-0.5 font-medium">{student.attendance}</dd>
+              <dd className="mt-0.5 font-medium">{formatPercent(student.attendance)}</dd>
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">Outstanding balance</dt>
-              <dd className="mt-0.5 font-medium">{student.balance}</dd>
+              <dd className="mt-0.5 font-medium">{formatRupees(student.balance)}</dd>
             </div>
           </dl>
 

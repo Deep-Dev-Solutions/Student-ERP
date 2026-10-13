@@ -1,6 +1,6 @@
-import type { PendingTaskItem, ScheduledClass } from "../types";
+import type { PendingTaskItem, ScheduledClass } from "@/types";
 
-/** Demo data for the teacher portal home. Replace with API data. */
+/** Demo data for the teacher portal home. Read it through @/store/api. */
 export const todayClasses: ScheduledClass[] = [
   {
     id: "cls-1",

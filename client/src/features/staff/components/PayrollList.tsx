@@ -26,7 +26,10 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { StatCard } from "@/components/shared/StatCard";
 import { statusVariant } from "@/lib/status";
+import { formatRupees } from "@/lib/format";
+import { useGetPayrollQuery } from "@/store/api";
 import { PayrollRecord } from "../types";
+import { useReadOnly } from "@/hooks/use-academics";
 
 const transferLabels: Record<PayrollRecord["status"], string> = {
   paid: "Transferred",
@@ -34,86 +37,15 @@ const transferLabels: Record<PayrollRecord["status"], string> = {
   pending: "Not started",
 };
 
-const mockPayroll: PayrollRecord[] = [
-  {
-    id: "pay-1",
-    staffId: "STF-201",
-    name: "Dr. Tariq Mahmood",
-    avatar: "TM",
-    role: "Senior Physics Lecturer",
-    department: "Science",
-    baseSalary: 110000,
-    allowances: 15000,
-    deductions: 8500,
-    netSalary: 116500,
-    month: "October 2026",
-    status: "paid",
-  },
-  {
-    id: "pay-2",
-    staffId: "STF-202",
-    name: "Saima Nazir",
-    avatar: "SN",
-    role: "Head of Mathematics",
-    department: "Mathematics",
-    baseSalary: 125000,
-    allowances: 18000,
-    deductions: 9200,
-    netSalary: 133800,
-    month: "October 2026",
-    status: "paid",
-  },
-  {
-    id: "pay-3",
-    staffId: "STF-203",
-    name: "Rashid Minhas",
-    avatar: "RM",
-    role: "Chemistry Teacher",
-    department: "Science",
-    baseSalary: 85000,
-    allowances: 8000,
-    deductions: 5500,
-    netSalary: 87500,
-    month: "October 2026",
-    status: "processing",
-  },
-  {
-    id: "pay-4",
-    staffId: "STF-204",
-    name: "Ayesha Siddiqua",
-    avatar: "AS",
-    role: "English Literature Instructor",
-    department: "Humanities",
-    baseSalary: 78000,
-    allowances: 7000,
-    deductions: 4200,
-    netSalary: 80800,
-    month: "October 2026",
-    status: "pending",
-  },
-  {
-    id: "pay-5",
-    staffId: "STF-205",
-    name: "Kamran Akram",
-    avatar: "KA",
-    role: "Computer Science Teacher",
-    department: "IT & CS",
-    baseSalary: 95000,
-    allowances: 12000,
-    deductions: 6400,
-    netSalary: 100600,
-    month: "October 2026",
-    status: "paid",
-  },
-];
-
 export function PayrollList() {
+  const readOnly = useReadOnly();
+  const { data: payroll = [] } = useGetPayrollQuery();
   const [searchQuery, setSearchQuery] = useState("");
   const [generatedSlips, setGeneratedSlips] = useState<string[]>([]);
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
   const [bulkDone, setBulkDone] = useState(false);
 
-  const filteredPayroll = mockPayroll.filter(
+  const filteredPayroll = payroll.filter(
     (item) =>
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.staffId.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -121,9 +53,9 @@ export function PayrollList() {
       item.department.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalDisbursal = mockPayroll.reduce((acc, p) => acc + p.netSalary, 0);
-  const totalDeductions = mockPayroll.reduce((acc, p) => acc + p.deductions, 0);
-  const totalBase = mockPayroll.reduce((acc, p) => acc + p.baseSalary, 0);
+  const totalDisbursal = payroll.reduce((acc, p) => acc + p.netSalary, 0);
+  const totalDeductions = payroll.reduce((acc, p) => acc + p.deductions, 0);
+  const totalBase = payroll.reduce((acc, p) => acc + p.baseSalary, 0);
 
   const handleGeneratePayslip = (id: string) => {
     if (generatedSlips.includes(id)) return;
@@ -135,24 +67,23 @@ export function PayrollList() {
     setTimeout(() => {
       setIsBulkProcessing(false);
       setBulkDone(true);
-      setGeneratedSlips(mockPayroll.map((p) => p.id));
+      setGeneratedSlips(payroll.map((p) => p.id));
       setTimeout(() => setBulkDone(false), 3500);
     }, 1200);
   };
 
-  const paidCount = mockPayroll.filter((p) => p.status === "paid").length;
-  const rupees = (n: number) => `Rs ${n.toLocaleString()}`;
+  const paidCount = payroll.filter((p) => p.status === "paid").length;
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard label="Net payroll" value={rupees(totalDisbursal)} footer="Payable for October 2026" />
-        <StatCard label="Base salaries" value={rupees(totalBase)} footer="Before allowances" />
-        <StatCard label="Tax and deductions" value={rupees(totalDeductions)} footer="Income tax and EOBI" />
+        <StatCard label="Net payroll" value={formatRupees(totalDisbursal)} footer="Payable for October 2026" />
+        <StatCard label="Base salaries" value={formatRupees(totalBase)} footer="Before allowances" />
+        <StatCard label="Tax and deductions" value={formatRupees(totalDeductions)} footer="Income tax and EOBI" />
         <StatCard
           label="Salaries transferred"
-          value={`${paidCount} of ${mockPayroll.length}`}
-          footer={`${Math.round((paidCount / mockPayroll.length) * 100)}% of staff paid`}
+          value={`${paidCount} of ${payroll.length}`}
+          footer={`${Math.round((paidCount / payroll.length) * 100)}% of staff paid`}
         />
       </div>
 
@@ -168,7 +99,7 @@ export function PayrollList() {
                 <Download data-icon="inline-start" />
                 Export tax sheet
               </Button>
-              <Button onClick={handleProcessAllPayroll} disabled={isBulkProcessing || generatedSlips.length === mockPayroll.length}>
+              <Button onClick={handleProcessAllPayroll} disabled={readOnly || isBulkProcessing || generatedSlips.length === payroll.length}>
                 {isBulkProcessing ? (
                   <>
                     <Clock data-icon="inline-start" className="motion-safe:animate-spin" />
@@ -187,7 +118,7 @@ export function PayrollList() {
           {bulkDone ? (
             <p role="status" className="flex items-center gap-2 rounded-lg border border-success/30 bg-success-tint p-3 text-sm text-success">
               <CheckCircle2 aria-hidden className="size-4 shrink-0" />
-              Payslips generated for all {mockPayroll.length} staff members.
+              Payslips generated for all {payroll.length} staff members.
             </p>
           ) : null}
 
@@ -245,10 +176,10 @@ export function PayrollList() {
                         <span className="2xl:hidden"> · {item.staffId}</span>
                       </p>
                     </TableCell>
-                    <TableCell className="hidden text-right xl:table-cell">{rupees(item.baseSalary)}</TableCell>
-                    <TableCell className="hidden text-right xl:table-cell">+{rupees(item.allowances)}</TableCell>
-                    <TableCell className="hidden text-right xl:table-cell">−{rupees(item.deductions)}</TableCell>
-                    <TableCell className="text-right font-semibold">{rupees(item.netSalary)}</TableCell>
+                    <TableCell className="hidden text-right xl:table-cell">{formatRupees(item.baseSalary)}</TableCell>
+                    <TableCell className="hidden text-right xl:table-cell">+{formatRupees(item.allowances)}</TableCell>
+                    <TableCell className="hidden text-right xl:table-cell">−{formatRupees(item.deductions)}</TableCell>
+                    <TableCell className="text-right font-semibold">{formatRupees(item.netSalary)}</TableCell>
                     <TableCell className="hidden sm:table-cell">
                       <Badge variant={statusVariant(item.status)}>{transferLabels[item.status]}</Badge>
                     </TableCell>
@@ -279,10 +210,10 @@ export function PayrollList() {
 
         <div className="flex flex-col gap-1 border-t border-border bg-muted/50 px-5 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>
-            Showing {filteredPayroll.length} of {mockPayroll.length} staff
+            Showing {filteredPayroll.length} of {payroll.length} staff
           </p>
           <p>
-            Month total: <span className="font-semibold text-foreground">{rupees(totalDisbursal)}</span>
+            Month total: <span className="font-semibold text-foreground">{formatRupees(totalDisbursal)}</span>
           </p>
         </div>
       </Card>

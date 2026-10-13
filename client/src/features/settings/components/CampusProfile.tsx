@@ -21,25 +21,17 @@ import {
   MapPin,
   ImageIcon,
 } from "lucide-react";
+import { useGetCampusProfileQuery, useUpdateCampusProfileMutation } from "@/store/api";
 import { CampusProfileData } from "../types";
 
-const initialCampusData: CampusProfileData = {
-  schoolName: "Apex Grammar & Science Academy",
-  tagline: "Empowering Next-Generation Leaders Through Knowledge & Character",
-  registrationNumber: "REG-EDU-2021-9481",
-  contactEmail: "admin@apexgrammar.edu.pk",
-  contactPhone: "+92 42 35889900",
-  website: "https://www.apexgrammar.edu.pk",
-  streetAddress: "Plot 42-B, Sector G, Phase 5, DHA",
-  city: "Lahore",
-  province: "Punjab",
-  postalCode: "54792",
-  country: "Pakistan",
-  principalName: "Dr. Tariq Mahmood, Ph.D.",
-};
-
 export function CampusProfile() {
+  const { data } = useGetCampusProfileQuery();
+  return data ? <CampusProfileForm initialCampusData={data} /> : null;
+}
+
+function CampusProfileForm({ initialCampusData }: { initialCampusData: CampusProfileData }) {
   const [profile, setProfile] = useState<CampusProfileData>(initialCampusData);
+  const [saveProfile] = useUpdateCampusProfileMutation();
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [logoName, setLogoName] = useState<string | null>(null);
@@ -51,6 +43,7 @@ export function CampusProfile() {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
+    saveProfile(profile);
     setTimeout(() => {
       setIsSaving(false);
       setSaveSuccess(true);

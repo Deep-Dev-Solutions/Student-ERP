@@ -4,14 +4,7 @@
  * campus. Replace with API data when the backend is wired in.
  */
 
-export type RegisterStatus = "locked" | "pending" | "not_marked";
-
-export interface SectionRegister {
-  section: string;
-  status: RegisterStatus;
-  present: number;
-  enrolled: number;
-}
+import type { AttendanceDay, FeeMonth, RegisterStatus, SectionRegister } from "@/types";
 
 const pendingSections = new Set(["4-B", "7-C", "9-A"]);
 const notMarkedSections = new Set(["2-C", "10-C"]);
@@ -68,12 +61,6 @@ export const feeTarget = {
   overdueVouchers: 120,
 };
 
-export interface FeeMonth {
-  month: string;
-  collected: number;
-  current?: boolean;
-}
-
 /** Monthly collections this academic year; the current month is to date. */
 export const feeCollection: FeeMonth[] = [
   { month: "Apr", collected: 1_580_000 },
@@ -84,11 +71,6 @@ export const feeCollection: FeeMonth[] = [
   { month: "Sep", collected: 1_550_000 },
   { month: "Oct", collected: 1_250_000, current: true },
 ];
-
-export interface AttendanceDay {
-  date: string;
-  rate: number;
-}
 
 /** Daily attendance for the last 22 school days, oldest first. */
 export const attendanceTrend: AttendanceDay[] = [
@@ -103,9 +85,3 @@ export const studentsSummary = {
   total: todayRegister.reduce((sum, s) => sum + s.enrolled, 0),
   admittedThisMonth: 12,
 };
-
-export function formatRupees(value: number) {
-  if (value >= 1_000_000) return `Rs ${(value / 1_000_000).toFixed(2).replace(/\.?0+$/, "")}M`;
-  if (value >= 1_000) return `Rs ${Math.round(value / 1_000)}K`;
-  return `Rs ${value}`;
-}

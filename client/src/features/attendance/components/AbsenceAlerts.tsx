@@ -19,39 +19,21 @@ import {
   Clock,
   Phone,
 } from "lucide-react";
+import { useGetAbsenteesQuery, useGetCampusProfileQuery } from "@/store/api";
 import { StudentAttendanceRecord } from "../types";
-
-// Matches the campus profile in Settings until it comes from the API.
-const SCHOOL_NAME = "Apex Grammar & Science Academy";
-
-const defaultAbsentStudents: StudentAttendanceRecord[] = [
-  {
-    id: "STD-1043",
-    name: "Fatima Ali",
-    email: "fatima.ali@student.edu",
-    avatar: "FA",
-    status: "A",
-    remark: "Unannounced absence",
-    guardianPhone: "0333-7654321",
-  },
-  {
-    id: "STD-1049",
-    name: "Usman Ghani",
-    email: "usman.g@student.edu",
-    avatar: "UG",
-    status: "A",
-    remark: "Sick - fever reported",
-    guardianPhone: "0341-9988776",
-  },
-];
+import { useReadOnly } from "@/hooks/use-academics";
 
 interface AbsenceAlertsProps {
   absentStudents?: StudentAttendanceRecord[];
 }
 
 export function AbsenceAlerts({
-  absentStudents = defaultAbsentStudents,
+  absentStudents: absentStudentsProp,
 }: AbsenceAlertsProps) {
+  const readOnly = useReadOnly();
+  const { data: absentees = [] } = useGetAbsenteesQuery();
+  const schoolName = useGetCampusProfileQuery().data?.schoolName;
+  const absentStudents = absentStudentsProp ?? absentees;
   const [sentAt, setSentAt] = useState<string | null>(null);
   const count = absentStudents.length;
 
@@ -77,7 +59,7 @@ export function AbsenceAlerts({
             </div>
           </div>
 
-          <Button size="lg" onClick={sendAlerts} disabled={sentAt !== null || count === 0}>
+          <Button size="lg" onClick={sendAlerts} disabled={readOnly || sentAt !== null || count === 0}>
             <Send data-icon="inline-start" />
             {sentAt ? "Alerts sent" : `Send ${count} WhatsApp ${count === 1 ? "alert" : "alerts"}`}
           </Button>
@@ -117,7 +99,7 @@ export function AbsenceAlerts({
               </p>
             </blockquote>
             <figcaption className="mt-3 flex items-center justify-between border-t border-border pt-2 text-xs text-muted-foreground">
-              <span>From {SCHOOL_NAME}</span>
+              <span>From {schoolName}</span>
               <span className="flex items-center gap-1">
                 <Check aria-hidden className="size-3" /> Verified sender
               </span>

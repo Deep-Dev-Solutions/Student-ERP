@@ -33,8 +33,9 @@ export const admissionSchema = z.object({
     .or(z.literal("")),
 
   // Step 3: Academic assignment & fee structure
-  enrollingClass: z.enum(["9", "10"], "Select a class"),
-  section: z.enum(["a", "b", "c"], "Select a section"),
+  // Class and section ids from Academics.
+  enrollingClass: z.string().min(1, "Select a class"),
+  section: z.string().min(1, "Select a section"),
   monthlyFee: z.coerce
     .number<string>("Enter the monthly fee")
     .int("Fee must be a whole number")
@@ -56,7 +57,8 @@ export const admissionDefaults: AdmissionFormInput = {
   guardianCnic: "",
   whatsappNumber: "",
   emergencyPhone: "",
-  enrollingClass: "9",
-  section: "a",
+  // Filled in by the form from the campus's classes.
+  enrollingClass: "",
+  section: "",
   monthlyFee: "3000",
 };

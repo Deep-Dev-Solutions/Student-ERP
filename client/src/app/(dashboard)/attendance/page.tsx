@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCan } from "@/hooks/use-session";
+import { useUrlTab } from "@/hooks/use-url-state";
 import {
   Tabs,
   TabsContent,
@@ -27,8 +28,11 @@ import {
 const pendingLocks =
   adminNavGroups.flatMap((g) => g.items).find((i) => i.href === "/attendance")?.pending ?? 0;
 
+const TABS = ["mark", "review", "alerts"] as const;
+
 export default function AttendancePage() {
-  const [activeTab, setActiveTab] = useState("mark");
+  const canLock = useCan("att_lock_roster");
+  const [activeTab, setActiveTab] = useUrlTab("mark", canLock ? TABS : ["mark", "alerts"]);
 
   return (
     <div className="space-y-6">
@@ -41,10 +45,12 @@ export default function AttendancePage() {
               <Download data-icon="inline-start" />
               Export monthly sheet
             </Button>
-            <Button onClick={() => setActiveTab("review")}>
-              <Lock data-icon="inline-start" />
-              Review and lock
-            </Button>
+            {canLock ? (
+              <Button onClick={() => setActiveTab("review")}>
+                <Lock data-icon="inline-start" />
+                Review and lock
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -55,14 +61,16 @@ export default function AttendancePage() {
             <UserCheck />
             Mark attendance
           </TabsTrigger>
-          <TabsTrigger value="review">
-            <Lock />
-            Review and lock
-            <Badge variant="highlight" className="h-5 px-1.5">
-              {pendingLocks}
-              <span className="sr-only"> pending</span>
-            </Badge>
-          </TabsTrigger>
+          {canLock ? (
+            <TabsTrigger value="review">
+              <Lock />
+              Review and lock
+              <Badge variant="highlight" className="h-5 px-1.5">
+                {pendingLocks}
+                <span className="sr-only"> pending</span>
+              </Badge>
+            </TabsTrigger>
+          ) : null}
           <TabsTrigger value="alerts">
             <Bell />
             Absence alerts
@@ -72,9 +80,11 @@ export default function AttendancePage() {
         <TabsContent value="mark">
           <MarkAttendanceUI />
         </TabsContent>
-        <TabsContent value="review">
-          <ReviewAndLock />
-        </TabsContent>
+        {canLock ? (
+          <TabsContent value="review">
+            <ReviewAndLock />
+          </TabsContent>
+        ) : null}
         <TabsContent value="alerts">
           <AbsenceAlerts />
         </TabsContent>

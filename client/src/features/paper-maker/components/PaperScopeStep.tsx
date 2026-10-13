@@ -4,7 +4,8 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LabeledSelect } from "@/components/shared/LabeledSelect";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChapterItem, PaperScopeConfig } from "../types";
+import { useGetChaptersQuery } from "@/store/api";
+import { PaperScopeConfig } from "../types";
 
 const boardOptions = [
   { value: "fbise", label: "Federal Board (FBISE)" },
@@ -25,21 +26,13 @@ const subjectOptions = [
   { value: "computer-science", label: "Computer science" },
 ];
 
-const mockChapters: ChapterItem[] = [
-  { id: "ch-1", number: 1, title: "Physical Quantities & Measurement", topicsCount: 6 },
-  { id: "ch-2", number: 2, title: "Kinematics & Motion Graphs", topicsCount: 8 },
-  { id: "ch-3", number: 3, title: "Dynamics, Forces & Friction", topicsCount: 7 },
-  { id: "ch-4", number: 4, title: "Turning Effect of Forces & Equilibrium", topicsCount: 5 },
-  { id: "ch-5", number: 5, title: "Gravitation & Orbital Dynamics", topicsCount: 4 },
-  { id: "ch-6", number: 6, title: "Work, Energy & Power Principles", topicsCount: 6 },
-];
-
 interface PaperScopeStepProps {
   config: PaperScopeConfig;
   onChange: (updated: Partial<PaperScopeConfig>) => void;
 }
 
 export function PaperScopeStep({ config, onChange }: PaperScopeStepProps) {
+  const { data: chapters = [] } = useGetChaptersQuery();
   const toggleChapter = (chapterId: string) => {
     const isSelected = config.selectedChapters.includes(chapterId);
     if (isSelected) {
@@ -54,14 +47,14 @@ export function PaperScopeStep({ config, onChange }: PaperScopeStepProps) {
   };
 
   const selectAllChapters = () => {
-    if (config.selectedChapters.length === mockChapters.length) {
+    if (config.selectedChapters.length === chapters.length) {
       onChange({ selectedChapters: [] });
     } else {
-      onChange({ selectedChapters: mockChapters.map((c) => c.id) });
+      onChange({ selectedChapters: chapters.map((c) => c.id) });
     }
   };
 
-  const allSelected = config.selectedChapters.length === mockChapters.length;
+  const allSelected = config.selectedChapters.length === chapters.length;
 
   return (
     <Card className="gap-6 px-5 sm:px-6">
@@ -83,7 +76,7 @@ export function PaperScopeStep({ config, onChange }: PaperScopeStepProps) {
           <div>
             <legend className="text-sm font-semibold">Chapters</legend>
             <p className="text-sm text-muted-foreground">
-              {config.selectedChapters.length} of {mockChapters.length} selected
+              {config.selectedChapters.length} of {chapters.length} selected
             </p>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={selectAllChapters}>
@@ -92,7 +85,7 @@ export function PaperScopeStep({ config, onChange }: PaperScopeStepProps) {
         </div>
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {mockChapters.map((ch) => {
+          {chapters.map((ch) => {
             const isSelected = config.selectedChapters.includes(ch.id);
             return (
               <label

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { LabeledSelect } from "@/components/shared/LabeledSelect";
+import { useClassSectionPicker, useClassSubjects } from "@/hooks/use-academics";
 import { MobileMarksEntry } from "@/features/teacher-portal/components/MobileMarksEntry";
 
 const examOptions = [
@@ -10,15 +11,14 @@ const examOptions = [
   { value: "monthly-test", label: "Monthly test" },
   { value: "final-2026", label: "Annual exam 2026" },
 ];
-const subjectOptions = [
-  { value: "physics", label: "Physics" },
-  { value: "mathematics", label: "Mathematics" },
-  { value: "general-science", label: "General science" },
-];
 
 export default function TeacherMarksPage() {
   const [selectedExam, setSelectedExam] = useState("midterm-2026");
-  const [selectedSubject, setSelectedSubject] = useState("physics");
+  // The class and section shown in the subtitle; they become pickers in Phase I.
+  const { classId } = useClassSectionPicker({ className: "Class 10", section: "B" });
+  const subjectOptions = useClassSubjects(classId).map((s) => ({ value: s.id, label: s.name }));
+  const [pickedSubject, setSelectedSubject] = useState("sub-phy");
+  const selectedSubject = subjectOptions.some((o) => o.value === pickedSubject) ? pickedSubject : (subjectOptions[0]?.value ?? "");
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-6 sm:px-6">
