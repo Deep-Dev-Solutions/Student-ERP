@@ -3,13 +3,12 @@
 import { useState } from "react";
 import {
   Card,
-  CardContent,
   CardDescription,
-  CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Building2,
   Upload,
@@ -20,7 +19,7 @@ import {
   Mail,
   Phone,
   MapPin,
-  Sparkles,
+  ImageIcon,
 } from "lucide-react";
 import { CampusProfileData } from "../types";
 
@@ -43,6 +42,7 @@ export function CampusProfile() {
   const [profile, setProfile] = useState<CampusProfileData>(initialCampusData);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [logoName, setLogoName] = useState<string | null>(null);
 
   const handleChange = (field: keyof CampusProfileData, value: string) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
@@ -58,281 +58,128 @@ export function CampusProfile() {
     }, 700);
   };
 
+  const field = (key: keyof CampusProfileData, label: string, opts: { span?: string; type?: string; icon?: React.ComponentType<{ className?: string }> } = {}) => {
+    const Icon = opts.icon;
+    const id = `campus-${key}`;
+    return (
+      <div className={opts.span}>
+        <label htmlFor={id} className="mb-1.5 block text-sm font-medium">
+          {label}
+        </label>
+        <div className="relative">
+          {Icon ? <Icon aria-hidden className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" /> : null}
+          <Input
+            id={id}
+            type={opts.type ?? "text"}
+            value={profile[key]}
+            onChange={(e) => handleChange(key, e.target.value)}
+            className={`h-9 bg-card ${Icon ? "pl-9" : ""}`}
+          />
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-6">
-      <Card className="rounded-xl border border-slate-200/80 bg-white shadow-xs">
-        <CardHeader className="p-6 border-b border-slate-100 bg-white">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-lg font-bold tracking-tight text-slate-900">
-                  Campus & Organization Profile
-                </CardTitle>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-                  <Sparkles className="h-3 w-3" /> Verified Institution
-                </span>
-              </div>
-              <CardDescription className="text-xs text-slate-500 mt-1">
-                Update institutional credentials, official branding, and contact channels for public documents & payslips.
-              </CardDescription>
-            </div>
+    <form onSubmit={handleSave} className="space-y-6">
+      <Card className="gap-6 px-6">
+        <div>
+          <CardTitle>
+            <h2>Campus profile</h2>
+          </CardTitle>
+          <CardDescription className="mt-0.5">
+            Shown on receipts, payslips, report cards and messages to guardians.
+          </CardDescription>
+        </div>
 
-            <Button
-              type="submit"
-              form="campus-profile-form"
-              disabled={isSaving}
-              className="h-9 gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors self-start sm:self-auto"
-            >
-              {isSaving ? (
-                <>
-                  <Clock className="h-3.5 w-3.5 animate-spin" />
-                  Saving Profile...
-                </>
-              ) : saveSuccess ? (
-                <>
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
-                  Profile Updated!
-                </>
-              ) : (
-                <>
-                  <Save className="h-3.5 w-3.5" />
-                  Save Changes
-                </>
-              )}
-            </Button>
+        <section aria-labelledby="campus-logo-heading">
+          <h3 id="campus-logo-heading" className="mb-2 text-sm font-medium">
+            School crest or logo
+          </h3>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <span className="flex size-20 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted text-muted-foreground">
+              {logoName ? <ImageIcon aria-hidden className="size-8" /> : <Building2 aria-hidden className="size-8" />}
+            </span>
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <label htmlFor="campus-logo" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "cursor-pointer")}>
+                  <Upload data-icon="inline-start" />
+                  Upload logo
+                </label>
+                <input
+                  id="campus-logo"
+                  type="file"
+                  accept="image/png,image/svg+xml"
+                  className="sr-only"
+                  onChange={(e) => setLogoName(e.target.files?.[0]?.name ?? null)}
+                />
+                {logoName ? (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setLogoName(null)}>
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
+              <p className="text-xs text-muted-foreground" aria-live="polite">
+                {logoName ? `Selected ${logoName}` : "PNG or SVG with a transparent background, at least 400 × 400 px, up to 2 MB."}
+              </p>
+            </div>
           </div>
-        </CardHeader>
+        </section>
 
-        <CardContent className="p-6">
-          <form
-            id="campus-profile-form"
-            onSubmit={handleSave}
-            className="space-y-6"
-          >
-            {/* Campus Logo Section */}
-            <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-2">
-                Official Campus Crest / Logo
-              </label>
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-blue-600 shadow-xs">
-                  <Building2 className="h-9 w-9 stroke-[1.5]" />
-                </div>
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 gap-2 border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-xs"
-                    >
-                      <Upload className="h-3.5 w-3.5 text-slate-500" />
-                      Upload New Emblem
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-9 text-xs text-slate-500 hover:text-rose-600 hover:bg-rose-50"
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                  <p className="text-[11px] text-slate-400">
-                    Recommended: Transparent PNG or SVG (Minimum 400x400px, max 2MB).
-                  </p>
-                </div>
-              </div>
-            </div>
+        <section className="border-t border-border pt-5">
+          <h3 className="mb-4 text-sm font-semibold">School details</h3>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {field("schoolName", "School name", { span: "sm:col-span-2" })}
+            {field("tagline", "Motto", { span: "sm:col-span-2" })}
+            {field("registrationNumber", "Board registration number")}
+            {field("principalName", "Principal")}
+          </div>
+        </section>
 
-            <div className="border-t border-slate-100 pt-5">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4">
-                Institutional Identification
-              </h3>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {/* School Name */}
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                    Institution / Campus Name
-                  </label>
-                  <Input
-                    value={profile.schoolName}
-                    onChange={(e) => handleChange("schoolName", e.target.value)}
-                    className="bg-slate-50/70 border-slate-200 focus-visible:ring-blue-600 text-xs h-10 rounded-lg"
-                  />
-                </div>
+        <section className="border-t border-border pt-5">
+          <h3 className="mb-4 text-sm font-semibold">Contact</h3>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {field("contactEmail", "Email", { type: "email", icon: Mail })}
+            {field("contactPhone", "Phone", { type: "tel", icon: Phone })}
+            {field("website", "Website", { type: "url", icon: Globe })}
+          </div>
+        </section>
 
-                {/* Tagline / Motto */}
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                    Motto / Mission Statement
-                  </label>
-                  <Input
-                    value={profile.tagline}
-                    onChange={(e) => handleChange("tagline", e.target.value)}
-                    className="bg-slate-50/70 border-slate-200 focus-visible:ring-blue-600 text-xs h-10 rounded-lg"
-                  />
-                </div>
+        <section className="border-t border-border pt-5">
+          <h3 className="mb-4 text-sm font-semibold">Address</h3>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {field("streetAddress", "Street address", { span: "sm:col-span-2 lg:col-span-4", icon: MapPin })}
+            {field("city", "City")}
+            {field("province", "Province")}
+            {field("postalCode", "Postal code")}
+            {field("country", "Country")}
+          </div>
+        </section>
 
-                {/* Registration Number */}
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                    Board Registration / Affiliation ID
-                  </label>
-                  <Input
-                    value={profile.registrationNumber}
-                    onChange={(e) =>
-                      handleChange("registrationNumber", e.target.value)
-                    }
-                    className="bg-slate-50/70 border-slate-200 focus-visible:ring-blue-600 text-xs h-10 rounded-lg font-mono"
-                  />
-                </div>
-
-                {/* Principal Name */}
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                    Principal / Campus Head
-                  </label>
-                  <Input
-                    value={profile.principalName}
-                    onChange={(e) =>
-                      handleChange("principalName", e.target.value)
-                    }
-                    className="bg-slate-50/70 border-slate-200 focus-visible:ring-blue-600 text-xs h-10 rounded-lg"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Contact Channels */}
-            <div className="border-t border-slate-100 pt-5">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4">
-                Communication Channels
-              </h3>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                {/* Email */}
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                    Official Email
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                    <Input
-                      type="email"
-                      value={profile.contactEmail}
-                      onChange={(e) =>
-                        handleChange("contactEmail", e.target.value)
-                      }
-                      className="pl-9 bg-slate-50/70 border-slate-200 focus-visible:ring-blue-600 text-xs h-10 rounded-lg"
-                    />
-                  </div>
-                </div>
-
-                {/* Phone */}
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                    Landline / Hotline
-                  </label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                    <Input
-                      value={profile.contactPhone}
-                      onChange={(e) =>
-                        handleChange("contactPhone", e.target.value)
-                      }
-                      className="pl-9 bg-slate-50/70 border-slate-200 focus-visible:ring-blue-600 text-xs h-10 rounded-lg font-mono"
-                    />
-                  </div>
-                </div>
-
-                {/* Website */}
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                    Institution Portal / Website
-                  </label>
-                  <div className="relative">
-                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                    <Input
-                      value={profile.website}
-                      onChange={(e) => handleChange("website", e.target.value)}
-                      className="pl-9 bg-slate-50/70 border-slate-200 focus-visible:ring-blue-600 text-xs h-10 rounded-lg"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Physical Location */}
-            <div className="border-t border-slate-100 pt-5">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4">
-                Physical Campus Address
-              </h3>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="sm:col-span-2 lg:col-span-4">
-                  <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                    Street Address & Campus Block
-                  </label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                    <Input
-                      value={profile.streetAddress}
-                      onChange={(e) =>
-                        handleChange("streetAddress", e.target.value)
-                      }
-                      className="pl-9 bg-slate-50/70 border-slate-200 focus-visible:ring-blue-600 text-xs h-10 rounded-lg"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                    City
-                  </label>
-                  <Input
-                    value={profile.city}
-                    onChange={(e) => handleChange("city", e.target.value)}
-                    className="bg-slate-50/70 border-slate-200 focus-visible:ring-blue-600 text-xs h-10 rounded-lg"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                    Province / State
-                  </label>
-                  <Input
-                    value={profile.province}
-                    onChange={(e) => handleChange("province", e.target.value)}
-                    className="bg-slate-50/70 border-slate-200 focus-visible:ring-blue-600 text-xs h-10 rounded-lg"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                    Postal Code
-                  </label>
-                  <Input
-                    value={profile.postalCode}
-                    onChange={(e) => handleChange("postalCode", e.target.value)}
-                    className="bg-slate-50/70 border-slate-200 focus-visible:ring-blue-600 text-xs h-10 rounded-lg font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                    Country
-                  </label>
-                  <Input
-                    value={profile.country}
-                    onChange={(e) => handleChange("country", e.target.value)}
-                    className="bg-slate-50/70 border-slate-200 focus-visible:ring-blue-600 text-xs h-10 rounded-lg"
-                  />
-                </div>
-              </div>
-            </div>
-          </form>
-        </CardContent>
+        <div className="flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-end">
+          <p className="text-sm" role="status">
+            {saveSuccess ? (
+              <span className="flex items-center gap-2 text-success">
+                <CheckCircle2 aria-hidden className="size-4" />
+                Profile saved.
+              </span>
+            ) : null}
+          </p>
+          <Button type="submit" disabled={isSaving}>
+            {isSaving ? (
+              <>
+                <Clock data-icon="inline-start" className="motion-safe:animate-spin" />
+                Saving…
+              </>
+            ) : (
+              <>
+                <Save data-icon="inline-start" />
+                Save changes
+              </>
+            )}
+          </Button>
+        </div>
       </Card>
-    </div>
+    </form>
   );
 }
-

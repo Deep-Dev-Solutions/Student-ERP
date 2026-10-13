@@ -3,10 +3,6 @@
 import { useState } from "react";
 import {
   Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Table,
@@ -30,12 +26,45 @@ import {
   Save,
   CheckCircle2,
   Clock,
-  Sparkles,
   Download,
-  AlertCircle,
-  FileSpreadsheet,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/shared/EmptyState";
+import type { StatusVariant } from "@/lib/status";
 import { StudentMarksRecord } from "../types";
+
+const examOptions = [
+  { value: "midterm-2026", label: "Mid-term exam 2026" },
+  { value: "monthly-sep", label: "Monthly test, September" },
+  { value: "final-2026", label: "Annual board exam" },
+];
+const classOptions = [
+  { value: "class-8", label: "Class 8" },
+  { value: "class-9", label: "Class 9" },
+  { value: "class-10", label: "Class 10" },
+];
+const sectionOptions = [
+  { value: "sec-a", label: "Section A" },
+  { value: "sec-b", label: "Section B" },
+  { value: "sec-c", label: "Section C" },
+];
+const subjectOptions = [
+  { value: "physics", label: "Physics (out of 100)" },
+  { value: "mathematics", label: "Mathematics (out of 100)" },
+  { value: "chemistry", label: "Chemistry (out of 100)" },
+  { value: "english", label: "English (out of 100)" },
+  { value: "biology", label: "Biology (out of 100)" },
+];
+
+/** Grade bands used on report cards. */
+function gradeFor(percentage: number | null): { label: string; variant: StatusVariant } {
+  if (percentage === null) return { label: "—", variant: "neutral" };
+  if (percentage >= 80) return { label: "A+", variant: "success" };
+  if (percentage >= 70) return { label: "A", variant: "info" };
+  if (percentage >= 60) return { label: "B", variant: "info" };
+  if (percentage >= 50) return { label: "C", variant: "warning" };
+  return { label: "F", variant: "danger" };
+}
 
 const mockStudents: StudentMarksRecord[] = [
   {
@@ -159,342 +188,176 @@ export function MarksEntryGrid() {
     marksData.reduce((acc, curr) => acc + (Number(curr.obtainedMarks) || 0), 0) /
     (totalEvaluated || 1);
 
+  const filters = [
+    { id: "marks-exam", label: "Exam", items: examOptions, value: selectedExam, set: setSelectedExam },
+    { id: "marks-class", label: "Class", items: classOptions, value: selectedClass, set: setSelectedClass },
+    { id: "marks-section", label: "Section", items: sectionOptions, value: selectedSection, set: setSelectedSection },
+    { id: "marks-subject", label: "Subject", items: subjectOptions, value: selectedSubject, set: setSelectedSubject },
+  ];
+
+  const saveButton = (
+    <Button onClick={handleSaveMarks} disabled={isSaving}>
+      {isSaving ? (
+        <>
+          <Clock data-icon="inline-start" className="motion-safe:animate-spin" />
+          Saving…
+        </>
+      ) : (
+        <>
+          <Save data-icon="inline-start" />
+          Save marks
+        </>
+      )}
+    </Button>
+  );
+
   return (
     <div className="space-y-6">
-      {/* 1. Filter Bar & Controller Card */}
-      <Card className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4">
+      <Card className="gap-4 px-5 sm:px-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <CardTitle className="text-base font-bold tracking-tight text-slate-900">
-              Gradebook Evaluation & Marks Entry
-            </CardTitle>
-            <CardDescription className="text-xs text-slate-500 mt-0.5">
-              Rapid tabular grade entry for examination results and report card consolidation.
-            </CardDescription>
+            <h2 className="text-base font-semibold">Enter marks</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">Choose the exam, class and subject, then type each student&apos;s marks.</p>
           </div>
-
-          <div className="flex items-center gap-2.5">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 gap-2 border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-xs"
-            >
-              <Download className="h-3.5 w-3.5 text-slate-500" />
-              Download Gazette
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline">
+              <Download data-icon="inline-start" />
+              Download result sheet
             </Button>
-
-            <Button
-              size="sm"
-              onClick={handleSaveMarks}
-              disabled={isSaving}
-              className="h-9 gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors"
-            >
-              {isSaving ? (
-                <>
-                  <Clock className="h-3.5 w-3.5 animate-spin" />
-                  Saving Marks...
-                </>
-              ) : saveSuccess ? (
-                <>
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
-                  Marks Saved!
-                </>
-              ) : (
-                <>
-                  <Save className="h-3.5 w-3.5" />
-                  Save Marks
-                </>
-              )}
-            </Button>
+            {saveButton}
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Exam Filter */}
-          <div>
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block mb-1.5">
-              Select Exam
-            </label>
-            <Select
-              value={selectedExam}
-              onValueChange={(val) => {
-                if (val) setSelectedExam(val);
-              }}
-            >
-              <SelectTrigger className="w-full bg-slate-50/70 border-slate-200 text-xs h-10 rounded-lg">
-                <SelectValue placeholder="Choose exam..." />
-              </SelectTrigger>
-              <SelectContent className="bg-white border-slate-200 shadow-md">
-                <SelectItem value="midterm-2026">Mid-Term Exam 2026</SelectItem>
-                <SelectItem value="monthly-sep">Monthly Assessment - Sept</SelectItem>
-                <SelectItem value="final-2026">Annual Board Exam</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Class Filter */}
-          <div>
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block mb-1.5">
-              Class & Grade
-            </label>
-            <Select
-              value={selectedClass}
-              onValueChange={(val) => {
-                if (val) setSelectedClass(val);
-              }}
-            >
-              <SelectTrigger className="w-full bg-slate-50/70 border-slate-200 text-xs h-10 rounded-lg">
-                <SelectValue placeholder="Choose class..." />
-              </SelectTrigger>
-              <SelectContent className="bg-white border-slate-200 shadow-md">
-                <SelectItem value="class-8">Class 8</SelectItem>
-                <SelectItem value="class-9">Class 9</SelectItem>
-                <SelectItem value="class-10">Class 10</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Section Filter */}
-          <div>
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block mb-1.5">
-              Section
-            </label>
-            <Select
-              value={selectedSection}
-              onValueChange={(val) => {
-                if (val) setSelectedSection(val);
-              }}
-            >
-              <SelectTrigger className="w-full bg-slate-50/70 border-slate-200 text-xs h-10 rounded-lg">
-                <SelectValue placeholder="Choose section..." />
-              </SelectTrigger>
-              <SelectContent className="bg-white border-slate-200 shadow-md">
-                <SelectItem value="sec-a">Section A</SelectItem>
-                <SelectItem value="sec-b">Section B</SelectItem>
-                <SelectItem value="sec-c">Section C</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Subject Filter */}
-          <div>
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block mb-1.5">
-              Subject
-            </label>
-            <Select
-              value={selectedSubject}
-              onValueChange={(val) => {
-                if (val) setSelectedSubject(val);
-              }}
-            >
-              <SelectTrigger className="w-full bg-slate-50/70 border-slate-200 text-xs h-10 rounded-lg">
-                <SelectValue placeholder="Choose subject..." />
-              </SelectTrigger>
-              <SelectContent className="bg-white border-slate-200 shadow-md">
-                <SelectItem value="physics">Physics (Max: 100)</SelectItem>
-                <SelectItem value="mathematics">Mathematics (Max: 100)</SelectItem>
-                <SelectItem value="chemistry">Chemistry (Max: 100)</SelectItem>
-                <SelectItem value="english">English (Max: 100)</SelectItem>
-                <SelectItem value="biology">Biology (Max: 100)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {filters.map((f) => (
+            <div key={f.id}>
+              <label htmlFor={f.id} className="mb-1.5 block text-sm font-medium">
+                {f.label}
+              </label>
+              <Select items={f.items} value={f.value} onValueChange={(val) => val && f.set(val)}>
+                <SelectTrigger id={f.id} className="h-9 w-full bg-card">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {f.items.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ))}
         </div>
 
-        {/* Live Metrics Strip */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200/60 bg-slate-50/60 px-4 py-2.5 text-xs text-slate-600">
-          <div className="flex items-center gap-4">
-            <span>
-              Evaluated:{" "}
-              <strong className="text-slate-900 font-semibold">
-                {totalEvaluated}/{marksData.length} students
-              </strong>
-            </span>
-            <span className="text-slate-300">•</span>
-            <span>
-              Subject Average:{" "}
-              <strong className="text-blue-700 font-semibold font-mono">
-                {classAverage.toFixed(1)} / 100
-              </strong>
-            </span>
-          </div>
+        <div className="flex flex-col gap-3 rounded-lg bg-muted/60 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-muted-foreground" aria-live="polite">
+            <span className="font-medium text-foreground">
+              {totalEvaluated} of {marksData.length}
+            </span>{" "}
+            marked · average <span className="font-medium text-foreground">{classAverage.toFixed(1)}</span> out of 100
+          </p>
           <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <Search aria-hidden className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search student or roll no..."
+              type="search"
+              aria-label="Find a student"
+              placeholder="Name or roll number"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8.5 bg-white border-slate-200 focus-visible:ring-blue-600 text-xs h-8 rounded-md"
+              className="h-9 bg-card pl-9"
             />
           </div>
         </div>
+
+        {saveSuccess ? (
+          <p role="status" className="flex items-center gap-2 rounded-lg border border-success/30 bg-success-tint p-3 text-sm text-success">
+            <CheckCircle2 aria-hidden className="size-4 shrink-0" />
+            Marks saved.
+          </p>
+        ) : null}
       </Card>
 
-      {/* 2. Rapid Entry Data Table */}
-      <Card className="rounded-xl border border-slate-200/80 bg-white shadow-xs overflow-hidden">
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b border-slate-200/80 bg-slate-50/90 hover:bg-slate-50/90">
-                  <TableHead className="py-3.5 px-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Roll No
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Student Details
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Class & Section
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-[11px] font-bold uppercase tracking-wider text-slate-500 w-36">
-                    Obtained Marks
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-center text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Percentage
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-center text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Grade
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Teacher Feedback
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {filteredStudents.map((student) => {
-                  const marks =
-                    student.obtainedMarks === ""
-                      ? null
-                      : Number(student.obtainedMarks);
-                  const percentage =
-                    marks !== null
-                      ? ((marks / student.maxMarks) * 100).toFixed(0)
-                      : null;
-
-                  let grade = "—";
-                  let gradeColor = "text-slate-400 bg-slate-100";
-                  if (marks !== null) {
-                    const num = Number(percentage);
-                    if (num >= 80) {
-                      grade = "A+";
-                      gradeColor = "text-emerald-700 bg-emerald-50 border-emerald-200";
-                    } else if (num >= 70) {
-                      grade = "A";
-                      gradeColor = "text-blue-700 bg-blue-50 border-blue-200";
-                    } else if (num >= 60) {
-                      grade = "B";
-                      gradeColor = "text-indigo-700 bg-indigo-50 border-indigo-200";
-                    } else if (num >= 50) {
-                      grade = "C";
-                      gradeColor = "text-amber-700 bg-amber-50 border-amber-200";
-                    } else {
-                      grade = "F";
-                      gradeColor = "text-rose-700 bg-rose-50 border-rose-200";
-                    }
-                  }
-
-                  return (
-                    <TableRow
-                      key={student.id}
-                      className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors"
-                    >
-                      {/* Roll No */}
-                      <TableCell className="py-3.5 px-4 font-mono text-xs font-semibold text-slate-600">
-                        {student.rollNo}
-                      </TableCell>
-
-                      {/* Student Details */}
-                      <TableCell className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 font-semibold text-xs text-slate-700 border border-slate-200">
-                            {student.avatar}
-                          </div>
-                          <div>
-                            <div className="text-sm font-semibold text-slate-900 leading-tight">
-                              {student.studentName}
-                            </div>
-                            <div className="text-[11px] font-mono text-slate-400 mt-0.5">
-                              {student.studentId}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-
-                      {/* Class & Section */}
-                      <TableCell className="py-3.5 px-4 text-xs text-slate-600">
-                        {student.className} • {student.section}
-                      </TableCell>
-
-                      {/* Narrow Shadcn Input for Rapid Entry */}
-                      <TableCell className="py-3.5 px-4">
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            min={0}
-                            max={student.maxMarks}
-                            value={student.obtainedMarks}
-                            onChange={(e) =>
-                              handleMarksChange(student.studentId, e.target.value)
-                            }
-                            className="h-9 w-20 text-center font-mono font-bold text-sm bg-slate-50/80 border-slate-200 focus:bg-white focus-visible:ring-blue-600 rounded-lg"
-                          />
-                          <span className="text-xs font-mono text-slate-400">
-                            / {student.maxMarks}
-                          </span>
-                        </div>
-                      </TableCell>
-
-                      {/* Percentage */}
-                      <TableCell className="py-3.5 px-4 text-center font-mono text-xs font-semibold text-slate-700">
-                        {percentage !== null ? `${percentage}%` : "—"}
-                      </TableCell>
-
-                      {/* Grade Badge */}
-                      <TableCell className="py-3.5 px-4 text-center">
-                        <span
-                          className={`inline-flex items-center justify-center h-6 w-9 rounded-md text-xs font-bold border ${gradeColor}`}
-                        >
-                          {grade}
-                        </span>
-                      </TableCell>
-
-                      {/* Remarks */}
-                      <TableCell className="py-3.5 px-4 text-right text-xs text-slate-500">
-                        {student.remarks || "—"}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Table Footer */}
-          <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-6 py-3.5 text-xs text-slate-500">
-            <div>
-              Displaying{" "}
-              <span className="font-semibold text-slate-700">
-                {filteredStudents.length}
-              </span>{" "}
-              students in grade registry
-            </div>
-            <div className="flex items-center gap-3">
-              <Button
-                size="sm"
-                onClick={handleSaveMarks}
-                disabled={isSaving}
-                className="h-8 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs"
-              >
-                <Save className="h-3 w-3" />
-                Commit Gradebook
+      <Card className="gap-0 py-0">
+        {filteredStudents.length === 0 ? (
+          <EmptyState
+            icon={Search}
+            title="No students match"
+            description="Search by name or roll number."
+            action={
+              <Button variant="outline" onClick={() => setSearchQuery("")}>
+                Clear search
               </Button>
-            </div>
-          </div>
-        </CardContent>
+            }
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="hidden pl-5 md:table-cell">Roll no.</TableHead>
+                <TableHead className="pl-5 md:pl-3">Student</TableHead>
+                <TableHead>Marks</TableHead>
+                <TableHead className="hidden text-right lg:table-cell">Percent</TableHead>
+                <TableHead className="text-center">Grade</TableHead>
+                <TableHead className="hidden pr-5 lg:table-cell">Teacher&apos;s remark</TableHead>
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              {filteredStudents.map((student) => {
+                const marks = student.obtainedMarks === "" ? null : Number(student.obtainedMarks);
+                const percentage = marks !== null ? Math.round((marks / student.maxMarks) * 100) : null;
+                const grade = gradeFor(percentage);
+                return (
+                  <TableRow key={student.id}>
+                    <TableCell className="hidden pl-5 text-muted-foreground md:table-cell">{student.rollNo}</TableCell>
+                    <TableCell className="min-w-36 pl-5 whitespace-normal md:pl-3">
+                      <p className="font-medium">{student.studentName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {student.studentId}
+                        <span className="md:hidden"> · {student.rollNo}</span>
+                      </p>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          max={student.maxMarks}
+                          value={student.obtainedMarks}
+                          onChange={(e) => handleMarksChange(student.studentId, e.target.value)}
+                          aria-label={`Marks for ${student.studentName}, out of ${student.maxMarks}`}
+                          className="h-9 w-20 bg-card text-center text-base font-semibold tabular-nums"
+                        />
+                        <span className="hidden text-sm text-muted-foreground sm:inline">/ {student.maxMarks}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden text-right lg:table-cell">
+                      {percentage !== null ? `${percentage}%` : "—"}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant={grade.variant} className="min-w-9">
+                        {grade.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="hidden max-w-64 truncate pr-5 text-muted-foreground lg:table-cell">
+                      {student.remarks || "—"}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+
+        <div className="flex flex-col gap-3 border-t border-border bg-muted/50 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p className="text-sm text-muted-foreground">
+            Showing {filteredStudents.length} of {marksData.length} students
+          </p>
+          {saveButton}
+        </div>
       </Card>
     </div>
   );
 }
-
