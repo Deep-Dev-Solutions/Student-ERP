@@ -109,9 +109,9 @@ const statusOptions: {
   checked: string;
   hover: string;
 }[] = [
-  { value: "P", label: "Present", checked: "bg-success text-white", hover: "hover:bg-success-tint hover:text-success" },
-  { value: "A", label: "Absent", checked: "bg-danger text-white", hover: "hover:bg-danger-tint hover:text-danger" },
-  { value: "L", label: "Leave", checked: "bg-warning text-white", hover: "hover:bg-warning-tint hover:text-warning" },
+  { value: "P", label: "Present", checked: "bg-success text-success-foreground", hover: "hover:bg-success-tint hover:text-success" },
+  { value: "A", label: "Absent", checked: "bg-danger text-danger-foreground", hover: "hover:bg-danger-tint hover:text-danger" },
+  { value: "L", label: "Leave", checked: "bg-warning text-warning-foreground", hover: "hover:bg-warning-tint hover:text-warning" },
 ];
 
 interface MarkAttendanceUIProps {
@@ -271,9 +271,9 @@ export function MarkAttendanceUI({
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="hidden pl-5 sm:table-cell">Roll ID</TableHead>
-                <TableHead className="pl-5 sm:pl-3">Student</TableHead>
-                <TableHead className="hidden md:table-cell">Remark</TableHead>
+                <TableHead className="hidden pl-5 md:table-cell">Roll ID</TableHead>
+                <TableHead className="pl-5 md:pl-3">Student</TableHead>
+                <TableHead className="hidden lg:table-cell">Remark</TableHead>
                 <TableHead className="pr-5 text-right">Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -281,9 +281,9 @@ export function MarkAttendanceUI({
             <TableBody>
               {filteredStudents.map((student) => (
                 <TableRow key={student.id}>
-                  <TableCell className="hidden pl-5 text-muted-foreground sm:table-cell">{student.id}</TableCell>
+                  <TableCell className="hidden pl-5 text-muted-foreground md:table-cell">{student.id}</TableCell>
 
-                  <TableCell className="pl-5 sm:pl-3">
+                  <TableCell className="pl-5 md:pl-3">
                     <div className="flex items-center gap-3">
                       <span
                         aria-hidden
@@ -298,7 +298,7 @@ export function MarkAttendanceUI({
                     </div>
                   </TableCell>
 
-                  <TableCell className="hidden text-muted-foreground md:table-cell">{student.remark || "—"}</TableCell>
+                  <TableCell className="hidden text-muted-foreground lg:table-cell">{student.remark || "—"}</TableCell>
 
                   <TableCell className="pr-5 text-right">
                     <div

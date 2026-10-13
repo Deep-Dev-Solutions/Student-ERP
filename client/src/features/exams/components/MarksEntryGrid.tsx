@@ -290,7 +290,7 @@ export function MarksEntryGrid() {
                 <TableHead>Marks</TableHead>
                 <TableHead className="hidden text-right lg:table-cell">Percent</TableHead>
                 <TableHead className="text-center">Grade</TableHead>
-                <TableHead className="hidden pr-5 lg:table-cell">Teacher&apos;s remark</TableHead>
+                <TableHead className="hidden pr-5 xl:table-cell">Teacher&apos;s remark</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -332,7 +332,7 @@ export function MarksEntryGrid() {
                         {grade.label}
                       </Badge>
                     </TableCell>
-                    <TableCell className="hidden max-w-64 truncate pr-5 text-muted-foreground lg:table-cell">
+                    <TableCell className="hidden max-w-64 truncate pr-5 text-muted-foreground xl:table-cell">
                       {student.remarks || "—"}
                     </TableCell>
                   </TableRow>

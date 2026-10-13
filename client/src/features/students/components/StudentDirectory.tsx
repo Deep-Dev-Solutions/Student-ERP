@@ -223,11 +223,11 @@ export function StudentDirectory() {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="hidden pl-5 md:table-cell">Roll ID</TableHead>
-                <TableHead className="pl-5 md:pl-3">Student</TableHead>
+                <TableHead className="hidden pl-5 lg:table-cell">Roll ID</TableHead>
+                <TableHead className="pl-5 lg:pl-3">Student</TableHead>
                 <TableHead className="hidden sm:table-cell">Class</TableHead>
-                <TableHead className="hidden lg:table-cell">Guardian</TableHead>
-                <TableHead className="hidden lg:table-cell">Attendance</TableHead>
+                <TableHead className="hidden xl:table-cell">Guardian</TableHead>
+                <TableHead className="hidden xl:table-cell">Attendance</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="pr-5 text-right">
                   <span className="sr-only">Actions</span>
@@ -242,9 +242,9 @@ export function StudentDirectory() {
                   className="group cursor-pointer"
                   onClick={() => openProfile(student)}
                 >
-                  <TableCell className="hidden pl-5 text-muted-foreground md:table-cell">{student.id}</TableCell>
+                  <TableCell className="hidden pl-5 text-muted-foreground lg:table-cell">{student.id}</TableCell>
 
-                  <TableCell className="pl-5 md:pl-3">
+                  <TableCell className="pl-5 lg:pl-3">
                     <div className="flex items-center gap-3">
                       <span
                         aria-hidden
@@ -276,7 +276,7 @@ export function StudentDirectory() {
                     </div>
                   </TableCell>
 
-                  <TableCell className="hidden lg:table-cell">
+                  <TableCell className="hidden xl:table-cell">
                     <div className="flex flex-col">
                       <span>{student.guardian}</span>
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -286,7 +286,7 @@ export function StudentDirectory() {
                     </div>
                   </TableCell>
 
-                  <TableCell className="hidden lg:table-cell">
+                  <TableCell className="hidden xl:table-cell">
                     <div className="flex items-center gap-2">
                       <div className="h-1.5 w-14 overflow-hidden rounded-full bg-muted">
                         <div

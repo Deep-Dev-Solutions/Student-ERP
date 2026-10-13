@@ -303,7 +303,7 @@ export function PointOfSale() {
 
           {paymentSuccess ? (
             <div role="status" className="rounded-lg border border-success/30 bg-success-tint p-5 text-center">
-              <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-success text-white">
+              <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-success text-success-foreground">
                 <Check aria-hidden className="size-5" />
               </span>
               <p className="mt-3 text-base font-semibold text-success">Payment recorded</p>

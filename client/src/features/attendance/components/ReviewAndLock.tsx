@@ -155,11 +155,11 @@ export function ReviewAndLock({
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead className="pl-5">Class</TableHead>
-              <TableHead>Teacher</TableHead>
-              <TableHead className="text-right">Enrolled</TableHead>
+              <TableHead className="hidden xl:table-cell">Teacher</TableHead>
+              <TableHead className="hidden text-right lg:table-cell">Enrolled</TableHead>
               <TableHead className="text-right">Present</TableHead>
-              <TableHead className="text-right">Absent</TableHead>
-              <TableHead className="text-right">Leave</TableHead>
+              <TableHead className="hidden text-right sm:table-cell">Absent</TableHead>
+              <TableHead className="hidden text-right lg:table-cell">Leave</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="pr-5 text-right">
                 <span className="sr-only">Action</span>
@@ -173,17 +173,20 @@ export function ReviewAndLock({
               const locked = cls.status === "locked";
               return (
                 <TableRow key={cls.id}>
-                  <TableCell className="pl-5 font-medium">{name}</TableCell>
-                  <TableCell>{cls.teacher}</TableCell>
-                  <TableCell className="text-right">{cls.totalStudents}</TableCell>
+                  <TableCell className="min-w-32 pl-5 whitespace-normal">
+                    <p className="font-medium">{name}</p>
+                    <p className="text-xs text-muted-foreground xl:hidden">{cls.teacher}</p>
+                  </TableCell>
+                  <TableCell className="hidden xl:table-cell">{cls.teacher}</TableCell>
+                  <TableCell className="hidden text-right lg:table-cell">{cls.totalStudents}</TableCell>
                   <TableCell className="text-right">{cls.present}</TableCell>
-                  <TableCell className="text-right">{cls.absent}</TableCell>
-                  <TableCell className="text-right">{cls.leave}</TableCell>
+                  <TableCell className="hidden text-right sm:table-cell">{cls.absent}</TableCell>
+                  <TableCell className="hidden text-right lg:table-cell">{cls.leave}</TableCell>
                   <TableCell>
                     <div className="flex flex-col items-start gap-0.5">
                       <Badge variant={statusVariant(cls.status)}>{locked ? "Locked" : "Open"}</Badge>
                       {locked && cls.lockedAt ? (
-                        <span className="text-xs text-muted-foreground">{cls.lockedAt}</span>
+                        <span className="hidden text-xs text-muted-foreground lg:block">{cls.lockedAt}</span>
                       ) : null}
                     </div>
                   </TableCell>
@@ -195,13 +198,13 @@ export function ReviewAndLock({
                         onClick={() => handleToggleLock(cls.id)}
                         aria-label={`Unlock ${name}`}
                       >
-                        <Unlock data-icon="inline-start" />
-                        Unlock
+                        <Unlock />
+                        <span className="hidden lg:inline">Unlock</span>
                       </Button>
                     ) : (
                       <Button size="sm" onClick={() => handleToggleLock(cls.id)} aria-label={`Lock ${name}`}>
-                        <Lock data-icon="inline-start" />
-                        Lock
+                        <Lock />
+                        <span className="hidden lg:inline">Lock</span>
                       </Button>
                     )}
                   </TableCell>

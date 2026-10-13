@@ -258,6 +258,8 @@ export function RolesMatrix() {
       </Card>
 
       <Card className="gap-0 py-0">
+        {/* A permissions grid needs every role column, so it scrolls sideways on narrow screens. */}
+        <div data-allow-scroll>
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -315,6 +317,7 @@ export function RolesMatrix() {
             ))}
           </TableBody>
         </Table>
+        </div>
 
         <div className="flex flex-col gap-3 border-t border-border bg-muted/50 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p className="flex items-center gap-2 text-sm text-muted-foreground">

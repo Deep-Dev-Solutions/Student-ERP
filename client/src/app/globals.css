@@ -54,10 +54,13 @@
   /* Semantic status: text colour + tinted background for badges. */
   --color-success: var(--success);
   --color-success-tint: var(--success-tint);
+  --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-tint: var(--warning-tint);
+  --color-warning-foreground: var(--warning-foreground);
   --color-danger: var(--danger);
   --color-danger-tint: var(--danger-tint);
+  --color-danger-foreground: var(--danger-foreground);
   --color-info: var(--info);
   --color-info-tint: var(--info-tint);
   --color-neutral: var(--neutral);
@@ -102,10 +105,13 @@
   --destructive: #b91c1c;
   --success: #15803d;
   --success-tint: #ecfdf3;
+  --success-foreground: #ffffff;
   --warning: #b45309;
   --warning-tint: #fff7e6;
+  --warning-foreground: #ffffff;
   --danger: #b91c1c;
   --danger-tint: #fef1f1;
+  --danger-foreground: #ffffff;
   --info: #23407a;
   --info-tint: #eef2fa;
   --neutral: #475467;
@@ -157,17 +163,20 @@
   --destructive: #f2867d;
   --success: #5fd08b;
   --success-tint: #12291c;
+  --success-foreground: #0f1520;
   --warning: #f0b45a;
   --warning-tint: #2e2210;
+  --warning-foreground: #0f1520;
   --danger: #f2867d;
   --danger-tint: #331a19;
+  --danger-foreground: #0f1520;
   --info: #8fa9dc;
   --info-tint: #1c2840;
   --neutral: #a3adbd;
   --neutral-tint: #1f2a3d;
 
   --border: #263247;
-  --input: #5d6a80;
+  --input: #66738a;
   --ring: #8fa9dc;
 
   --chart-1: #8fa9dc;
@@ -195,5 +204,18 @@
   }
   body {
     @apply bg-background text-sm text-foreground;
+  }
+}
+
+/* Respect the OS "reduce motion" setting for every animation and transition,
+   including menu, drawer and popover entrances from the UI primitives. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

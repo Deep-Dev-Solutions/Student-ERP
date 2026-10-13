@@ -80,9 +80,9 @@ const statusOptions: {
   icon: React.ComponentType<{ className?: string }>;
   checked: string;
 }[] = [
-  { value: "present", label: "Present", icon: CheckCircle2, checked: "bg-success text-white" },
-  { value: "absent", label: "Absent", icon: UserX, checked: "bg-danger text-white" },
-  { value: "leave", label: "Leave", icon: Clock, checked: "bg-warning text-white" },
+  { value: "present", label: "Present", icon: CheckCircle2, checked: "bg-success text-success-foreground" },
+  { value: "absent", label: "Absent", icon: UserX, checked: "bg-danger text-danger-foreground" },
+  { value: "leave", label: "Leave", icon: Clock, checked: "bg-warning text-warning-foreground" },
 ];
 
 export function MobileAttendanceList() {

@@ -237,9 +237,9 @@ export function TeacherAllocations() {
               <TableRow className="hover:bg-transparent">
                 <TableHead className="pl-5">Teacher</TableHead>
                 <TableHead>Subject</TableHead>
-                <TableHead className="hidden sm:table-cell">Class</TableHead>
+                <TableHead className="hidden lg:table-cell">Class</TableHead>
                 <TableHead className="hidden lg:table-cell">Room</TableHead>
-                <TableHead className="hidden text-right md:table-cell">Periods a week</TableHead>
+                <TableHead className="hidden text-right lg:table-cell">Periods a week</TableHead>
                 <TableHead className="pr-5 text-right">
                   <span className="sr-only">Remove</span>
                 </TableHead>
@@ -255,15 +255,15 @@ export function TeacherAllocations() {
                   </TableCell>
                   <TableCell>
                     <p>{item.subject}</p>
-                    <p className="text-xs text-muted-foreground sm:hidden">
+                    <p className="text-xs text-muted-foreground lg:hidden">
                       {item.className}, {item.section}
                     </p>
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell">
+                  <TableCell className="hidden lg:table-cell">
                     {item.className}, {item.section}
                   </TableCell>
                   <TableCell className="hidden text-muted-foreground lg:table-cell">{item.roomNumber}</TableCell>
-                  <TableCell className="hidden text-right md:table-cell">{item.weeklyPeriods}</TableCell>
+                  <TableCell className="hidden text-right lg:table-cell">{item.weeklyPeriods}</TableCell>
                   <TableCell className="pr-5 text-right">
                     <Button
                       variant="ghost"

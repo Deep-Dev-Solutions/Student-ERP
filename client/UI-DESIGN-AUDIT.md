@@ -1,5 +1,38 @@
 # Student-ERP UI Design Audit
 
+> **Status (13 Oct 2026): implemented.** All six phases below are done on the `feat/ui-redesign` branch. The original audit follows unchanged, except for one correction noted here.
+
+## Implementation status
+
+| Phase | What shipped | Commit |
+|---|---|---|
+| 1. Foundation | "Register" colour, type (IBM Plex Sans), radius and status tokens with light and dark sets; single product name (DeepDev ERP); `/` redirects to `/dashboard` | `3c9e3f0` |
+| 2. Layout and navigation | One config-driven sidebar for both portals, route breadcrumbs, campus switcher crash fixed, mobile bottom nav fixed | `3c9e3f0` |
+| 3. Shared components | Button sizes and `ButtonLink`, single-border cards, status badges, table styling, `PageHeader`, `StatCard`, `EmptyState`, `ErrorState`, skeletons, loading/error/not-found routes (the production build now passes) | `3c9e3f0` |
+| 4. Dashboard | "Today's register" grid, real Recharts fee and attendance charts with table views, figures derived from one data source | `3c9e3f0` |
+| 5. Remaining pages | Students, attendance, fees, staff, exams, settings, teacher portal, paper maker, sign in and reset password | `a582535`, `446f762`, `c3f71ac` |
+| 6. Responsive and accessibility | See results below | this commit |
+
+**Phase 6 results**
+- **axe-core 4.10 (WCAG 2.1 A and AA):** 0 violations across 23 routes and tabs.
+- **Keyboard:** every one of 504 tab stops shows a visible focus indicator. Menus open with Enter, move with the arrow keys and close with Escape, returning focus to their trigger. The student drawer traps focus. Section tabs move with the arrow keys, and attendance P/A/L works with Space.
+- **Layout:** no page or table scrolls sideways at 390, 768, 1024 or 1440 px, except the roles and permissions grid, which scrolls by design with its first column pinned.
+- **Contrast:** all 28 token pairs pass in both themes (text 4.5:1, controls and chart marks 3:1).
+- **Motion:** the OS "reduce motion" setting disables every animation and transition, and the wizard's smooth scroll.
+- **Hardcoded styles:** no hardcoded palette colours, 10–11 px text or all-caps labels remain in `src`.
+
+**Still placeholders (no backend or feature behind them yet)**
+- Export, report and download buttons (CSV, cash report, result sheet, tax sheet)
+- "Add staff member", "Download template", print receipt and payslip
+- Notifications bell, and a Term/Month selector (left out rather than shipped as a dead control)
+- Sign in and password reset are UI only; sign-in goes to the dashboard
+- A dark-theme toggle (the dark tokens exist and render correctly when `.dark` is set)
+- All data is demo data in the feature files
+
+**Correction to the audit:** §3 finding 1 said the duplicate `/` routes would break the build. They didn't; the starter page silently won instead. The fix still applied.
+
+---
+
 ## Context
 You asked why the Student-ERP frontend (`client/`) looks basic next to two reference dashboards, and for a prioritised plan to lift it. This is an audit only. No project files were changed.
 
