@@ -18,12 +18,27 @@ import {
   Clock,
   Phone,
   Check,
-  AlertCircle,
   CreditCard,
-  ArrowRight,
   ShieldCheck,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { statusVariant } from "@/lib/status";
 import { FeeVoucher, PaymentMethod } from "../types";
+
+const voucherStatusLabels: Record<FeeVoucher["status"], string> = {
+  unpaid: "Unpaid",
+  partial: "Partly paid",
+  overdue: "Overdue",
+  paid: "Paid",
+};
+
+const paymentMethods: { value: PaymentMethod; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: "cash", label: "Cash", icon: Wallet },
+  { value: "bank", label: "Bank", icon: Building2 },
+  { value: "easypaisa", label: "Mobile", icon: CreditCard },
+  { value: "cheque", label: "Cheque", icon: Receipt },
+];
 
 const mockVouchers: FeeVoucher[] = [
   {
@@ -166,385 +181,242 @@ export function PointOfSale() {
       v.guardianPhone.includes(searchQuery)
   );
 
+  const isPaid = selectedVoucher.status === "paid";
+  const breakdown = [
+    { label: "Tuition", amount: selectedVoucher.tuitionFee },
+    { label: "Exam fee", amount: selectedVoucher.examFee },
+    { label: "Lab and computer", amount: selectedVoucher.labFee },
+    { label: "Arrears and late fine", amount: selectedVoucher.arrears },
+  ].filter((row) => row.amount > 0);
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-      {/* ========================================================= */}
-      {/* LEFT COLUMN: SEARCH & PENDING VOUCHERS LIST (7 COLS)      */}
-      {/* ========================================================= */}
-      <div className="space-y-4 lg:col-span-7">
-        {/* Search & Filter Header Card */}
-        <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-xs">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <Input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by student name, roll ID, voucher #, or phone..."
-                className="h-9 rounded-lg border-slate-200 bg-slate-50/70 pl-9 text-xs transition-colors focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-slate-500">
-              <span className="font-semibold text-slate-800">
-                {filteredVouchers.filter((v) => v.status !== "paid").length}
-              </span>
-              <span>vouchers awaiting payment</span>
-            </div>
+      <div className="min-w-0 space-y-4 lg:col-span-7">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex-1">
+            <Search aria-hidden className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Name, roll ID, voucher number or phone"
+              aria-label="Search vouchers"
+              className="h-9 bg-card pl-9"
+            />
           </div>
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            <span className="font-medium text-foreground">
+              {filteredVouchers.filter((v) => v.status !== "paid").length}
+            </span>{" "}
+            awaiting payment
+          </p>
         </div>
 
-        {/* Vouchers List Container */}
-        <div className="space-y-3">
-          {filteredVouchers.map((voucher) => {
-            const isSelected = selectedVoucher?.id === voucher.id;
-            return (
-              <div
-                key={voucher.id}
-                onClick={() => handleSelectVoucher(voucher)}
-                className={`relative cursor-pointer rounded-xl border p-4.5 transition-all duration-150 ${
-                  isSelected
-                    ? "border-blue-500 bg-blue-50/30 shadow-xs ring-1 ring-blue-500/30"
-                    : "border-slate-200/80 bg-white hover:border-slate-300 hover:bg-slate-50/70 shadow-xs"
-                }`}
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  {/* Left: Student Identity */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700 ring-1 ring-blue-600/10">
-                      {voucher.avatar}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-slate-900">
-                          {voucher.studentName}
+        {filteredVouchers.length === 0 ? (
+          <Card className="py-0">
+            <EmptyState
+              icon={Search}
+              title="No vouchers match"
+              description="Search by the student's name, roll ID, voucher number or guardian's phone."
+              action={
+                <Button variant="outline" onClick={() => setSearchQuery("")}>
+                  Clear search
+                </Button>
+              }
+            />
+          </Card>
+        ) : (
+          <ul className="space-y-2" aria-label="Fee vouchers">
+            {filteredVouchers.map((voucher) => {
+              const isSelected = selectedVoucher?.id === voucher.id;
+              return (
+                <li key={voucher.id}>
+                  <button
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => handleSelectVoucher(voucher)}
+                    className={`w-full rounded-xl border p-4 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 ${
+                      isSelected
+                        ? "border-primary bg-secondary/50 ring-1 ring-primary"
+                        : "border-border bg-card hover:bg-muted/60"
+                    }`}
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-3">
+                        <span
+                          aria-hidden
+                          className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground"
+                        >
+                          {voucher.avatar}
                         </span>
-                        <span className="font-mono text-[11px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200/50">
-                          {voucher.studentId}
-                        </span>
+                        <div>
+                          <p className="font-medium">
+                            {voucher.studentName}{" "}
+                            <span className="font-normal text-muted-foreground">{voucher.studentId}</span>
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {voucher.className}, {voucher.section} · {voucher.voucherNumber}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
-                        <span>
-                          {voucher.className} ({voucher.section})
-                        </span>
-                        <span>•</span>
-                        <span className="font-mono text-slate-400">
-                          {voucher.voucherNumber}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Right: Amount & Status Badge */}
-                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-0 pt-2 sm:pt-0 border-slate-100">
-                    <div className="text-right">
-                      <span className="text-base font-bold text-slate-900">
-                        Rs {voucher.totalAmount.toLocaleString()}
-                      </span>
-                      {voucher.arrears > 0 && (
-                        <p className="text-[11px] font-medium text-rose-600">
-                          Includes Rs {voucher.arrears.toLocaleString()} Arrears
+                      <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:gap-1">
+                        <p className="text-right">
+                          <span className="text-base font-semibold">Rs {voucher.totalAmount.toLocaleString()}</span>
+                          {voucher.arrears > 0 ? (
+                            <span className="block text-xs text-muted-foreground">
+                              includes Rs {voucher.arrears.toLocaleString()} arrears
+                            </span>
+                          ) : null}
                         </p>
-                      )}
+                        <Badge variant={statusVariant(voucher.status)}>{voucherStatusLabels[voucher.status]}</Badge>
+                      </div>
                     </div>
-                    <div className="mt-1">
-                      <VoucherStatusBadge status={voucher.status} />
-                    </div>
-                  </div>
-                </div>
 
-                {/* Sub-bar with Guardian Info and Due Date */}
-                <div className="mt-3 flex items-center justify-between border-t border-slate-100/80 pt-2.5 text-xs text-slate-500">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-slate-400">Guardian:</span>
-                    <span className="font-medium text-slate-700">
-                      {voucher.guardianName}
-                    </span>
-                    <span className="text-slate-300">|</span>
-                    <Phone className="h-3 w-3 text-slate-400" />
-                    <span className="font-mono text-slate-600">
-                      {voucher.guardianPhone}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5 text-slate-400" />
-                    <span>Due: {voucher.dueDate}</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2.5 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <span className="text-foreground">{voucher.guardianName}</span>
+                        <Phone aria-hidden className="size-3" />
+                        {voucher.guardianPhone}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock aria-hidden className="size-3.5" />
+                        Due {voucher.dueDate}
+                      </span>
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
 
-      {/* ========================================================= */}
-      {/* RIGHT COLUMN: PAYMENT TERMINAL CARD (5 COLS)              */}
-      {/* ========================================================= */}
-      <div className="lg:col-span-5">
-        <Card className="sticky top-20 rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
-          {/* Terminal Top Badge */}
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                <Receipt className="h-4 w-4" />
-              </div>
-              <div>
-                <CardTitle className="text-sm font-bold text-slate-900">
-                  Cashier POS Terminal
-                </CardTitle>
-                <CardDescription className="text-[11px] text-slate-500">
-                  Counter #01 • Cashier Desk
-                </CardDescription>
-              </div>
-            </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              Ready
-            </span>
+      <div className="min-w-0 lg:col-span-5">
+        <Card className="gap-5 px-6 lg:sticky lg:top-0">
+          <div>
+            <CardTitle>
+              <h2>Take payment</h2>
+            </CardTitle>
+            <CardDescription className="mt-0.5">Counter 1</CardDescription>
           </div>
 
-          {/* Success Banner when Payment Recorded */}
           {paymentSuccess ? (
-            <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50/70 p-5 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 ring-4 ring-emerald-200/50">
-                <Check className="h-6 w-6" />
-              </div>
-              <h3 className="mt-3 text-base font-bold text-emerald-900">
-                Payment Recorded!
-              </h3>
-              <p className="mt-1 text-xs text-emerald-700 font-mono">
-                Receipt #{lastReceiptNumber} generated
-              </p>
-              <div className="mt-4 flex items-center justify-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 border-emerald-300 bg-white text-xs text-emerald-800 hover:bg-emerald-50 shadow-xs"
-                >
-                  <Printer className="mr-1.5 h-3.5 w-3.5" />
-                  Print Receipt
+            <div role="status" className="rounded-lg border border-success/30 bg-success-tint p-5 text-center">
+              <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-success text-white">
+                <Check aria-hidden className="size-5" />
+              </span>
+              <p className="mt-3 text-base font-semibold text-success">Payment recorded</p>
+              <p className="mt-1 text-sm text-success">Receipt {lastReceiptNumber}</p>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                <Button variant="outline" size="sm">
+                  <Printer data-icon="inline-start" />
+                  Print receipt
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={() => setPaymentSuccess(false)}
-                  className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium shadow-xs"
-                >
-                  New Transaction
+                <Button size="sm" onClick={() => setPaymentSuccess(false)}>
+                  Next payment
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="mt-5 space-y-5">
-              {/* Selected Student Banner */}
-              <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                    Selected Student
-                  </span>
-                  <span className="font-mono text-[11px] font-bold text-slate-700">
-                    {selectedVoucher.studentId}
-                  </span>
-                </div>
-                <div className="mt-1.5 flex items-center gap-2">
-                  <span className="text-sm font-bold text-slate-900">
-                    {selectedVoucher.studentName}
-                  </span>
-                  <span className="text-slate-400">•</span>
-                  <span className="text-slate-600">
-                    {selectedVoucher.className} ({selectedVoucher.section})
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Voucher: {selectedVoucher.voucherNumber} ({selectedVoucher.month})
+            <>
+              <div className="rounded-lg border border-border bg-muted/50 p-3.5">
+                <p className="font-medium">
+                  {selectedVoucher.studentName}{" "}
+                  <span className="font-normal text-muted-foreground">{selectedVoucher.studentId}</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {selectedVoucher.className}, {selectedVoucher.section} · {selectedVoucher.voucherNumber},{" "}
+                  {selectedVoucher.month}
                 </p>
               </div>
 
-              {/* Itemized Fee Breakdown Table */}
-              <div className="space-y-2 text-xs">
-                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                  Bill Breakdown
-                </span>
-                <div className="flex items-center justify-between py-1 border-b border-slate-100 text-slate-600">
-                  <span>Tuition Fee</span>
-                  <span className="font-mono">
-                    Rs {selectedVoucher.tuitionFee.toLocaleString()}
-                  </span>
-                </div>
-                {selectedVoucher.examFee > 0 && (
-                  <div className="flex items-center justify-between py-1 border-b border-slate-100 text-slate-600">
-                    <span>Examination Fee</span>
-                    <span className="font-mono">
-                      Rs {selectedVoucher.examFee.toLocaleString()}
-                    </span>
+              <dl className="text-sm">
+                {breakdown.map((row) => (
+                  <div key={row.label} className="flex items-center justify-between border-b border-border py-2">
+                    <dt className="text-muted-foreground">{row.label}</dt>
+                    <dd className="tabular-nums">Rs {row.amount.toLocaleString()}</dd>
                   </div>
-                )}
-                {selectedVoucher.labFee > 0 && (
-                  <div className="flex items-center justify-between py-1 border-b border-slate-100 text-slate-600">
-                    <span>Lab / Computer Charges</span>
-                    <span className="font-mono">
-                      Rs {selectedVoucher.labFee.toLocaleString()}
-                    </span>
-                  </div>
-                )}
-                {selectedVoucher.arrears > 0 && (
-                  <div className="flex items-center justify-between py-1 border-b border-slate-100 text-rose-600 font-medium">
-                    <span>Past Arrears / Late Fine</span>
-                    <span className="font-mono">
-                      + Rs {selectedVoucher.arrears.toLocaleString()}
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between pt-2 text-sm font-bold text-slate-900">
-                  <span>Total Amount Payable</span>
-                  <span className="text-base text-blue-600 font-mono">
+                ))}
+                <div className="flex items-center justify-between pt-3">
+                  <dt className="font-semibold">Total payable</dt>
+                  <dd className="text-lg font-semibold tabular-nums">
                     Rs {selectedVoucher.totalAmount.toLocaleString()}
-                  </span>
+                  </dd>
                 </div>
-              </div>
+              </dl>
 
-              {/* Payment Method Selector */}
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                  Payment Method
-                </label>
-                <div className="grid grid-cols-4 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("cash")}
-                    className={`flex flex-col items-center justify-center rounded-lg border p-2 text-xs transition-all ${
-                      paymentMethod === "cash"
-                        ? "border-blue-600 bg-blue-50/80 font-bold text-blue-700 shadow-xs"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
+              {isPaid ? (
+                <p className="flex items-center gap-2 rounded-lg border border-success/30 bg-success-tint p-3 text-sm text-success">
+                  <CheckCircle2 aria-hidden className="size-4 shrink-0" />
+                  This voucher is already paid. Choose another one to take a payment.
+                </p>
+              ) : (
+                <>
+                  <fieldset>
+                    <legend className="mb-2 text-sm font-medium">Payment method</legend>
+                    <div className="grid grid-cols-4 gap-2" role="radiogroup" aria-label="Payment method">
+                      {paymentMethods.map(({ value, label, icon: Icon }) => {
+                        const checked = paymentMethod === value;
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            role="radio"
+                            aria-checked={checked}
+                            onClick={() => setPaymentMethod(value)}
+                            className={`flex flex-col items-center justify-center gap-1 rounded-lg border p-2 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 ${
+                              checked
+                                ? "border-primary bg-secondary text-secondary-foreground"
+                                : "border-border bg-card text-muted-foreground hover:bg-muted"
+                            }`}
+                          >
+                            <Icon aria-hidden className="size-4" />
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+
+                  <div>
+                    <label htmlFor="amount-received" className="mb-1.5 block text-sm font-medium">
+                      Amount received (Rs)
+                    </label>
+                    <Input
+                      id="amount-received"
+                      type="number"
+                      inputMode="numeric"
+                      value={amountReceived}
+                      onChange={(e) => setAmountReceived(e.target.value)}
+                      className="h-11 bg-card text-base font-semibold tabular-nums"
+                    />
+                    <p className="mt-2 flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm">
+                      <span className="text-muted-foreground">Change to return</span>
+                      <span className="font-semibold tabular-nums">Rs {balanceReturn.toLocaleString()}</span>
+                    </p>
+                  </div>
+
+                  <Button
+                    size="lg"
+                    className="h-12 w-full text-base"
+                    onClick={handleRecordPayment}
+                    disabled={numericReceived < selectedVoucher.totalAmount}
                   >
-                    <Wallet className="h-4 w-4 mb-1" />
-                    <span>Cash</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("bank")}
-                    className={`flex flex-col items-center justify-center rounded-lg border p-2 text-xs transition-all ${
-                      paymentMethod === "bank"
-                        ? "border-blue-600 bg-blue-50/80 font-bold text-blue-700 shadow-xs"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    <Building2 className="h-4 w-4 mb-1" />
-                    <span>Bank</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("easypaisa")}
-                    className={`flex flex-col items-center justify-center rounded-lg border p-2 text-xs transition-all ${
-                      paymentMethod === "easypaisa"
-                        ? "border-blue-600 bg-blue-50/80 font-bold text-blue-700 shadow-xs"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    <CreditCard className="h-4 w-4 mb-1" />
-                    <span>Mobile</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("cheque")}
-                    className={`flex flex-col items-center justify-center rounded-lg border p-2 text-xs transition-all ${
-                      paymentMethod === "cheque"
-                        ? "border-blue-600 bg-blue-50/80 font-bold text-blue-700 shadow-xs"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    <Receipt className="h-4 w-4 mb-1" />
-                    <span>Cheque</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Amount Input & Calculation */}
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                  Amount Received (PKR)
-                </label>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    value={amountReceived}
-                    onChange={(e) => setAmountReceived(e.target.value)}
-                    className="h-11 rounded-lg border-slate-300 font-mono text-base font-bold text-slate-900 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                  />
-                </div>
-
-                {/* Change return indicator */}
-                <div className="mt-2 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs">
-                  <span className="text-slate-500">Change / Return to Parent:</span>
-                  <span className="font-mono font-bold text-emerald-700">
-                    Rs {balanceReturn.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              {/* Large 'Record Payment' Action Button */}
-              <Button
-                onClick={handleRecordPayment}
-                disabled={numericReceived < selectedVoucher.totalAmount}
-                className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-sm rounded-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-              >
-                <ShieldCheck className="h-5 w-5" />
-                <span>Record Payment (Rs {selectedVoucher.totalAmount.toLocaleString()})</span>
-              </Button>
-
-              <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
-                <Printer className="h-3 w-3" />
-                <span>Auto-generates official stamped fee receipt.</span>
-              </div>
-            </div>
+                    <ShieldCheck data-icon="inline-start" className="size-5" />
+                    Record payment of Rs {selectedVoucher.totalAmount.toLocaleString()}
+                  </Button>
+                  {numericReceived < selectedVoucher.totalAmount ? (
+                    <p className="-mt-2 text-center text-sm text-muted-foreground">
+                      Enter at least the total payable to record the payment.
+                    </p>
+                  ) : null}
+                </>
+              )}
+            </>
           )}
         </Card>
       </div>
     </div>
   );
 }
-
-function VoucherStatusBadge({
-  status,
-}: {
-  status: FeeVoucher["status"];
-}) {
-  if (status === "paid") {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-        Paid
-      </span>
-    );
-  }
-
-  if (status === "overdue") {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-700">
-        <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-        Overdue
-      </span>
-    );
-  }
-
-  if (status === "partial") {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
-        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-        Partial
-      </span>
-    );
-  }
-
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
-      <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-      Unpaid
-    </span>
-  );
-}
-

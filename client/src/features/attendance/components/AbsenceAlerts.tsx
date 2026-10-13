@@ -7,6 +7,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { BRAND } from "@/lib/brand";
 import {
   Send,
   MessageSquare,
@@ -17,6 +20,9 @@ import {
   Phone,
 } from "lucide-react";
 import { StudentAttendanceRecord } from "../types";
+
+// Matches the campus profile in Settings until it comes from the API.
+const SCHOOL_NAME = "Apex Grammar & Science Academy";
 
 const defaultAbsentStudents: StudentAttendanceRecord[] = [
   {
@@ -46,174 +52,134 @@ interface AbsenceAlertsProps {
 export function AbsenceAlerts({
   absentStudents = defaultAbsentStudents,
 }: AbsenceAlertsProps) {
-  const [alertsSent, setAlertsSent] = useState(false);
+  const [sentAt, setSentAt] = useState<string | null>(null);
+  const count = absentStudents.length;
+
+  const sendAlerts = () =>
+    setSentAt(new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
 
   return (
-    <div className="space-y-6">
-      {/* Clean Alert Overview Card */}
-      <Card className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-xs">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+    <div className="space-y-4">
+      <Card className="gap-4 px-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 ring-8 ring-rose-50/50">
-              <AlertCircle className="h-6 w-6" />
-            </div>
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-danger-tint text-danger">
+              <AlertCircle aria-hidden className="size-5" />
+            </span>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-slate-900">
-                  {absentStudents.length} Students Absent Today
-                </h2>
-                <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700 border border-rose-200/60">
-                  Unexcused
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-slate-500 max-w-xl leading-relaxed">
-                Automated SMS and WhatsApp gateways are connected. Dispatching alerts will send a personalized notification directly to each student's registered guardian phone number.
+              <h2 className="text-lg font-semibold">
+                {count} {count === 1 ? "student" : "students"} absent today
+              </h2>
+              <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+                Each guardian gets a WhatsApp message on their registered number. If WhatsApp
+                can&apos;t reach them, an SMS is sent instead.
               </p>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <Button
-              onClick={() => setAlertsSent(true)}
-              disabled={alertsSent || absentStudents.length === 0}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs h-10 px-5 text-xs font-semibold"
-            >
-              <Send className="mr-2 h-4 w-4" />
-              {alertsSent ? "Alerts Successfully Dispatched" : "Send Bulk WhatsApp Alerts"}
-            </Button>
-          </div>
+          <Button size="lg" onClick={sendAlerts} disabled={sentAt !== null || count === 0}>
+            <Send data-icon="inline-start" />
+            {sentAt ? "Alerts sent" : `Send ${count} WhatsApp ${count === 1 ? "alert" : "alerts"}`}
+          </Button>
         </div>
 
-        {alertsSent && (
-          <div className="mt-4 rounded-lg bg-emerald-50 border border-emerald-200/80 p-3 flex items-center gap-2 text-xs text-emerald-800">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-            <span>
-              Dispatched {absentStudents.length} WhatsApp notifications via Cloud API gateway at{" "}
-              {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}. Delivery receipts logged in Audit Trail.
-            </span>
-          </div>
-        )}
+        {sentAt ? (
+          <p
+            role="status"
+            className="flex items-center gap-2 rounded-lg border border-success/30 bg-success-tint p-3 text-sm text-success"
+          >
+            <CheckCircle2 aria-hidden className="size-4 shrink-0" />
+            Sent {count} WhatsApp {count === 1 ? "alert" : "alerts"} at {sentAt}. Delivery receipts
+            are recorded in the activity log.
+          </p>
+        ) : null}
       </Card>
 
-      {/* WhatsApp Template Preview & Absentee Roster Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Template Preview Card (1 Column) */}
-        <Card className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs">
-          <div className="border-b border-slate-100 pb-3">
-            <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-emerald-600" />
-              WhatsApp Template Preview
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="gap-4 px-5">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare aria-hidden className="size-4 text-muted-foreground" />
+              Message preview
             </CardTitle>
-            <CardDescription className="text-xs text-slate-500 mt-0.5">
-              Pre-configured transactional message template.
-            </CardDescription>
+            <CardDescription className="mt-0.5">What guardians receive on WhatsApp</CardDescription>
           </div>
 
-          <div className="mt-4 space-y-3">
-            <div className="rounded-xl border border-emerald-200/80 bg-[#e7f8ef] p-4 text-xs text-slate-800 shadow-xs relative">
-              <div className="flex items-center gap-2 font-bold text-emerald-800 mb-2">
-                <span>DeepDev ERP • Attendance Notice</span>
-              </div>
-              <p className="leading-relaxed">
-                "Respected Parent, your child{" "}
-                <span className="font-semibold text-emerald-900 bg-emerald-100/80 px-1 rounded">
-                  [Student Name]
-                </span>{" "}
-                (Class 9-A) has been marked{" "}
-                <span className="font-bold text-rose-700">ABSENT</span> on{" "}
-                <span className="font-medium">09-Oct-2026</span> without prior written notice.
+          <figure className="rounded-lg border border-border bg-muted/60 p-4 text-sm">
+            <p className="mb-2 font-semibold">{BRAND.name} · Attendance notice</p>
+            <blockquote className="space-y-2">
+              <p>
+                Respected parent, your child <span className="font-medium">[Student name]</span>{" "}
+                (class 9-A) was marked absent on 9 Oct 2026 without prior written notice.
               </p>
-              <p className="mt-2 text-slate-600 leading-relaxed">
-                Please contact the branch administration immediately if this absence is in error."
+              <p className="text-muted-foreground">
+                If this is a mistake, please contact the campus office.
               </p>
-              <div className="mt-3 flex items-center justify-between text-[10px] text-slate-500 pt-2 border-t border-emerald-200/60">
-                <span>Sender: EduCore High</span>
-                <span className="flex items-center gap-1 font-semibold text-emerald-700">
-                  <Check className="h-3 w-3" /> WhatsApp Verified
-                </span>
-              </div>
-            </div>
-
-            <div className="rounded-lg bg-slate-50 p-3 text-[11px] text-slate-500 border border-slate-200/70">
-              <span className="font-semibold text-slate-700 block mb-0.5">
-                Delivery Rules
+            </blockquote>
+            <figcaption className="mt-3 flex items-center justify-between border-t border-border pt-2 text-xs text-muted-foreground">
+              <span>From {SCHOOL_NAME}</span>
+              <span className="flex items-center gap-1">
+                <Check aria-hidden className="size-3" /> Verified sender
               </span>
-              SMS fallback is enabled automatically if the recipient’s WhatsApp number is unreachable.
-            </div>
-          </div>
+            </figcaption>
+          </figure>
         </Card>
 
-        {/* Absentee Student List (2 Columns) */}
-        <Card className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs lg:col-span-2">
-          <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+        <Card className="gap-2 px-5 lg:col-span-2">
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <CardTitle className="text-sm font-bold text-slate-900">
-                Today's Absentee List ({absentStudents.length})
-              </CardTitle>
-              <CardDescription className="text-xs text-slate-500 mt-0.5">
-                Individual contact records targeted for notification dispatch.
-              </CardDescription>
+              <CardTitle>Absent today ({count})</CardTitle>
+              <CardDescription className="mt-0.5">Guardians who will be messaged</CardDescription>
             </div>
-            <span className="text-xs font-semibold text-blue-600">
-              Class 9 & 10
-            </span>
+            <span className="text-sm text-muted-foreground">Classes 9 and 10</span>
           </div>
 
-          <div className="mt-4 divide-y divide-slate-100">
-            {absentStudents.map((student) => (
-              <div
-                key={student.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between py-3.5 gap-2"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-50 text-xs font-semibold text-rose-700 ring-1 ring-rose-500/10">
-                    {student.avatar}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-slate-900">
-                        {student.name}
-                      </span>
-                      <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">
-                        {student.id}
-                      </span>
-                    </div>
-                    <span className="text-xs text-slate-500">
-                      {student.remark || "No reason logged"}
+          {count === 0 ? (
+            <EmptyState icon={CheckCircle2} title="No absences today" description="Everyone marked so far is present or on approved leave." />
+          ) : (
+            <ul className="divide-y divide-border">
+              {absentStudents.map((student) => (
+                <li
+                  key={student.id}
+                  className="flex flex-col justify-between gap-2 py-3.5 sm:flex-row sm:items-center"
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      aria-hidden
+                      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground"
+                    >
+                      {student.avatar}
                     </span>
+                    <div>
+                      <p className="font-medium">
+                        {student.name}{" "}
+                        <span className="font-normal text-muted-foreground">{student.id}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">{student.remark || "No reason recorded"}</p>
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1.5 text-xs text-slate-700 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/60">
-                    <Phone className="h-3.5 w-3.5 text-slate-400" />
-                    <span className="font-mono">{student.guardianPhone}</span>
-                  </div>
-
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                      alertsSent
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
-                    {alertsSent ? (
-                      <>
-                        <Check className="h-3 w-3 text-emerald-600" /> Sent
-                      </>
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center gap-1.5 text-sm">
+                      <Phone aria-hidden className="size-3.5 text-muted-foreground" />
+                      {student.guardianPhone}
+                    </span>
+                    {sentAt ? (
+                      <Badge variant="success">
+                        <Check aria-hidden /> Sent
+                      </Badge>
                     ) : (
-                      <>
-                        <Clock className="h-3 w-3 text-slate-400" /> Pending
-                      </>
+                      <Badge variant="neutral">
+                        <Clock aria-hidden /> Not sent
+                      </Badge>
                     )}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
       </div>
     </div>
   );
 }
-

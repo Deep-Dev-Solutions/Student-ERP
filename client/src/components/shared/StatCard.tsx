@@ -22,7 +22,7 @@ export function StatCard({ label, value, footer, icon: Icon, className }: StatCa
         <p className="text-sm font-medium text-muted-foreground">{label}</p>
         {Icon ? <Icon aria-hidden className="size-4 text-muted-foreground" /> : null}
       </div>
-      <p className="text-3xl font-semibold tracking-tight text-foreground">{value}</p>
+      <p className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{value}</p>
       {footer ? <div className="text-sm text-muted-foreground">{footer}</div> : null}
     </Card>
   );

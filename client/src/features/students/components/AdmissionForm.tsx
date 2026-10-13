@@ -25,10 +25,33 @@ import {
   type AdmissionFormValues,
 } from "../schemas/admission";
 
-const inputClass =
-  "h-9 rounded-lg border-slate-200 text-xs transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20";
-const selectTriggerClass =
-  "h-9 w-full rounded-lg border-slate-200 bg-white text-xs font-medium";
+const genderOptions = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "other", label: "Other" },
+];
+
+const bloodGroupOptions = [
+  { value: "a_pos", label: "A+" },
+  { value: "b_pos", label: "B+" },
+  { value: "o_pos", label: "O+" },
+  { value: "ab_pos", label: "AB+" },
+  { value: "other", label: "Other" },
+];
+
+const classOptions = [
+  { value: "9", label: "Class 9 (Matric)" },
+  { value: "10", label: "Class 10 (Matric)" },
+];
+
+const sectionOptions = [
+  { value: "a", label: "Section A (morning)" },
+  { value: "b", label: "Section B (morning)" },
+  { value: "c", label: "Section C (evening)" },
+];
+
+const inputClass = "h-9 bg-card";
+const selectTriggerClass = "h-9 w-full bg-card";
 
 interface FieldProps {
   id: string;
@@ -44,18 +67,45 @@ function Field({ id, label, required, error, hint, children }: FieldProps) {
     <div>
       <label
         htmlFor={id}
-        className="block text-xs font-semibold text-slate-700 mb-1.5"
+        className="mb-1.5 block text-sm font-medium"
       >
-        {label} {required && <span className="text-rose-500">*</span>}
+        {label}
+        {required && (
+          <span className="text-danger" aria-hidden>
+            {" "}*
+          </span>
+        )}
       </label>
       {children}
       {error ? (
-        <p id={`${id}-error`} role="alert" className="mt-1 text-[11px] text-rose-600">
+        <p id={`${id}-error`} role="alert" className="mt-1 text-xs text-danger">
           {error}
         </p>
       ) : (
-        hint && <p className="mt-1 text-[11px] text-slate-400">{hint}</p>
+        hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
       )}
+    </div>
+  );
+}
+
+function SectionHeader({ step, title, description }: { step: number; title: string; description: string }) {
+  return (
+    <div className="flex items-start gap-3 border-b border-border pb-4">
+      <span
+        aria-hidden
+        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-secondary-foreground"
+      >
+        {step}
+      </span>
+      <div>
+        <CardTitle>
+          <h2>{title}</h2>
+        </CardTitle>
+        <CardDescription>
+          <span className="sr-only">Step {step} of 3. </span>
+          {description}
+        </CardDescription>
+      </div>
     </div>
   );
 }
@@ -98,31 +148,19 @@ export function AdmissionForm({ onSubmit, onSaveDraft }: AdmissionFormProps) {
       {submitted && (
         <div
           role="status"
-          className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-medium text-emerald-700"
+          className="flex items-center gap-2 rounded-lg border border-success/30 bg-success-tint px-4 py-3 text-sm font-medium text-success"
         >
-          <CheckCircle2 className="h-4 w-4" />
-          Admission submitted successfully.
+          <CheckCircle2 aria-hidden className="size-4" />
+          Admission submitted.
         </div>
       )}
 
       {/* Step 1: Student Personal Information */}
-      <Card className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-xs">
-        <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 font-bold text-xs ring-1 ring-blue-500/10">
-            01
-          </div>
-          <div>
-            <CardTitle className="text-base font-bold text-slate-900">
-              Step 1: Student Information
-            </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
-              Basic demographic, official legal name, and biological details.
-            </CardDescription>
-          </div>
-        </div>
+      <Card className="gap-5 px-6">
+        <SectionHeader step={1} title="Student" description="Legal name, date of birth and background." />
 
-        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Field id="firstName" label="First Name" required error={errors.firstName?.message}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Field id="firstName" label="First name" required error={errors.firstName?.message}>
             <Input
               placeholder="e.g. Ahmed"
               className={inputClass}
@@ -131,7 +169,7 @@ export function AdmissionForm({ onSubmit, onSaveDraft }: AdmissionFormProps) {
             />
           </Field>
 
-          <Field id="lastName" label="Last Name" required error={errors.lastName?.message}>
+          <Field id="lastName" label="Last name" required error={errors.lastName?.message}>
             <Input
               placeholder="e.g. Khan"
               className={inputClass}
@@ -140,7 +178,7 @@ export function AdmissionForm({ onSubmit, onSaveDraft }: AdmissionFormProps) {
             />
           </Field>
 
-          <Field id="dateOfBirth" label="Date of Birth" required error={errors.dateOfBirth?.message}>
+          <Field id="dateOfBirth" label="Date of birth" required error={errors.dateOfBirth?.message}>
             <Input
               type="date"
               className={inputClass}
@@ -154,42 +192,44 @@ export function AdmissionForm({ onSubmit, onSaveDraft }: AdmissionFormProps) {
               name="gender"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={(v) => field.onChange(v)}>
+                <Select items={genderOptions} value={field.value} onValueChange={(v) => field.onChange(v)}>
                   <SelectTrigger className={selectTriggerClass} {...a11y("gender")} onBlur={field.onBlur}>
-                    <SelectValue placeholder="Select Gender" />
+                    <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    {genderOptions.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               )}
             />
           </Field>
 
-          <Field id="bloodGroup" label="Blood Group" error={errors.bloodGroup?.message}>
+          <Field id="bloodGroup" label="Blood group" error={errors.bloodGroup?.message}>
             <Controller
               name="bloodGroup"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={(v) => field.onChange(v)}>
+                <Select items={bloodGroupOptions} value={field.value} onValueChange={(v) => field.onChange(v)}>
                   <SelectTrigger className={selectTriggerClass} {...a11y("bloodGroup")} onBlur={field.onBlur}>
-                    <SelectValue placeholder="Select Blood Group" />
+                    <SelectValue placeholder="Select blood group" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="a_pos">A+</SelectItem>
-                    <SelectItem value="b_pos">B+</SelectItem>
-                    <SelectItem value="o_pos">O+</SelectItem>
-                    <SelectItem value="ab_pos">AB+</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    {bloodGroupOptions.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               )}
             />
           </Field>
 
-          <Field id="previousSchool" label="Previous School" error={errors.previousSchool?.message}>
+          <Field id="previousSchool" label="Previous school" error={errors.previousSchool?.message}>
             <Input
               placeholder="e.g. City Grammar School"
               className={inputClass}
@@ -201,23 +241,11 @@ export function AdmissionForm({ onSubmit, onSaveDraft }: AdmissionFormProps) {
       </Card>
 
       {/* Step 2: Guardian Details */}
-      <Card className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-xs">
-        <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 font-bold text-xs ring-1 ring-indigo-500/10">
-            02
-          </div>
-          <div>
-            <CardTitle className="text-base font-bold text-slate-900">
-              Step 2: Guardian & Emergency Contacts
-            </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
-              Parental identification and automated WhatsApp fee/attendance notification channel.
-            </CardDescription>
-          </div>
-        </div>
+      <Card className="gap-5 px-6">
+        <SectionHeader step={2} title="Guardian and emergency contacts" description="Who we contact about fees and attendance, including WhatsApp alerts." />
 
-        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field id="guardianName" label="Father / Guardian Name" required error={errors.guardianName?.message}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field id="guardianName" label="Father or guardian name" required error={errors.guardianName?.message}>
             <Input
               placeholder="e.g. Muhammad Raza Khan"
               className={inputClass}
@@ -226,7 +254,7 @@ export function AdmissionForm({ onSubmit, onSaveDraft }: AdmissionFormProps) {
             />
           </Field>
 
-          <Field id="guardianCnic" label="Guardian CNIC / National ID" error={errors.guardianCnic?.message}>
+          <Field id="guardianCnic" label="Guardian CNIC" error={errors.guardianCnic?.message}>
             <Input
               placeholder="35201-XXXXXXX-X"
               inputMode="numeric"
@@ -238,10 +266,10 @@ export function AdmissionForm({ onSubmit, onSaveDraft }: AdmissionFormProps) {
 
           <Field
             id="whatsappNumber"
-            label="WhatsApp Alert Number"
+            label="WhatsApp number for alerts"
             required
             error={errors.whatsappNumber?.message}
-            hint="Automated attendance notifications will be sent to this WhatsApp."
+            hint="Absence and fee alerts are sent to this number."
           >
             <Input
               type="tel"
@@ -252,7 +280,7 @@ export function AdmissionForm({ onSubmit, onSaveDraft }: AdmissionFormProps) {
             />
           </Field>
 
-          <Field id="emergencyPhone" label="Emergency Secondary Phone" error={errors.emergencyPhone?.message}>
+          <Field id="emergencyPhone" label="Emergency phone" error={errors.emergencyPhone?.message}>
             <Input
               type="tel"
               placeholder="0321-XXXXXXX"
@@ -265,60 +293,53 @@ export function AdmissionForm({ onSubmit, onSaveDraft }: AdmissionFormProps) {
       </Card>
 
       {/* Step 3: Academic Assignment & Fee Structure */}
-      <Card className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-xs">
-        <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 font-bold text-xs ring-1 ring-emerald-500/10">
-            03
-          </div>
-          <div>
-            <CardTitle className="text-base font-bold text-slate-900">
-              Step 3: Academic Assignment & Fee Structure
-            </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
-              Grade placement, section allocation, and monthly tuition dues.
-            </CardDescription>
-          </div>
-        </div>
+      <Card className="gap-5 px-6">
+        <SectionHeader step={3} title="Class and fee" description="Class, section and monthly tuition." />
 
-        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Field id="enrollingClass" label="Enrolling Class" required error={errors.enrollingClass?.message}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Field id="enrollingClass" label="Class" required error={errors.enrollingClass?.message}>
             <Controller
               name="enrollingClass"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={(v) => field.onChange(v)}>
+                <Select items={classOptions} value={field.value} onValueChange={(v) => field.onChange(v)}>
                   <SelectTrigger className={selectTriggerClass} {...a11y("enrollingClass")} onBlur={field.onBlur}>
-                    <SelectValue placeholder="Select Class" />
+                    <SelectValue placeholder="Select class" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="9">Class 9 (Matric)</SelectItem>
-                    <SelectItem value="10">Class 10 (Matric)</SelectItem>
+                    {classOptions.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               )}
             />
           </Field>
 
-          <Field id="section" label="Section Allocation" required error={errors.section?.message}>
+          <Field id="section" label="Section" required error={errors.section?.message}>
             <Controller
               name="section"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={(v) => field.onChange(v)}>
+                <Select items={sectionOptions} value={field.value} onValueChange={(v) => field.onChange(v)}>
                   <SelectTrigger className={selectTriggerClass} {...a11y("section")} onBlur={field.onBlur}>
-                    <SelectValue placeholder="Select Section" />
+                    <SelectValue placeholder="Select section" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="a">Section A (Morning)</SelectItem>
-                    <SelectItem value="b">Section B (Morning)</SelectItem>
-                    <SelectItem value="c">Section C (Evening)</SelectItem>
+                    {sectionOptions.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               )}
             />
           </Field>
 
-          <Field id="monthlyFee" label="Monthly Tuition Fee (PKR)" required error={errors.monthlyFee?.message}>
+          <Field id="monthlyFee" label="Monthly tuition (Rs)" required error={errors.monthlyFee?.message}>
             <Input
               inputMode="numeric"
               placeholder="3,000"
@@ -331,22 +352,22 @@ export function AdmissionForm({ onSubmit, onSaveDraft }: AdmissionFormProps) {
       </Card>
 
       {/* Action Buttons */}
-      <div className="flex items-center justify-end gap-3 pt-2">
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <Button
           type="button"
           variant="outline"
           onClick={() => onSaveDraft?.(getValues())}
-          className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-xs h-10 px-5 shadow-xs"
+          size="lg"
         >
-          Save as Draft
+          Save draft
         </Button>
         <Button
           type="submit"
           disabled={isSubmitting}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs h-10 px-6 shadow-xs"
+          size="lg"
         >
-          <PlusCircle className="mr-2 h-4 w-4" />
-          {isSubmitting ? "Submitting..." : "Submit & Print Admission Challan"}
+          <PlusCircle data-icon="inline-start" />
+          {isSubmitting ? "Submitting…" : "Submit admission"}
         </Button>
       </div>
     </form>

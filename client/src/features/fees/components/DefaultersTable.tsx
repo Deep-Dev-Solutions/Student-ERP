@@ -3,10 +3,6 @@
 import { useState } from "react";
 import {
   Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Table,
@@ -28,18 +24,37 @@ import {
 import {
   Search,
   MessageSquare,
-  AlertTriangle,
-  TrendingDown,
   Clock,
   Phone,
   CheckCircle2,
   Send,
-  Calendar,
-  FileSpreadsheet,
   Download,
-  Filter,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { StatCard } from "@/components/shared/StatCard";
+import { statusVariant } from "@/lib/status";
 import { DefaulterRecord } from "../types";
+
+const classOptions = [
+  { value: "all", label: "All classes" },
+  { value: "class-8", label: "Class 8" },
+  { value: "class-9", label: "Class 9" },
+  { value: "class-10", label: "Class 10" },
+];
+
+const severityOptions = [
+  { value: "all", label: "Any time overdue" },
+  { value: "warning", label: "Under 30 days" },
+  { value: "defaulter", label: "30 to 60 days" },
+  { value: "critical", label: "Over 60 days" },
+];
+
+const severityLabels: Record<DefaulterRecord["status"], string> = {
+  warning: "Under 30 days",
+  defaulter: "30 to 60 days",
+  critical: "Over 60 days",
+};
 
 const mockDefaulters: DefaulterRecord[] = [
   {
@@ -182,395 +197,205 @@ export function DefaultersTable() {
     }, 1000);
   };
 
+  const filteredTotal = filteredDefaulters.reduce((acc, d) => acc + d.totalArrears, 0);
+  const isFiltered = searchQuery !== "" || selectedClass !== "all" || selectedSeverity !== "all";
+  const clearFilters = () => {
+    setSearchQuery("");
+    setSelectedClass("all");
+    setSelectedSeverity("all");
+  };
+
   return (
     <div className="space-y-6">
-      {/* Top Metric Strip */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all hover:shadow-md">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Total Arrears
-            </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-600 ring-1 ring-rose-200/70">
-              <TrendingDown className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold tracking-tight text-rose-600">
-              Rs. {totalOutstanding.toLocaleString()}
-            </div>
-            <p className="mt-1 text-xs text-slate-500">
-              Outstanding fee across all classes
-            </p>
-          </div>
-        </Card>
-
-        <Card className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all hover:shadow-md">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Total Defaulters
-            </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600 ring-1 ring-amber-200/70">
-              <AlertTriangle className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold tracking-tight text-slate-900">
-              {mockDefaulters.length}{" "}
-              <span className="text-xs font-normal text-slate-400">
-                students
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-slate-500">
-              Accounts with &gt;15 days overdue
-            </p>
-          </div>
-        </Card>
-
-        <Card className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all hover:shadow-md">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Critical (60+ Days)
-            </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-100 text-red-700 ring-1 ring-red-300">
-              <Clock className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold tracking-tight text-red-700">
-              {criticalCount}{" "}
-              <span className="text-xs font-normal text-slate-400">
-                accounts
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-rose-600 font-medium">
-              Requires immediate principal notice
-            </p>
-          </div>
-        </Card>
-
-        <Card className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all hover:shadow-md">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              SMS Recovery Rate
-            </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/70">
-              <CheckCircle2 className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold tracking-tight text-emerald-600">
-              68.4%
-            </div>
-            <p className="mt-1 text-xs text-slate-500">
-              Cleared within 48h of reminder
-            </p>
-          </div>
-        </Card>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <StatCard label="Total arrears" value={`Rs ${totalOutstanding.toLocaleString()}`} footer="Outstanding across all classes" />
+        <StatCard label="Students with overdue fees" value={mockDefaulters.length} footer="More than 15 days overdue" />
+        <StatCard
+          label="Over 60 days"
+          value={criticalCount}
+          footer={<Badge variant="danger">Needs a principal&apos;s notice</Badge>}
+        />
+        <StatCard
+          label="Reminders sent today"
+          value={`${sentReminders.length} of ${mockDefaulters.length}`}
+          footer="SMS to guardians"
+        />
       </div>
 
-      {/* Main Table Card */}
-      <Card className="rounded-xl border border-slate-200/80 bg-white shadow-xs overflow-hidden">
-        <CardHeader className="p-6 border-b border-slate-100 bg-white">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <Card className="gap-0 py-0">
+        <div className="space-y-4 border-b border-border p-5 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-lg font-bold tracking-tight text-slate-900">
-                  Arrears & Defaulters Registry
-                </CardTitle>
-                <span className="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20">
-                  {filteredDefaulters.length} Unresolved
-                </span>
-              </div>
-              <CardDescription className="text-xs text-slate-500 mt-1">
-                Monitor aging balances, dispatch automated SMS notices to
-                parents, and track recovery status.
-              </CardDescription>
+              <h2 className="text-base font-semibold">Overdue fees</h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Track overdue balances and send SMS reminders to guardians.
+              </p>
             </div>
-
-            <div className="flex items-center gap-2.5">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 gap-2 border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-xs"
-              >
-                <Download className="h-3.5 w-3.5 text-slate-500" />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline">
+                <Download data-icon="inline-start" />
                 Export CSV
               </Button>
-
-              <Button
-                size="sm"
-                onClick={handleBulkReminders}
-                disabled={isBulkSending}
-                className="h-9 gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors"
-              >
+              <Button onClick={handleBulkReminders} disabled={isBulkSending || sentReminders.length === mockDefaulters.length}>
                 {isBulkSending ? (
                   <>
-                    <Clock className="h-3.5 w-3.5 animate-spin" />
-                    Sending SMS...
-                  </>
-                ) : bulkSentSuccess ? (
-                  <>
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
-                    Sent to All!
+                    <Clock data-icon="inline-start" className="motion-safe:animate-spin" />
+                    Sending…
                   </>
                 ) : (
                   <>
-                    <Send className="h-3.5 w-3.5" />
-                    Send Bulk SMS to All
+                    <Send data-icon="inline-start" />
+                    Send SMS to all
                   </>
                 )}
               </Button>
             </div>
           </div>
 
-          {/* Filter Bar */}
-          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-12">
+          {bulkSentSuccess ? (
+            <p role="status" className="flex items-center gap-2 rounded-lg border border-success/30 bg-success-tint p-3 text-sm text-success">
+              <CheckCircle2 aria-hidden className="size-4 shrink-0" />
+              SMS reminders sent to all {mockDefaulters.length} guardians.
+            </p>
+          ) : null}
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-12">
             <div className="relative sm:col-span-6">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Search aria-hidden className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by student name, roll number, or phone..."
+                type="search"
+                aria-label="Search overdue accounts"
+                placeholder="Student name, roll ID or phone"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-slate-50/70 border-slate-200 focus-visible:ring-blue-600 text-xs h-10 rounded-lg"
+                className="h-9 bg-card pl-9"
               />
             </div>
-
             <div className="sm:col-span-3">
-              <Select
-                value={selectedClass}
-                onValueChange={(val) => {
-                  if (val) setSelectedClass(val);
-                }}
-              >
-                <SelectTrigger className="w-full bg-slate-50/70 border-slate-200 text-xs h-10 rounded-lg">
-                  <SelectValue placeholder="All Classes" />
+              <Select items={classOptions} value={selectedClass} onValueChange={(val) => val && setSelectedClass(val)}>
+                <SelectTrigger aria-label="Filter by class" className="h-9 w-full bg-card">
+                  <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-white border-slate-200 shadow-md">
-                  <SelectItem value="all">All Classes</SelectItem>
-                  <SelectItem value="class-8">Class 8</SelectItem>
-                  <SelectItem value="class-9">Class 9</SelectItem>
-                  <SelectItem value="class-10">Class 10</SelectItem>
+                <SelectContent>
+                  {classOptions.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-
             <div className="sm:col-span-3">
-              <Select
-                value={selectedSeverity}
-                onValueChange={(val) => {
-                  if (val) setSelectedSeverity(val);
-                }}
-              >
-                <SelectTrigger className="w-full bg-slate-50/70 border-slate-200 text-xs h-10 rounded-lg">
-                  <SelectValue placeholder="All Overdue Levels" />
+              <Select items={severityOptions} value={selectedSeverity} onValueChange={(val) => val && setSelectedSeverity(val)}>
+                <SelectTrigger aria-label="Filter by how long overdue" className="h-9 w-full bg-card">
+                  <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-white border-slate-200 shadow-md">
-                  <SelectItem value="all">All Overdue Levels</SelectItem>
-                  <SelectItem value="warning">Warning (&lt;30 Days)</SelectItem>
-                  <SelectItem value="defaulter">Defaulter (30-60 Days)</SelectItem>
-                  <SelectItem value="critical">Critical (&gt;60 Days)</SelectItem>
+                <SelectContent>
+                  {severityOptions.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
-        </CardHeader>
+        </div>
 
-        {/* Table Content */}
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b border-slate-200/80 bg-slate-50/90 hover:bg-slate-50/90">
-                  <TableHead className="py-3.5 px-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Roll ID
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Student Details
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Guardian & Contact
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Months Overdue
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Total Arrears
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-center text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Severity
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Action
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
+        {filteredDefaulters.length === 0 ? (
+          <EmptyState
+            icon={CheckCircle2}
+            title="No overdue accounts match"
+            description="Try another name or roll ID, or clear the filters."
+            action={
+              isFiltered ? (
+                <Button variant="outline" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="hidden pl-5 2xl:table-cell">Roll ID</TableHead>
+                <TableHead className="pl-5 2xl:pl-3">Student</TableHead>
+                <TableHead className="hidden xl:table-cell">Guardian</TableHead>
+                <TableHead className="hidden 2xl:table-cell">Months unpaid</TableHead>
+                <TableHead className="text-right">Arrears</TableHead>
+                <TableHead className="hidden sm:table-cell">Overdue</TableHead>
+                <TableHead className="pr-5 text-right">
+                  <span className="sr-only">Reminder</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
 
-              <TableBody>
-                {filteredDefaulters.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={7}
-                      className="py-12 text-center text-slate-500"
-                    >
-                      <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-500 mb-2" />
-                      <p className="text-sm font-semibold text-slate-700">
-                        No outstanding defaulters found
-                      </p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Try modifying your search or filter options.
+            <TableBody>
+              {filteredDefaulters.map((student) => {
+                const isSent = sentReminders.includes(student.id);
+                return (
+                  <TableRow key={student.id}>
+                    <TableCell className="hidden pl-5 text-muted-foreground 2xl:table-cell">{student.studentId}</TableCell>
+                    <TableCell className="min-w-36 pl-5 whitespace-normal 2xl:pl-3">
+                      <p className="font-medium">{student.studentName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {student.className}, {student.section}
+                        <span className="2xl:hidden"> · {student.studentId}</span>
                       </p>
                     </TableCell>
+                    <TableCell className="hidden xl:table-cell">
+                      <p>{student.guardianName}</p>
+                      <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Phone aria-hidden className="size-3" />
+                        {student.guardianPhone}
+                      </p>
+                    </TableCell>
+                    <TableCell className="hidden 2xl:table-cell">
+                      <p>{student.monthsUnpaid.join(", ")}</p>
+                      <p className="text-xs text-muted-foreground">{student.daysOverdue} days past due</p>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <p className="font-semibold">Rs {student.totalArrears.toLocaleString()}</p>
+                      <p className="hidden text-xs text-muted-foreground lg:block">Last paid {student.lastPaymentDate || "never"}</p>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      <Badge variant={statusVariant(student.status)}>{severityLabels[student.status]}</Badge>
+                    </TableCell>
+                    <TableCell className="pr-5 text-right">
+                      {isSent ? (
+                        <span className="inline-flex items-center gap-1.5 text-sm text-success">
+                          <CheckCircle2 aria-hidden className="size-4" />
+                          Sent
+                        </span>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSendReminder(student.id)}
+                          aria-label={`Send SMS reminder to ${student.guardianName}`}
+                        >
+                          <MessageSquare />
+                          <span className="hidden lg:inline">Send SMS</span>
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
-                ) : (
-                  filteredDefaulters.map((student) => {
-                    const isSent = sentReminders.includes(student.id);
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
 
-                    return (
-                      <TableRow
-                        key={student.id}
-                        className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors"
-                      >
-                        {/* Roll ID */}
-                        <TableCell className="py-4 px-4 font-mono text-xs font-semibold text-slate-600">
-                          {student.studentId}
-                        </TableCell>
-
-                        {/* Student Details */}
-                        <TableCell className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 font-semibold text-xs text-slate-700 border border-slate-200">
-                              {student.avatar}
-                            </div>
-                            <div>
-                              <div className="text-sm font-semibold text-slate-900 leading-tight">
-                                {student.studentName}
-                              </div>
-                              <div className="text-xs text-slate-500 mt-0.5">
-                                {student.className} • {student.section}
-                              </div>
-                            </div>
-                          </div>
-                        </TableCell>
-
-                        {/* Guardian & Contact */}
-                        <TableCell className="py-4 px-4">
-                          <div className="text-xs font-medium text-slate-800">
-                            {student.guardianName}
-                          </div>
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500 font-mono mt-0.5">
-                            <Phone className="h-3 w-3 text-slate-400" />
-                            {student.guardianPhone}
-                          </div>
-                        </TableCell>
-
-                        {/* Months Overdue */}
-                        <TableCell className="py-4 px-4">
-                          <div className="flex flex-wrap gap-1 max-w-[200px]">
-                            {student.monthsUnpaid.map((m) => (
-                              <span
-                                key={m}
-                                className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 border border-slate-200/80"
-                              >
-                                {m}
-                              </span>
-                            ))}
-                          </div>
-                          <div className="text-[11px] text-slate-400 mt-1">
-                            {student.daysOverdue} days past due
-                          </div>
-                        </TableCell>
-
-                        {/* Total Arrears in BOLD RED */}
-                        <TableCell className="py-4 px-4 text-right">
-                          <div className="text-sm font-bold font-mono text-rose-600">
-                            Rs. {student.totalArrears.toLocaleString()}
-                          </div>
-                          <div className="text-[11px] text-slate-400">
-                            Last paid: {student.lastPaymentDate || "Never"}
-                          </div>
-                        </TableCell>
-
-                        {/* Severity Badge */}
-                        <TableCell className="py-4 px-4 text-center">
-                          {student.status === "critical" && (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20">
-                              <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
-                              Critical
-                            </span>
-                          )}
-                          {student.status === "defaulter" && (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
-                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                              Overdue
-                            </span>
-                          )}
-                          {student.status === "warning" && (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">
-                              <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                              Warning
-                            </span>
-                          )}
-                        </TableCell>
-
-                        {/* SMS Action Button */}
-                        <TableCell className="py-4 px-4 text-right">
-                          <Button
-                            variant={isSent ? "ghost" : "outline"}
-                            size="sm"
-                            disabled={isSent}
-                            onClick={() => handleSendReminder(student.id)}
-                            className={`h-8 gap-1.5 text-xs font-medium transition-all ${
-                              isSent
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                : "border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 shadow-xs"
-                            }`}
-                          >
-                            {isSent ? (
-                              <>
-                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                                SMS Sent
-                              </>
-                            ) : (
-                              <>
-                                <MessageSquare className="h-3.5 w-3.5 text-slate-500" />
-                                Send SMS
-                              </>
-                            )}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Table Footer info */}
-          <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-6 py-3.5 text-xs text-slate-500">
-            <div>
-              Showing{" "}
-              <span className="font-semibold text-slate-700">
-                {filteredDefaulters.length}
-              </span>{" "}
-              of {mockDefaulters.length} students with overdue fees
-            </div>
-            <div className="flex items-center gap-4 text-xs font-medium">
-              <span className="text-slate-600">
-                Filtered Arrears Total:{" "}
-                <span className="font-mono font-bold text-rose-600">
-                  Rs.{" "}
-                  {filteredDefaulters
-                    .reduce((acc, curr) => acc + curr.totalArrears, 0)
-                    .toLocaleString()}
-                </span>
-              </span>
-            </div>
-          </div>
-        </CardContent>
+        <div className="flex flex-col gap-1 border-t border-border bg-muted/50 px-5 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p>
+            Showing {filteredDefaulters.length} of {mockDefaulters.length} accounts
+          </p>
+          <p>
+            Total shown: <span className="font-semibold text-foreground">Rs {filteredTotal.toLocaleString()}</span>
+          </p>
+        </div>
       </Card>
     </div>
   );
 }
-

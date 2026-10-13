@@ -3,10 +3,6 @@
 import { useState } from "react";
 import {
   Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Table,
@@ -21,15 +17,22 @@ import { Button } from "@/components/ui/button";
 import {
   Search,
   FileText,
-  DollarSign,
   Download,
   CheckCircle2,
   Clock,
   Printer,
-  TrendingUp,
-  Percent,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { StatCard } from "@/components/shared/StatCard";
+import { statusVariant } from "@/lib/status";
 import { PayrollRecord } from "../types";
+
+const transferLabels: Record<PayrollRecord["status"], string> = {
+  paid: "Transferred",
+  processing: "Processing",
+  pending: "Not started",
+};
 
 const mockPayroll: PayrollRecord[] = [
   {
@@ -137,327 +140,152 @@ export function PayrollList() {
     }, 1200);
   };
 
+  const paidCount = mockPayroll.filter((p) => p.status === "paid").length;
+  const rupees = (n: number) => `Rs ${n.toLocaleString()}`;
+
   return (
     <div className="space-y-6">
-      {/* Top Metric Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all hover:shadow-md">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Monthly Net Disbursal
-            </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 ring-1 ring-blue-200/70">
-              <DollarSign className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold tracking-tight text-slate-900 font-mono">
-              Rs. {totalDisbursal.toLocaleString()}
-            </div>
-            <p className="mt-1 text-xs text-slate-500">
-              Net payable for October 2026
-            </p>
-          </div>
-        </Card>
-
-        <Card className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all hover:shadow-md">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Base Remuneration
-            </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/70">
-              <TrendingUp className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold tracking-tight text-emerald-600 font-mono">
-              Rs. {totalBase.toLocaleString()}
-            </div>
-            <p className="mt-1 text-xs text-slate-500">
-              Gross base scale commitment
-            </p>
-          </div>
-        </Card>
-
-        <Card className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all hover:shadow-md">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Total Tax & Deductions
-            </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-600 ring-1 ring-rose-200/70">
-              <Percent className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold tracking-tight text-rose-600 font-mono">
-              Rs. {totalDeductions.toLocaleString()}
-            </div>
-            <p className="mt-1 text-xs text-slate-500">
-              Income tax withholding & EOBI
-            </p>
-          </div>
-        </Card>
-
-        <Card className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all hover:shadow-md">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Disbursal Status
-            </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300">
-              <CheckCircle2 className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold tracking-tight text-slate-900">
-              60% Disbursed
-            </div>
-            <p className="mt-1 text-xs text-emerald-600 font-medium">
-              3 of 5 transfers cleared
-            </p>
-          </div>
-        </Card>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <StatCard label="Net payroll" value={rupees(totalDisbursal)} footer="Payable for October 2026" />
+        <StatCard label="Base salaries" value={rupees(totalBase)} footer="Before allowances" />
+        <StatCard label="Tax and deductions" value={rupees(totalDeductions)} footer="Income tax and EOBI" />
+        <StatCard
+          label="Salaries transferred"
+          value={`${paidCount} of ${mockPayroll.length}`}
+          footer={`${Math.round((paidCount / mockPayroll.length) * 100)}% of staff paid`}
+        />
       </div>
 
-      {/* Main Payroll Table Card */}
-      <Card className="rounded-xl border border-slate-200/80 bg-white shadow-xs overflow-hidden">
-        <CardHeader className="p-6 border-b border-slate-100 bg-white">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <Card className="gap-0 py-0">
+        <div className="space-y-4 border-b border-border p-5 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-lg font-bold tracking-tight text-slate-900">
-                  Staff Payroll Registry
-                </CardTitle>
-                <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700 border border-slate-200">
-                  October 2026
-                </span>
-              </div>
-              <CardDescription className="text-xs text-slate-500 mt-1">
-                Calculate salary packages, process statutory deductions, and generate formal payslips.
-              </CardDescription>
+              <h2 className="text-base font-semibold">Payroll, October 2026</h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">Salaries, deductions and payslips for this month.</p>
             </div>
-
-            <div className="flex items-center gap-2.5">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 gap-2 border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-xs"
-              >
-                <Download className="h-3.5 w-3.5 text-slate-500" />
-                Export Tax Sheet
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline">
+                <Download data-icon="inline-start" />
+                Export tax sheet
               </Button>
-
-              <Button
-                size="sm"
-                onClick={handleProcessAllPayroll}
-                disabled={isBulkProcessing}
-                className="h-9 gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors"
-              >
+              <Button onClick={handleProcessAllPayroll} disabled={isBulkProcessing || generatedSlips.length === mockPayroll.length}>
                 {isBulkProcessing ? (
                   <>
-                    <Clock className="h-3.5 w-3.5 animate-spin" />
-                    Generating Slips...
-                  </>
-                ) : bulkDone ? (
-                  <>
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
-                    All Slips Issued!
+                    <Clock data-icon="inline-start" className="motion-safe:animate-spin" />
+                    Generating…
                   </>
                 ) : (
                   <>
-                    <FileText className="h-3.5 w-3.5" />
-                    Generate All Payslips
+                    <FileText data-icon="inline-start" />
+                    Generate all payslips
                   </>
                 )}
               </Button>
             </div>
           </div>
 
-          <div className="mt-5 relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          {bulkDone ? (
+            <p role="status" className="flex items-center gap-2 rounded-lg border border-success/30 bg-success-tint p-3 text-sm text-success">
+              <CheckCircle2 aria-hidden className="size-4 shrink-0" />
+              Payslips generated for all {mockPayroll.length} staff members.
+            </p>
+          ) : null}
+
+          <div className="relative max-w-md">
+            <Search aria-hidden className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search payroll by faculty name, staff ID, or department..."
+              type="search"
+              aria-label="Search payroll"
+              placeholder="Name, staff ID or department"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-slate-50/70 border-slate-200 focus-visible:ring-blue-600 text-xs h-10 rounded-lg max-w-md"
+              className="h-9 bg-card pl-9"
             />
           </div>
-        </CardHeader>
+        </div>
 
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b border-slate-200/80 bg-slate-50/90 hover:bg-slate-50/90">
-                  <TableHead className="py-3.5 px-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Staff ID
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Employee Name
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Base Salary
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Allowances
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Deductions
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Net Salary
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-center text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Transfer Status
-                  </TableHead>
-                  <TableHead className="py-3.5 px-4 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Action
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
+        {filteredPayroll.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title="No payroll records match"
+            description="Try a different name, staff ID or department."
+            action={
+              <Button variant="outline" onClick={() => setSearchQuery("")}>
+                Clear search
+              </Button>
+            }
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="hidden pl-5 2xl:table-cell">Staff ID</TableHead>
+                <TableHead className="pl-5 2xl:pl-3">Name</TableHead>
+                <TableHead className="hidden text-right xl:table-cell">Base</TableHead>
+                <TableHead className="hidden text-right xl:table-cell">Allowances</TableHead>
+                <TableHead className="hidden text-right xl:table-cell">Deductions</TableHead>
+                <TableHead className="text-right">Net salary</TableHead>
+                <TableHead className="hidden sm:table-cell">Transfer</TableHead>
+                <TableHead className="pr-5 text-right">
+                  <span className="sr-only">Payslip</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
 
-              <TableBody>
-                {filteredPayroll.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="py-12 text-center text-slate-500"
-                    >
-                      <FileText className="mx-auto h-8 w-8 text-slate-400 mb-2" />
-                      <p className="text-sm font-semibold text-slate-700">
-                        No payroll records found
-                      </p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Try modifying your search query.
+            <TableBody>
+              {filteredPayroll.map((item) => {
+                const isGenerated = generatedSlips.includes(item.id);
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell className="hidden pl-5 text-muted-foreground 2xl:table-cell">{item.staffId}</TableCell>
+                    <TableCell className="min-w-40 pl-5 whitespace-normal 2xl:pl-3">
+                      <p className="font-medium">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.role}, {item.department}
+                        <span className="2xl:hidden"> · {item.staffId}</span>
                       </p>
                     </TableCell>
+                    <TableCell className="hidden text-right xl:table-cell">{rupees(item.baseSalary)}</TableCell>
+                    <TableCell className="hidden text-right xl:table-cell">+{rupees(item.allowances)}</TableCell>
+                    <TableCell className="hidden text-right xl:table-cell">−{rupees(item.deductions)}</TableCell>
+                    <TableCell className="text-right font-semibold">{rupees(item.netSalary)}</TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      <Badge variant={statusVariant(item.status)}>{transferLabels[item.status]}</Badge>
+                    </TableCell>
+                    <TableCell className="pr-5 text-right">
+                      {isGenerated ? (
+                        <Button variant="ghost" size="sm" aria-label={`Print payslip for ${item.name}`}>
+                          <Printer />
+                          <span className="hidden 2xl:inline">Print slip</span>
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleGeneratePayslip(item.id)}
+                          aria-label={`Generate payslip for ${item.name}`}
+                        >
+                          <FileText />
+                          <span className="hidden 2xl:inline">Generate slip</span>
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
-                ) : (
-                  filteredPayroll.map((item) => {
-                    const isGenerated = generatedSlips.includes(item.id);
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
 
-                    return (
-                      <TableRow
-                        key={item.id}
-                        className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors"
-                      >
-                        {/* ID */}
-                        <TableCell className="py-4 px-4 font-mono text-xs font-semibold text-slate-600">
-                          {item.staffId}
-                        </TableCell>
-
-                        {/* Name */}
-                        <TableCell className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 font-semibold text-xs text-slate-700 border border-slate-200">
-                              {item.avatar}
-                            </div>
-                            <div>
-                              <div className="text-sm font-semibold text-slate-900 leading-tight">
-                                {item.name}
-                              </div>
-                              <div className="text-xs text-slate-500 mt-0.5">
-                                {item.role} • {item.department}
-                              </div>
-                            </div>
-                          </div>
-                        </TableCell>
-
-                        {/* Base Salary */}
-                        <TableCell className="py-4 px-4 text-right font-mono text-xs text-slate-700">
-                          Rs. {item.baseSalary.toLocaleString()}
-                        </TableCell>
-
-                        {/* Allowances */}
-                        <TableCell className="py-4 px-4 text-right font-mono text-xs text-emerald-600">
-                          +Rs. {item.allowances.toLocaleString()}
-                        </TableCell>
-
-                        {/* Deductions */}
-                        <TableCell className="py-4 px-4 text-right font-mono text-xs text-rose-600">
-                          -Rs. {item.deductions.toLocaleString()}
-                        </TableCell>
-
-                        {/* Net Salary */}
-                        <TableCell className="py-4 px-4 text-right font-mono text-sm font-bold text-slate-900">
-                          Rs. {item.netSalary.toLocaleString()}
-                        </TableCell>
-
-                        {/* Status */}
-                        <TableCell className="py-4 px-4 text-center">
-                          {item.status === "paid" && (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                              Disbursed
-                            </span>
-                          )}
-                          {item.status === "processing" && (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
-                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                              Processing
-                            </span>
-                          )}
-                          {item.status === "pending" && (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-400/20">
-                              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                              Pending
-                            </span>
-                          )}
-                        </TableCell>
-
-                        {/* Generate Payslip Action */}
-                        <TableCell className="py-4 px-4 text-right">
-                          <Button
-                            variant={isGenerated ? "ghost" : "outline"}
-                            size="sm"
-                            onClick={() => handleGeneratePayslip(item.id)}
-                            className={`h-8 gap-1.5 text-xs font-medium transition-all ${
-                              isGenerated
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                : "border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 shadow-xs"
-                            }`}
-                          >
-                            {isGenerated ? (
-                              <>
-                                <Printer className="h-3.5 w-3.5 text-emerald-600" />
-                                Slip Ready
-                              </>
-                            ) : (
-                              <>
-                                <FileText className="h-3.5 w-3.5 text-slate-500" />
-                                Generate Payslip
-                              </>
-                            )}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Table Footer info */}
-          <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-6 py-3.5 text-xs text-slate-500">
-            <div>
-              Showing{" "}
-              <span className="font-semibold text-slate-700">
-                {filteredPayroll.length}
-              </span>{" "}
-              of {mockPayroll.length} payroll accounts
-            </div>
-            <div className="flex items-center gap-4 text-xs font-medium">
-              <span className="text-slate-600">
-                Total Month Disbursal:{" "}
-                <span className="font-mono font-bold text-slate-900">
-                  Rs. {totalDisbursal.toLocaleString()}
-                </span>
-              </span>
-            </div>
-          </div>
-        </CardContent>
+        <div className="flex flex-col gap-1 border-t border-border bg-muted/50 px-5 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p>
+            Showing {filteredPayroll.length} of {mockPayroll.length} staff
+          </p>
+          <p>
+            Month total: <span className="font-semibold text-foreground">{rupees(totalDisbursal)}</span>
+          </p>
+        </div>
       </Card>
     </div>
   );
 }
-
