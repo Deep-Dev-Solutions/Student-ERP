@@ -1,5 +1,5 @@
 import { createApi, fakeBaseQuery } from "@reduxjs/toolkit/query/react";
-import { db, type MockDb } from "@/mocks/db";
+import { db, mockActor, type MockDb } from "@/mocks/db";
 import type {
   AcademicSession,
   Branch,
@@ -11,8 +11,13 @@ import type {
   SchoolClass,
   SchoolRules,
   Section,
+  Student,
+  StudentDocument,
   Subject,
   User,
+  AdmissionInput,
+  Guardian,
+  Withdrawal,
 } from "@/types";
 
 /*
@@ -24,7 +29,7 @@ import type {
 
 type Tag =
   | "Voucher" | "Defaulter" | "Session" | "Branch" | "User" | "Class" | "Section"
-  | "Subject" | "ClassSubject" | "Permissions" | "Rules" | "Campus";
+  | "Subject" | "ClassSubject" | "Permissions" | "Rules" | "Campus" | "Student" | "StudentActivity";
 
 /** A read endpoint that returns one collection from the mock database. */
 const read = <K extends keyof MockDb>(key: K, tag?: Tag) => ({
@@ -37,17 +42,80 @@ const fail = (status: number, message: string) => ({ error: { status, message } 
 /** A short unique id for records created in the browser. */
 const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+/** Initials from a name, ignoring titles: "Dr. Tariq Mahmood" -> "TM". */
+export const initialsOf = (name: string) =>
+  name
+    .replace(/^(Dr|Mr|Mrs|Ms|Sir)\.?\s+/i, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+/** Adds an entry to a student's activity log. */
+function logActivity(studentId: string, text: string) {
+  db.studentActivity = [
+    { id: newId("act"), studentId, at: new Date().toISOString(), actor: mockActor(), text },
+    ...db.studentActivity,
+  ];
+}
+
+const placement = (classId: string, sectionId: string) => {
+  const cls = db.classes.find((c) => c.id === classId);
+  const section = db.sections.find((s) => s.id === sectionId);
+  return `${cls?.name ?? "a class"}, section ${section?.name ?? "?"}`;
+};
+
+/** Checks a class and section exist and belong together. */
+function checkPlacement(classId: string, sectionId: string, branchId?: string) {
+  const cls = db.classes.find((c) => c.id === classId);
+  const section = db.sections.find((s) => s.id === sectionId);
+  if (!cls || !section || section.classId !== classId) return "Choose a class and one of its sections";
+  if (branchId && cls.branchId !== branchId) return "That class is at a different campus";
+  return null;
+}
+
+/** Builds a new student record from admission details. */
+function createStudent(input: AdmissionInput, index = 0): Student {
+  const nextRoll = Math.max(...db.students.map((s) => Number(s.id.replace(/\D/g, "")) || 0)) + 1 + index;
+  const year = input.admissionDate.slice(0, 4);
+  const inYear = db.students.filter((s) => s.admissionNo.startsWith(`ADM-${year}`)).length + 1 + index;
+  return {
+    ...input,
+    id: `STD-${nextRoll}`,
+    admissionNo: `ADM-${year}-${String(inYear).padStart(4, "0")}`,
+    avatar: initialsOf(input.name),
+    siblingIds: input.siblingIds ?? [],
+    enrollment: "active",
+    feeStatus: "clear",
+    attendance: 100,
+    balance: 0,
+    documents: [],
+  };
+}
+
+/** Replaces one student record. */
+const putStudent = (student: Student) => {
+  db.students = db.students.map((s) => (s.id === student.id ? student : s));
+  return student;
+};
+
 export const api = createApi({
   reducerPath: "api",
   baseQuery: fakeBaseQuery<{ status: number; message: string }>(),
-  tagTypes: ["Voucher", "Defaulter", "Session", "Branch", "User", "Class", "Section", "Subject", "ClassSubject", "Permissions", "Rules", "Campus"],
+  tagTypes: ["Voucher", "Defaulter", "Session", "Branch", "User", "Class", "Section", "Subject", "ClassSubject", "Permissions", "Rules", "Campus", "Student", "StudentActivity"],
   // Demo data never goes stale; keep it for the whole visit.
   keepUnusedDataFor: 60 * 60 * 24,
   endpoints: (build) => ({
     getUsers: build.query<MockDb["users"], void>(read("users", "User")),
     getBranches: build.query<MockDb["branches"], void>(read("branches", "Branch")),
     getSessions: build.query<MockDb["sessions"], void>(read("sessions", "Session")),
-    getStudents: build.query<MockDb["students"], void>(read("students")),
+    getStudents: build.query<MockDb["students"], void>(read("students", "Student")),
+    getStudentActivity: build.query<MockDb["studentActivity"], void>(read("studentActivity", "StudentActivity")),
     getAttendanceRoster: build.query<MockDb["attendanceRoster"], void>(read("attendanceRoster")),
     getClassLocks: build.query<MockDb["classLocks"], void>(read("classLocks")),
     getAbsentees: build.query<MockDb["absentees"], void>(read("absentees")),
@@ -84,6 +152,160 @@ export const api = createApi({
         return { data: paid };
       },
       invalidatesTags: ["Voucher"],
+    }),
+
+    // Students ---------------------------------------------------------------
+    admitStudent: build.mutation<Student, AdmissionInput>({
+      queryFn: (input) => {
+        const problem = checkPlacement(input.classId, input.sectionId, input.branchId);
+        if (problem) return fail(400, problem);
+        if (input.bForm && db.students.some((s) => s.bForm === input.bForm))
+          return fail(409, `A student with B-form ${input.bForm} is already enrolled`);
+        const student = createStudent(input);
+        db.students = [...db.students, student];
+        // Link siblings both ways.
+        for (const id of student.siblingIds) {
+          const sibling = db.students.find((s) => s.id === id);
+          if (sibling && !sibling.siblingIds.includes(student.id)) putStudent({ ...sibling, siblingIds: [...sibling.siblingIds, student.id] });
+        }
+        logActivity(student.id, `Admitted to ${placement(student.classId, student.sectionId)}.`);
+        return { data: student };
+      },
+      invalidatesTags: ["Student", "StudentActivity"],
+    }),
+    importStudents: build.mutation<Student[], AdmissionInput[]>({
+      queryFn: (inputs) => {
+        const created = inputs.map((input, i) => createStudent(input, i));
+        db.students = [...db.students, ...created];
+        for (const s of created) logActivity(s.id, `Admitted to ${placement(s.classId, s.sectionId)} by spreadsheet import.`);
+        return { data: created };
+      },
+      invalidatesTags: ["Student", "StudentActivity"],
+    }),
+    updateStudent: build.mutation<Student, Pick<Student, "id"> & Partial<Omit<Student, "id" | "admissionNo">>>({
+      queryFn: ({ id, ...changes }) => {
+        const student = db.students.find((s) => s.id === id);
+        if (!student) return fail(404, "Student not found");
+        if (changes.bForm && db.students.some((s) => s.id !== id && s.bForm === changes.bForm))
+          return fail(409, `B-form ${changes.bForm} belongs to another student`);
+        const updated = putStudent({ ...student, ...changes, avatar: initialsOf(changes.name ?? student.name) });
+        logActivity(id, "Details updated.");
+        return { data: updated };
+      },
+      invalidatesTags: ["Student", "StudentActivity"],
+    }),
+    /** Moves one or more students to another section (and class) at the same campus. */
+    changeSection: build.mutation<null, { ids: string[]; classId: string; sectionId: string }>({
+      queryFn: ({ ids, classId, sectionId }) => {
+        const problem = checkPlacement(classId, sectionId);
+        if (problem) return fail(400, problem);
+        const where = placement(classId, sectionId);
+        for (const id of ids) {
+          const student = db.students.find((s) => s.id === id);
+          if (!student || (student.classId === classId && student.sectionId === sectionId)) continue;
+          const electives = student.classId === classId ? student.electiveSubjectIds : [];
+          putStudent({ ...student, classId, sectionId, electiveSubjectIds: electives });
+          logActivity(id, `Moved to ${where}.`);
+        }
+        return { data: null };
+      },
+      invalidatesTags: ["Student", "StudentActivity"],
+    }),
+    transferStudent: build.mutation<Student, { id: string; branchId: string; classId: string; sectionId: string }>({
+      queryFn: ({ id, branchId, classId, sectionId }) => {
+        const student = db.students.find((s) => s.id === id);
+        if (!student) return fail(404, "Student not found");
+        if (branchId === student.branchId) return fail(400, "Choose a different campus");
+        const problem = checkPlacement(classId, sectionId, branchId);
+        if (problem) return fail(400, problem);
+        const branch = db.branches.find((b) => b.id === branchId);
+        const updated = putStudent({ ...student, branchId, classId, sectionId, electiveSubjectIds: [] });
+        logActivity(id, `Transferred to ${branch?.name ?? "another campus"}, ${placement(classId, sectionId)}.`);
+        return { data: updated };
+      },
+      invalidatesTags: ["Student", "StudentActivity"],
+    }),
+    setElectives: build.mutation<Student, { id: string; subjectIds: string[] }>({
+      queryFn: ({ id, subjectIds }) => {
+        const student = db.students.find((s) => s.id === id);
+        if (!student) return fail(404, "Student not found");
+        const updated = putStudent({ ...student, electiveSubjectIds: subjectIds });
+        const names = db.subjects.filter((s) => subjectIds.includes(s.id)).map((s) => s.name);
+        logActivity(id, names.length ? `Electives set to ${names.join(", ")}.` : "Electives cleared.");
+        return { data: updated };
+      },
+      invalidatesTags: ["Student", "StudentActivity"],
+    }),
+    withdrawStudent: build.mutation<Student, { id: string } & Withdrawal>({
+      queryFn: ({ id, ...withdrawal }) => {
+        const student = db.students.find((s) => s.id === id);
+        if (!student) return fail(404, "Student not found");
+        if (student.enrollment === "withdrawn") return fail(409, "This student has already left");
+        const updated = putStudent({ ...student, enrollment: "withdrawn", withdrawal });
+        logActivity(id, `Marked as left${withdrawal.note ? `: ${withdrawal.note}` : "."}`);
+        return { data: updated };
+      },
+      invalidatesTags: ["Student", "StudentActivity"],
+    }),
+    readmitStudent: build.mutation<Student, { id: string; classId: string; sectionId: string; date: string }>({
+      queryFn: ({ id, classId, sectionId, date }) => {
+        const student = db.students.find((s) => s.id === id);
+        if (!student) return fail(404, "Student not found");
+        if (student.enrollment === "active") return fail(409, "This student is already enrolled");
+        const problem = checkPlacement(classId, sectionId, student.branchId);
+        if (problem) return fail(400, problem);
+        const { withdrawal: _left, ...rest } = student;
+        void _left;
+        const updated = putStudent({ ...rest, enrollment: "active", classId, sectionId, electiveSubjectIds: [] });
+        logActivity(id, `Re-admitted on ${date} to ${placement(classId, sectionId)}.`);
+        return { data: updated };
+      },
+      invalidatesTags: ["Student", "StudentActivity"],
+    }),
+    updateGuardians: build.mutation<Student, { id: string; guardians: Guardian[] }>({
+      queryFn: ({ id, guardians }) => {
+        const student = db.students.find((s) => s.id === id);
+        if (!student) return fail(404, "Student not found");
+        if (guardians.length === 0) return fail(400, "A student needs at least one guardian");
+        if (guardians.filter((g) => g.primary).length !== 1) return fail(400, "Choose one main guardian");
+        const updated = putStudent({ ...student, guardians });
+        logActivity(id, "Guardians updated.");
+        return { data: updated };
+      },
+      invalidatesTags: ["Student", "StudentActivity"],
+    }),
+    addStudentDocument: build.mutation<Student, { id: string; document: Omit<StudentDocument, "id" | "uploadedAt"> }>({
+      queryFn: ({ id, document }) => {
+        const student = db.students.find((s) => s.id === id);
+        if (!student) return fail(404, "Student not found");
+        const updated = putStudent({ ...student, documents: [...student.documents, { ...document, id: newId("doc"), uploadedAt: today() }] });
+        logActivity(id, `Document added: ${document.name}.`);
+        return { data: updated };
+      },
+      invalidatesTags: ["Student", "StudentActivity"],
+    }),
+    removeStudentDocument: build.mutation<Student, { id: string; documentId: string }>({
+      queryFn: ({ id, documentId }) => {
+        const student = db.students.find((s) => s.id === id);
+        if (!student) return fail(404, "Student not found");
+        const doc = student.documents.find((d) => d.id === documentId);
+        const updated = putStudent({ ...student, documents: student.documents.filter((d) => d.id !== documentId) });
+        if (doc) logActivity(id, `Document removed: ${doc.name}.`);
+        return { data: updated };
+      },
+      invalidatesTags: ["Student", "StudentActivity"],
+    }),
+    /** Removes a student record entirely. Meant for records entered by mistake; use withdraw otherwise. */
+    deleteStudent: build.mutation<null, string>({
+      queryFn: (id) => {
+        if (!db.students.some((s) => s.id === id)) return fail(404, "Student not found");
+        db.students = db.students
+          .filter((s) => s.id !== id)
+          .map((s) => (s.siblingIds.includes(id) ? { ...s, siblingIds: s.siblingIds.filter((x) => x !== id) } : s));
+        db.studentActivity = db.studentActivity.filter((a) => a.studentId !== id);
+        return { data: null };
+      },
+      invalidatesTags: ["Student", "StudentActivity"],
     }),
 
     // Sessions ---------------------------------------------------------------
@@ -199,14 +421,7 @@ export const api = createApi({
       queryFn: (input) => {
         if (db.users.some((u) => u.email.toLowerCase() === input.email.toLowerCase()))
           return fail(409, `${input.email} already has an account`);
-        const initials = input.name
-          .replace(/^(Dr|Mr|Mrs|Ms|Sir)\.?\s+/i, "")
-          .split(/\s+/)
-          .map((w) => w[0])
-          .join("")
-          .slice(0, 2)
-          .toUpperCase();
-        const created: User = { ...input, id: newId("u"), initials, status: "invited" };
+        const created: User = { ...input, id: newId("u"), initials: initialsOf(input.name), status: "invited" };
         db.users = [...db.users, created];
         return { data: created };
       },
@@ -254,7 +469,7 @@ export const api = createApi({
  */
 export const prefilledReads = {
   getUsers: "users", getBranches: "branches", getSessions: "sessions", getStudents: "students",
-  getAttendanceRoster: "attendanceRoster", getClassLocks: "classLocks", getAbsentees: "absentees",
+  getStudentActivity: "studentActivity", getAttendanceRoster: "attendanceRoster", getClassLocks: "classLocks", getAbsentees: "absentees",
   getTeacherRoster: "teacherRoster", getVouchers: "vouchers", getDefaulters: "defaulters",
   getStaff: "staff", getAllocations: "allocations", getTeachers: "teachers",
   getPayroll: "payroll", getExams: "exams", getMarks: "marks", getTeacherMarks: "teacherMarks",
@@ -269,6 +484,19 @@ export const {
   useGetBranchesQuery,
   useGetSessionsQuery,
   useGetStudentsQuery,
+  useGetStudentActivityQuery,
+  useAdmitStudentMutation,
+  useImportStudentsMutation,
+  useUpdateStudentMutation,
+  useChangeSectionMutation,
+  useTransferStudentMutation,
+  useSetElectivesMutation,
+  useWithdrawStudentMutation,
+  useReadmitStudentMutation,
+  useUpdateGuardiansMutation,
+  useAddStudentDocumentMutation,
+  useRemoveStudentDocumentMutation,
+  useDeleteStudentMutation,
   useGetAttendanceRosterQuery,
   useGetClassLocksQuery,
   useGetAbsenteesQuery,

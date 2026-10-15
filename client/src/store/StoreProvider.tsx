@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Provider } from "react-redux";
 import { readSessionCookie } from "@/lib/auth/session-cookie";
+import { setMockActor } from "@/mocks/db";
+import { ROLE_LABELS } from "@/lib/auth/permissions";
 import { findUser } from "@/mocks/users";
 import { makeStore } from "./index";
 import { branchSelected, signedIn } from "./sessionSlice";
@@ -28,6 +30,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // Storage can be blocked; the default campus is fine.
     }
     return store.subscribe(() => {
+      const user = findUser(store.getState().session.userId);
+      if (user) setMockActor(`${user.name} (${ROLE_LABELS[user.role]})`);
       try {
         localStorage.setItem(BRANCH_KEY, store.getState().session.branchId);
       } catch {

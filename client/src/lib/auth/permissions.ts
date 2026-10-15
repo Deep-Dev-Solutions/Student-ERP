@@ -16,7 +16,11 @@ const ADMIN_ROLES: Role[] = ["owner", "branch_admin", "super_admin"];
  * signed-in user, so unknown URLs still reach the 404 page.
  * These are assumptions until the role spec is signed off (FRONTEND-AUDIT.md).
  */
-const ROUTE_ACCESS: { prefix: string; roles: Role[] }[] = [
+const ROUTE_ACCESS: { prefix: string | RegExp; roles: Role[] }[] = [
+  { prefix: "/students/new", roles: [...ADMIN_ROLES, "front_desk"] },
+  { prefix: "/students/import", roles: [...ADMIN_ROLES, "front_desk"] },
+  { prefix: /^\/students\/[^/]+\/edit$/, roles: [...ADMIN_ROLES, "front_desk"] },
+  { prefix: "/print/students", roles: [...ADMIN_ROLES, "accountant", "front_desk"] },
   { prefix: "/dashboard", roles: [...ADMIN_ROLES, "accountant", "front_desk"] },
   { prefix: "/students", roles: [...ADMIN_ROLES, "accountant", "front_desk"] },
   { prefix: "/attendance", roles: [...ADMIN_ROLES, "front_desk"] },
@@ -29,7 +33,9 @@ const ROUTE_ACCESS: { prefix: string; roles: Role[] }[] = [
 ];
 
 export function canAccessPath(role: Role, pathname: string) {
-  const rule = ROUTE_ACCESS.find((r) => pathname === r.prefix || pathname.startsWith(`${r.prefix}/`));
+  const rule = ROUTE_ACCESS.find((r) =>
+    typeof r.prefix === "string" ? pathname === r.prefix || pathname.startsWith(`${r.prefix}/`) : r.prefix.test(pathname)
+  );
   return rule ? rule.roles.includes(role) : true;
 }
 

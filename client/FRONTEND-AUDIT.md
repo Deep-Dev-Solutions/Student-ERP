@@ -1,6 +1,6 @@
 # DeepDev ERP frontend audit, against the reference checklist
 
-> **Progress, 14 Oct 2026:** Phases A and B are done (Phase A except the visual parts of A9); see the checkboxes in §8. B1 (repeat payment) and B7 (shortcuts open the wrong tab) are fixed. Rendered markup is unchanged from the redesign, checked by a DOM diff of 25 screens at 1440 and 390px.
+> **Progress, 15 Oct 2026:** Phases A and B are done (Phase A except the visual parts of A9). Phase C is done except C6 (import) and the C7 printouts. See the checkboxes in §8. B1 (repeat payment) and B7 (shortcuts open the wrong tab) are fixed. Rendered markup is unchanged from the redesign, checked by a DOM diff of 25 screens at 1440 and 390px.
 
 *Read-only, `client/` on `feat/ui-redesign` at `0fb81aa`, 13 Oct 2026. I read every UI file under `src/` plus `package.json`, `next.config.ts`, `tsconfig.json`, `eslint.config.mjs`, `components.json` and `globals.css`. There is no Tailwind config file, because Tailwind v4 is configured in CSS. I ran `npx tsc --noEmit` and `npx eslint` without `--fix`.*
 
@@ -375,13 +375,13 @@ All targets exist. There are no dead nav links.
 - [x] B7. Replace every hardcoded class, section and subject list. Paper Maker's board curriculum lists are kept on purpose.
 
 **Phase C: Students (P1)**
-- [ ] C1. Directory: section, gender and fee-status filters; search by father's name and admission number; sorting, pagination and a bulk bar.
-- [ ] C2. `/students/[id]` profile with tabs (Overview, Attendance, Fees, Results, Documents, Activity); the drawer becomes a quick view (fixes B6).
-- [ ] C3. 4-step admission at `/students/new`: B-form, photo, address, admission number and date, branch, guardians and siblings, duplicate check, masks, working draft, then land on the profile.
-- [ ] C4. Edit page.
-- [ ] C5. Dialogs: change section, transfer branch, electives, withdraw, re-admit, guardians, documents, delete.
-- [ ] C6. `/students/import`: template, upload, column mapping, validation, import, error file.
-- [ ] C7. Printouts (admission form, student list); wire the row actions and export.
+- [x] C1. Directory: section, gender and fee-status filters; search by father's name and admission number; sorting, pagination and a bulk bar.
+- [x] C2. `/students/[id]` profile with tabs (Overview, Attendance, Fees, Results, Documents, Activity); the drawer becomes a quick view (fixes B6).
+- [x] C3. 4-step admission at `/students/new`: B-form, photo, address, admission number and date, branch, guardians and siblings, duplicate check, masks, working draft, then land on the profile.
+- [x] C4. Edit page.
+- [x] C5. Dialogs: change section, transfer branch, electives, withdraw, re-admit, guardians, documents, delete.
+- [ ] C6. `/students/import`: template, upload, column mapping, validation, import, error file. **Not done:** the page exists but still shows the old import panel.
+- [ ] C7. Printouts (admission form, student list); wire the row actions and export. **Partly done:** row actions and CSV export work; the printouts are not built.
 
 **Phase D: Attendance (P1)**
 - [ ] D1. Class, section, date and subject drive the roster (fixes B3 and B5); all-present by default; keyboard shortcuts (P/A/L, arrow keys).

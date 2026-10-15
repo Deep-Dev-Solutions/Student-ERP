@@ -38,6 +38,7 @@ const statusVariants: Record<string, StatusVariant> = {
   ongoing: "info",
   upcoming: "neutral",
   inactive: "neutral",
+  withdrawn: "neutral",
 };
 
 export function statusVariant(status: string): StatusVariant {

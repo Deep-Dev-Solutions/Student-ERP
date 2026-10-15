@@ -67,9 +67,13 @@ export const teacherNavGroups: NavGroup[] = [
 ];
 
 /** Labels for nested routes that are not nav items themselves. */
-const subPageLabels: Record<string, string> = {
-  "/teacher-portal/paper-maker/generate": "Generate paper",
-};
+const subPageLabels: [RegExp, string][] = [
+  [/^\/teacher-portal\/paper-maker\/generate$/, "Generate paper"],
+  [/^\/students\/new$/, "New admission"],
+  [/^\/students\/import$/, "Import students"],
+  [/^\/students\/[^/]+\/edit$/, "Edit student"],
+  [/^\/students\/[^/]+$/, "Student profile"],
+];
 
 export function isNavItemActive(pathname: string, item: NavItem) {
   if (item.exact) return pathname === item.href;
@@ -87,7 +91,7 @@ export function getBreadcrumbs(pathname: string, groups: NavGroup[]): Crumb[] {
     if (!item) continue;
 
     const crumbs: Crumb[] = [{ label: group.label }, { label: item.label, href: item.href }];
-    const subLabel = subPageLabels[pathname];
+    const subLabel = subPageLabels.find(([pattern]) => pattern.test(pathname))?.[1];
     if (subLabel) crumbs.push({ label: subLabel });
     return crumbs;
   }

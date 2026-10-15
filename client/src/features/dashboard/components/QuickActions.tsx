@@ -6,7 +6,7 @@ const actions = [
   { href: "/fees", label: "Collect a fee", hint: "Issue a receipt at the counter", icon: Wallet },
   { href: "/attendance?tab=review", label: "Lock today's attendance", hint: "Review and lock open registers", icon: CalendarCheck },
   { href: "/fees?tab=defaulters", label: "Defaulter report", hint: "Overdue vouchers by class", icon: FileText },
-  { href: "/students?tab=import", label: "Import students", hint: "Add admissions from a spreadsheet", icon: Upload },
+  { href: "/students/import", label: "Import students", hint: "Add admissions from a spreadsheet", icon: Upload },
 ];
 
 export function QuickActions() {

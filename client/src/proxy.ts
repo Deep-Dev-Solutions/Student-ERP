@@ -37,6 +37,12 @@ export function proxy(request: NextRequest) {
 
   if (pathname === "/") return NextResponse.redirect(new URL(landingPath(user.role), request.url));
 
+  // Admission and import used to be tabs on /students.
+  const oldTab = pathname === "/students" ? searchParams.get("tab") : null;
+  if (oldTab === "admission" || oldTab === "import") {
+    return NextResponse.redirect(new URL(oldTab === "admission" ? "/students/new" : "/students/import", request.url));
+  }
+
   if (!canAccessPath(user.role, pathname)) {
     return NextResponse.rewrite(new URL("/forbidden", request.url));
   }

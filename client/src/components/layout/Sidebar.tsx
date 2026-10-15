@@ -16,8 +16,16 @@ interface SidebarProps {
   onItemClick?: () => void;
 }
 
-export function Sidebar({ groups, subtitle = BRAND.tagline, footer, onItemClick }: SidebarProps) {
-  const pathname = usePathname();
+export function Sidebar(props: SidebarProps) {
+  return <SidebarContent {...props} pathname={usePathname()} />;
+}
+
+/**
+ * The sidebar for a given path. Layouts render it with an empty path as the
+ * Suspense fallback on dynamic routes, where the path isn't known while
+ * prerendering.
+ */
+export function SidebarContent({ groups, subtitle = BRAND.tagline, footer, onItemClick, pathname }: SidebarProps & { pathname: string }) {
 
   return (
     <aside className="flex h-full w-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">

@@ -33,7 +33,7 @@ export default function DashboardPage() {
               <Download data-icon="inline-start" />
               Export summary
             </Button>
-            <ButtonLink href="/students?tab=admission">
+            <ButtonLink href="/students/new">
               <Plus data-icon="inline-start" />
               Admit student
             </ButtonLink>

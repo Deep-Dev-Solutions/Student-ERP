@@ -24,6 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { statusVariant } from "@/lib/status";
+import { useUrlParam } from "@/hooks/use-url-state";
 import { formatRupees } from "@/lib/format";
 import { useGetVouchersQuery, useRecordPaymentMutation } from "@/store/api";
 import { FeeVoucher, PaymentMethod } from "../types";
@@ -50,7 +51,7 @@ export function PointOfSale() {
   // Keep only the id, so the selected voucher always reflects the latest
   // data: once paid, it reads as paid and can't be collected again.
   const [selectedId, setSelectedId] = useState(vouchers[0]?.id);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useUrlParam("find", "");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [amountReceived, setAmountReceived] = useState<string>(
     vouchers[0]?.totalAmount.toString() ?? ""

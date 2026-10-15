@@ -1,88 +1,52 @@
 "use client";
 
-import { useCan } from "@/hooks/use-session";
-import { useUrlTab } from "@/hooks/use-url-state";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
+import { FileDown, UploadCloud, UserPlus } from "lucide-react";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
-import {
-  Users,
-  UserPlus,
-  UploadCloud,
-  FileDown,
-} from "lucide-react";
-import {
-  StudentDirectory,
-  AdmissionForm,
-  BulkImport,
-} from "@/features/students/components";
-
-const TABS = ["directory", "admission", "import"] as const;
+import { StudentDirectory } from "@/features/students/components";
+import { studentsCsv, useStudentDirectory } from "@/features/students/useStudentDirectory";
+import { useReadOnly } from "@/hooks/use-academics";
+import { useCan, useCurrentBranch } from "@/hooks/use-session";
+import { downloadFile } from "@/lib/csv";
 
 export default function StudentsPage() {
   const canAdmit = useCan("adm_admit_student");
-  const [activeTab, setActiveTab] = useUrlTab("directory", canAdmit ? TABS : ["directory"]);
+  const readOnly = useReadOnly();
+  const branch = useCurrentBranch();
+  const { view, placement } = useStudentDirectory();
+
+  // Exports every student matching the current filters, not just this page.
+  const exportCsv = () =>
+    downloadFile(`students-${branch?.code ?? "campus"}-${new Date().toISOString().slice(0, 10)}.csv`, studentsCsv(view.sorted, placement));
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Students"
-        description="Admit students, look up records and import admissions in bulk."
+        description="Look up records, admit students and import admissions in bulk."
         actions={
           <>
-            <Button variant="outline">
+            <Button variant="outline" onClick={exportCsv} disabled={view.total === 0}>
               <FileDown data-icon="inline-start" />
               Export CSV
             </Button>
-            {canAdmit ? (
-              <Button onClick={() => setActiveTab("admission")}>
-                <UserPlus data-icon="inline-start" />
-                New admission
-              </Button>
+            {canAdmit && !readOnly ? (
+              <>
+                <ButtonLink href="/students/import" variant="outline">
+                  <UploadCloud data-icon="inline-start" />
+                  Import
+                </ButtonLink>
+                <ButtonLink href="/students/new">
+                  <UserPlus data-icon="inline-start" />
+                  New admission
+                </ButtonLink>
+              </>
             ) : null}
           </>
         }
       />
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="gap-6">
-        <TabsList variant="line">
-          <TabsTrigger value="directory">
-            <Users />
-            Directory
-          </TabsTrigger>
-          {canAdmit ? (
-            <>
-              <TabsTrigger value="admission">
-                <UserPlus />
-                Admission form
-              </TabsTrigger>
-              <TabsTrigger value="import">
-                <UploadCloud />
-                Bulk import
-              </TabsTrigger>
-            </>
-          ) : null}
-        </TabsList>
-
-        <TabsContent value="directory">
-          <StudentDirectory />
-        </TabsContent>
-        {canAdmit ? (
-          <>
-            <TabsContent value="admission">
-              <AdmissionForm />
-            </TabsContent>
-            <TabsContent value="import">
-              <BulkImport />
-            </TabsContent>
-          </>
-        ) : null}
-      </Tabs>
+      <StudentDirectory />
     </div>
   );
 }

@@ -12,7 +12,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { SidebarContent } from "@/components/layout/Sidebar";
 import { getBreadcrumbs, type NavGroup } from "@/components/layout/nav-config";
 
 interface HeaderProps {
@@ -26,8 +26,12 @@ interface HeaderProps {
   };
 }
 
-export function Header({ groups, actions, mobileMenu }: HeaderProps) {
-  const pathname = usePathname();
+export function Header(props: HeaderProps) {
+  return <HeaderContent {...props} pathname={usePathname()} />;
+}
+
+/** The header for a given path; see SidebarContent for why the path is a prop. */
+export function HeaderContent({ groups, actions, mobileMenu, pathname }: HeaderProps & { pathname: string }) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const crumbs = getBreadcrumbs(pathname, groups);
   const current = crumbs.at(-1);
@@ -48,7 +52,8 @@ export function Header({ groups, actions, mobileMenu }: HeaderProps) {
                 <SheetHeader className="sr-only">
                   <SheetTitle>Navigation</SheetTitle>
                 </SheetHeader>
-                <Sidebar
+                <SidebarContent
+                  pathname={pathname}
                   groups={groups}
                   subtitle={mobileMenu.subtitle}
                   footer={mobileMenu.footer?.(close)}
