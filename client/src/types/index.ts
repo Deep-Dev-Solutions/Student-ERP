@@ -10,3 +10,4 @@ export * from "./paper";
 export * from "./teacher";
 export * from "./dashboard";
 export * from "./academics";
+export * from "./messages";

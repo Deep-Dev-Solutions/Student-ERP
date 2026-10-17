@@ -426,9 +426,9 @@ All targets exist. There are no dead nav links.
 - [x] I4. Profile page. Reached from the user menu: contact details the teacher can update, employment details, teaching load, this month's attendance, and a change-password link.
 
 **Phase J: Reports and messages (P1/P2)**
-- [ ] J1. Reports hub (fee, attendance, students, staff and payroll, exams, branch comparison) with export.
-- [ ] J2. Messages: compose to an audience, templates, cost preview, send log.
-- [ ] J3. Notifications panel; dashboard alerts strip and new-school setup checklist.
+- [x] J1. Reports hub (fee, attendance, students, staff and payroll, exams, branch comparison) with export. A new Reports page has 12 reports built from live data, with month or exam filters in the URL, totals, CSV export and a printable version.
+- [x] J2. Messages: compose to an audience, templates, cost preview, send log. Audiences are all parents, a class or section, overdue fees, today's absentees, staff or teachers (one message per family). Each message is personalised and previewed. Cost is estimated, with WhatsApp falling back to SMS per Settings. Built-in and custom templates; fee reminders and absence alerts also appear in the send log. Rates are planning estimates.
+- [x] J3. Notifications panel; dashboard alerts strip and new-school setup checklist. The header bell lists what needs attention for the signed-in role (teachers see their own registers and marks), and its dot only shows when there's something. The dashboard shows the same items as a strip, plus a 10-step setup checklist that can be hidden.
 
 **Phase K: Console (P2, depends on your v1 decision)**
 - [ ] K1. Tenants list and create (first branch and owner), plan and seats, impersonation, global question bank.

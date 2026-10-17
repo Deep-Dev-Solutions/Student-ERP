@@ -1,10 +1,12 @@
 import {
+  BarChart3,
   CalendarCheck,
   ClipboardList,
   FileText,
   GraduationCap,
   IdCard,
   LayoutDashboard,
+  MessageSquareText,
   Settings,
   UsersRound,
   Wallet,
@@ -50,7 +52,11 @@ export const adminNavGroups: NavGroup[] = [
   },
   {
     label: "Admin",
-    items: [{ href: "/settings", label: "Settings", icon: Settings }],
+    items: [
+      { href: "/reports", label: "Reports", icon: BarChart3 },
+      { href: "/messages", label: "Messages", icon: MessageSquareText },
+      { href: "/settings", label: "Settings", icon: Settings },
+    ],
   },
 ];
 

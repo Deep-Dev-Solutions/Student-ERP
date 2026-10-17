@@ -5,6 +5,7 @@
 import { registers, staffAttendance, unlockRequests } from "./registers";
 import { branches, sessions } from "./branches";
 import { examMarks, examPapers, exams } from "./exams";
+import { messages, messageTemplates } from "./messages";
 import { concessions, dayClosings, feeHeads, feePlans, feeReminders, payments, vouchers } from "./fees";
 import { feeStanding } from "@/lib/fees";
 import { alternativeQuestions, chapters, paperQuestions } from "./paper";
@@ -41,6 +42,8 @@ export const db = {
   exams,
   examPapers,
   examMarks,
+  messages,
+  messageTemplates,
   campusProfile,
   rolePermissions,
   schoolRules,

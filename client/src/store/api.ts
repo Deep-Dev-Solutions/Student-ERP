@@ -1,9 +1,13 @@
 import { createApi, fakeBaseQuery } from "@reduxjs/toolkit/query/react";
 import { db, mockActor, type MockDb } from "@/mocks/db";
 import { buildVoucher, feeStanding, settleVoucher, voucherBalance } from "@/lib/fees";
+import { deliveryChannel, messageCost, renderTemplate, smsSegments } from "@/lib/messaging";
 import { computePayslip } from "@/lib/payroll";
 import { periodsOf, teachersFrom } from "@/mocks/staff";
 import type {
+  MessageBatch,
+  MessageRecipient,
+  MessageTemplate,
   Exam,
   ExamMark,
   ExamPaper,
@@ -50,7 +54,7 @@ import type {
 
 type Tag =
   | "Voucher" | "Session" | "Branch" | "User" | "Class" | "Section"
-  | "Subject" | "ClassSubject" | "Permissions" | "Rules" | "Campus" | "Student" | "StudentActivity" | "Register" | "UnlockRequest" | "StaffAttendance" | "Payment" | "FeeStructure" | "DayClosing" | "FeeReminder" | "Staff" | "Allocation" | "Payroll" | "Exam";
+  | "Subject" | "ClassSubject" | "Permissions" | "Rules" | "Campus" | "Student" | "StudentActivity" | "Register" | "UnlockRequest" | "StaffAttendance" | "Payment" | "FeeStructure" | "DayClosing" | "FeeReminder" | "Staff" | "Allocation" | "Payroll" | "Exam" | "Message";
 
 /** A read endpoint that returns one collection from the mock database. */
 const read = <K extends keyof MockDb>(key: K, tag?: Tag) => ({
@@ -59,6 +63,36 @@ const read = <K extends keyof MockDb>(key: K, tag?: Tag) => ({
 });
 
 const fail = (status: number, message: string) => ({ error: { status, message } });
+
+/** Records an automatic message (fee reminder, absence alert) to students' primary guardians in the send log. */
+function logGuardianMessage(branchId: string, studentIds: string[], templateId: string, audience: string, vars: (studentId: string) => Record<string, string>) {
+  const template = db.messageTemplates.find((t) => t.id === templateId);
+  if (!template || studentIds.length === 0) return;
+  const channel = templateId === "tpl-absent" && db.schoolRules.notifications.absenceWhatsApp ? "whatsapp" : "sms";
+  const recipients: MessageRecipient[] = [];
+  for (const id of studentIds) {
+    const student = db.students.find((s) => s.id === id);
+    const guardian = student?.guardians.find((g) => g.primary) ?? student?.guardians[0];
+    const via = guardian && deliveryChannel(channel, guardian.whatsapp, db.schoolRules.notifications.smsFallback);
+    if (!student || !guardian || !via) continue;
+    recipients.push({ name: guardian.name, phone: guardian.phone, channel: via, text: renderTemplate(template.body, { name: guardian.name, student: student.name, school: db.campusProfile.schoolName, ...vars(id) }) });
+  }
+  db.messages = [
+    {
+      id: newId("msg"),
+      branchId,
+      at: new Date().toISOString(),
+      by: mockActor(),
+      audience,
+      channel,
+      template: template.name,
+      recipients,
+      smsSegments: recipients.filter((r) => r.channel === "sms").reduce((n, r) => n + smsSegments(r.text), 0),
+      cost: recipients.reduce((n, r) => n + messageCost(r.channel, r.text), 0),
+    },
+    ...db.messages,
+  ];
+}
 
 /** A short unique id for records created in the browser. */
 const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -134,7 +168,7 @@ const putStudent = (student: Student) => {
 export const api = createApi({
   reducerPath: "api",
   baseQuery: fakeBaseQuery<{ status: number; message: string }>(),
-  tagTypes: ["Voucher", "Session", "Branch", "User", "Class", "Section", "Subject", "ClassSubject", "Permissions", "Rules", "Campus", "Student", "StudentActivity", "Register", "UnlockRequest", "StaffAttendance", "Payment", "FeeStructure", "DayClosing", "FeeReminder", "Staff", "Allocation", "Payroll", "Exam"],
+  tagTypes: ["Voucher", "Session", "Branch", "User", "Class", "Section", "Subject", "ClassSubject", "Permissions", "Rules", "Campus", "Student", "StudentActivity", "Register", "UnlockRequest", "StaffAttendance", "Payment", "FeeStructure", "DayClosing", "FeeReminder", "Staff", "Allocation", "Payroll", "Exam", "Message"],
   // Demo data never goes stale; keep it for the whole visit.
   keepUnusedDataFor: 60 * 60 * 24,
   endpoints: (build) => ({
@@ -162,6 +196,8 @@ export const api = createApi({
     getExams: build.query<MockDb["exams"], void>(read("exams", "Exam")),
     getExamPapers: build.query<MockDb["examPapers"], void>(read("examPapers", "Exam")),
     getExamMarks: build.query<MockDb["examMarks"], void>(read("examMarks", "Exam")),
+    getMessages: build.query<MockDb["messages"], void>(read("messages", "Message")),
+    getMessageTemplates: build.query<MockDb["messageTemplates"], void>(read("messageTemplates", "Message")),
     getCampusProfile: build.query<MockDb["campusProfile"], void>(read("campusProfile", "Campus")),
     getRolePermissions: build.query<MockDb["rolePermissions"], void>(read("rolePermissions", "Permissions")),
     getSchoolRules: build.query<MockDb["schoolRules"], void>(read("schoolRules", "Rules")),
@@ -312,9 +348,14 @@ export const api = createApi({
         const at = new Date().toISOString();
         db.feeReminders = [...db.feeReminders, ...studentIds.map((studentId) => ({ id: newId("rem"), studentId, at, by: mockActor() }))];
         for (const id of studentIds) logActivity(id, "Fee reminder sent by SMS.");
+        const branchId = db.students.find((x) => x.id === studentIds[0])?.branchId ?? "";
+        logGuardianMessage(branchId, studentIds, "tpl-fee", studentIds.length === 1 ? "Fee reminder" : `Fee reminders (${studentIds.length} families)`, (id) => {
+          const owed = db.vouchers.filter((v) => v.studentId === id).reduce((n, v) => n + voucherBalance(v), 0);
+          return { amount: `Rs ${owed.toLocaleString("en-PK")}` };
+        });
         return { data: null };
       },
-      invalidatesTags: ["FeeReminder", "StudentActivity"],
+      invalidatesTags: ["FeeReminder", "StudentActivity", "Message"],
     }),
     /** Closes a day's collections at a campus. After this, that day's payments can't be reversed. */
     closeDay: build.mutation<DayClosing, Omit<DayClosing, "id" | "closedAt" | "closedBy">>({
@@ -435,9 +476,16 @@ export const api = createApi({
       queryFn: (ids) => {
         const now = new Date().toISOString();
         db.registers = db.registers.map((r) => (ids.includes(r.id) ? { ...r, alertsSentAt: now } : r));
+        for (const r of db.registers.filter((x) => ids.includes(x.id))) {
+          const absent = Object.entries(r.marks).filter(([, m]) => m.status === "absent").map(([id]) => id);
+          const cls = db.classes.find((c) => c.id === r.classId)?.name ?? "";
+          const section = db.sections.find((x) => x.id === r.sectionId)?.name ?? "";
+          const date = new Date(`${r.date}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+          logGuardianMessage(r.branchId, absent, "tpl-absent", `Absence alerts, ${cls} ${section}`, () => ({ class: `${cls} ${section}`, date }));
+        }
         return { data: null };
       },
-      invalidatesTags: ["Register"],
+      invalidatesTags: ["Register", "Message"],
     }),
     saveStaffAttendance: build.mutation<StaffAttendanceDay, Pick<StaffAttendanceDay, "branchId" | "date" | "marks">>({
       queryFn: (input) => {
@@ -706,6 +754,47 @@ export const api = createApi({
         return { data: null };
       },
       invalidatesTags: ["Exam"],
+    }),
+
+    // Messages ---------------------------------------------------------------
+    sendMessages: build.mutation<MessageBatch, Omit<MessageBatch, "id" | "at" | "by" | "smsSegments" | "cost">>({
+      queryFn: (input) => {
+        if (input.recipients.length === 0) return fail(400, "Nobody in this audience has a mobile number");
+        if (input.recipients.some((r) => !r.text.trim())) return fail(400, "Write the message first");
+        if (input.recipients.some((r) => /\{\w+\}/.test(r.text))) return fail(400, "The message has a placeholder this audience can't fill; remove it");
+        const batch: MessageBatch = {
+          ...input,
+          id: newId("msg"),
+          at: new Date().toISOString(),
+          by: mockActor(),
+          smsSegments: input.recipients.filter((r) => r.channel === "sms").reduce((n, r) => n + smsSegments(r.text), 0),
+          cost: input.recipients.reduce((n, r) => n + messageCost(r.channel, r.text), 0),
+        };
+        db.messages = [batch, ...db.messages];
+        return { data: batch };
+      },
+      invalidatesTags: ["Message"],
+    }),
+    saveMessageTemplate: build.mutation<MessageTemplate, Pick<MessageTemplate, "name" | "body">>({
+      queryFn: ({ name, body }) => {
+        if (name.trim().length < 3) return fail(400, "Give the template a name");
+        if (body.trim().length < 10) return fail(400, "Write the template text");
+        if (db.messageTemplates.some((t) => t.name.toLowerCase() === name.trim().toLowerCase())) return fail(409, "A template with this name already exists");
+        const template: MessageTemplate = { id: newId("tpl"), name: name.trim(), body: body.trim() };
+        db.messageTemplates = [...db.messageTemplates, template];
+        return { data: template };
+      },
+      invalidatesTags: ["Message"],
+    }),
+    deleteMessageTemplate: build.mutation<null, string>({
+      queryFn: (id) => {
+        const template = db.messageTemplates.find((t) => t.id === id);
+        if (!template) return fail(404, "Template not found");
+        if (template.builtIn) return fail(409, "Built-in templates can't be deleted");
+        db.messageTemplates = db.messageTemplates.filter((t) => t.id !== id);
+        return { data: null };
+      },
+      invalidatesTags: ["Message"],
     }),
 
     // Students ---------------------------------------------------------------
@@ -1038,7 +1127,7 @@ export const prefilledReads = {
   getStudentActivity: "studentActivity", getRegisters: "registers", getUnlockRequests: "unlockRequests", getStaffAttendance: "staffAttendance", getVouchers: "vouchers", getPayments: "payments", getFeeHeads: "feeHeads", getFeePlans: "feePlans",
   getConcessions: "concessions", getDayClosings: "dayClosings", getFeeReminders: "feeReminders",
   getStaff: "staff", getAllocations: "allocations", getTeachers: "teachers",
-  getPayrollRuns: "payrollRuns", getPayslips: "payslips", getAdvances: "advances", getExams: "exams", getExamPapers: "examPapers", getExamMarks: "examMarks",
+  getPayrollRuns: "payrollRuns", getPayslips: "payslips", getAdvances: "advances", getExams: "exams", getExamPapers: "examPapers", getExamMarks: "examMarks", getMessages: "messages", getMessageTemplates: "messageTemplates",
   getCampusProfile: "campusProfile", getRolePermissions: "rolePermissions", getSchoolRules: "schoolRules",
   getClasses: "classes", getSections: "sections", getSubjects: "subjects", getClassSubjects: "classSubjects",
   getChapters: "chapters", getPaperQuestions: "paperQuestions", getAlternativeQuestions: "alternativeQuestions",
@@ -1107,6 +1196,11 @@ export const {
   useGetExamsQuery,
   useGetExamPapersQuery,
   useGetExamMarksQuery,
+  useGetMessagesQuery,
+  useGetMessageTemplatesQuery,
+  useSendMessagesMutation,
+  useSaveMessageTemplateMutation,
+  useDeleteMessageTemplateMutation,
   useSaveExamMutation,
   useDeleteExamMutation,
   useSaveDateSheetMutation,

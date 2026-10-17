@@ -21,6 +21,7 @@ const ROUTE_ACCESS: { prefix: string | RegExp; roles: Role[] }[] = [
   { prefix: /^\/staff\/[^/]+\/edit$/, roles: ADMIN_ROLES },
   { prefix: "/print/payslips", roles: [...ADMIN_ROLES, "accountant"] },
   { prefix: "/print/report-cards", roles: ADMIN_ROLES },
+  { prefix: "/print/reports", roles: [...ADMIN_ROLES, "accountant"] },
   { prefix: "/students/new", roles: [...ADMIN_ROLES, "front_desk"] },
   { prefix: "/students/import", roles: [...ADMIN_ROLES, "front_desk"] },
   { prefix: /^\/students\/[^/]+\/edit$/, roles: [...ADMIN_ROLES, "front_desk"] },
@@ -34,6 +35,8 @@ const ROUTE_ACCESS: { prefix: string | RegExp; roles: Role[] }[] = [
   { prefix: "/staff", roles: [...ADMIN_ROLES, "accountant"] },
   { prefix: "/academics", roles: ADMIN_ROLES },
   { prefix: "/exams", roles: ADMIN_ROLES },
+  { prefix: "/reports", roles: [...ADMIN_ROLES, "accountant"] },
+  { prefix: "/messages", roles: [...ADMIN_ROLES, "accountant", "front_desk"] },
   { prefix: "/settings", roles: ["owner", "super_admin"] },
   { prefix: "/teacher-portal", roles: [...ADMIN_ROLES, "teacher"] },
 ];

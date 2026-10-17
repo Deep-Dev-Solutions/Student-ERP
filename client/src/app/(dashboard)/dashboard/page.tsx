@@ -12,6 +12,8 @@ import {
   QuickActions,
   TodayRegister,
 } from "@/features/dashboard/components";
+import { DashboardAlerts } from "@/features/notifications/components/DashboardAlerts";
+import { SetupChecklist } from "@/features/notifications/components/SetupChecklist";
 import { studentsSummary } from "@/services/dashboard";
 import { formatNumber } from "@/lib/format";
 
@@ -40,6 +42,9 @@ export default function DashboardPage() {
           </>
         }
       />
+
+      <DashboardAlerts />
+      <SetupChecklist />
 
       <div className="grid gap-4 lg:grid-cols-12">
         <div className="min-w-0 lg:col-span-8">

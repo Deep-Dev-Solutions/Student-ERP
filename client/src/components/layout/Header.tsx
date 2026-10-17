@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, ChevronRight, Menu } from "lucide-react";
+import { ChevronRight, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/sheet";
 import { SidebarContent } from "@/components/layout/Sidebar";
 import { getBreadcrumbs, type NavGroup } from "@/components/layout/nav-config";
+import { NotificationsMenu } from "@/features/notifications/components/NotificationsMenu";
 
 interface HeaderProps {
   groups: NavGroup[];
@@ -97,10 +98,7 @@ export function HeaderContent({ groups, actions, mobileMenu, pathname }: HeaderP
       </div>
 
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-        <Button variant="outline" size="icon" aria-label="Notifications" className="relative">
-          <Bell className="size-4" />
-          <span aria-hidden className="absolute top-2 right-2 size-2 rounded-full bg-highlight ring-2 ring-card" />
-        </Button>
+        <NotificationsMenu pathname={pathname} />
         {actions}
       </div>
     </header>
