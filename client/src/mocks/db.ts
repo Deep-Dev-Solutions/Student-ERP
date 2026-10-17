@@ -9,7 +9,7 @@ import { concessions, dayClosings, feeHeads, feePlans, feeReminders, payments, v
 import { feeStanding } from "@/lib/fees";
 import { alternativeQuestions, chapters, paperQuestions } from "./paper";
 import { campusProfile, rolePermissions, schoolRules } from "./settings";
-import { allocations, payroll, staff, teachers } from "./staff";
+import { advances, allocations, payrollRuns, payslips, staff, teachers } from "./staff";
 import { classes, classSubjects, sections, subjects } from "./academics";
 import { studentActivity, students } from "./students";
 import { pendingTasks, teacherSummary, todayClasses } from "./teacher";
@@ -35,7 +35,9 @@ export const db = {
   staff,
   allocations,
   teachers,
-  payroll,
+  payrollRuns,
+  payslips,
+  advances,
   exams,
   marks,
   teacherMarks,

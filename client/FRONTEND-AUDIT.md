@@ -401,9 +401,9 @@ All targets exist. There are no dead nav links.
 - [x] E6. Daily closing report. Includes the cash count, closing the day, and a CSV report.
 
 **Phase F: Staff and payroll (P1)**
-- [ ] F1. Add or edit staff; staff profile.
-- [ ] F2. Allocations as a sections × subjects grid with clash and duplicate checks.
-- [ ] F3. Payroll: month picker, review and adjustments, advances, payslip view and print, tax export.
+- [x] F1. Add or edit staff; staff profile. The profile has Overview, Teaching, Attendance and Payslips tabs; you can mark someone on leave, back, or left (which frees their classes); it shows login status.
+- [x] F2. Allocations as a sections × subjects grid with clash and duplicate checks. The grid allows only one teacher per cell, so duplicates can't happen. It also warns about unassigned subjects, teachers on leave who still have classes, and teachers over 30 periods a week. Time-slot clashes need a timetable, which doesn't exist yet.
+- [x] F3. Payroll: month picker, review and adjustments, advances, payslip view and print, tax export. A month runs draft, then finalised, then paid. Absences come from staff attendance; tax is estimated from the salary slabs; EOBI is deducted; advances are recovered in monthly instalments.
 
 **Phase G: Exams (P1)**
 - [ ] G1. Exam edit and delete; date sheet with total and pass marks per class and subject.

@@ -1,1 +1,1 @@
-export type { StaffStatus, StaffMember, TeacherAllocation, PayrollRecord } from "@/types/staff";
+export type { StaffStatus, StaffMember, TeacherAllocation, Payslip, PayrollRun, Advance } from "@/types/staff";

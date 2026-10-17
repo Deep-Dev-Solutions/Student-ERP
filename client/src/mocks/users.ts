@@ -21,6 +21,7 @@ export const users: User[] = [
     initials: "UQ",
     branchIds: ["br-1"],
     status: "active",
+    staffId: "STF-211",
   },
   {
     id: "u-accountant",
@@ -31,6 +32,7 @@ export const users: User[] = [
     initials: "AR",
     branchIds: ["br-1"],
     status: "active",
+    staffId: "STF-212",
   },
   {
     id: "u-front-desk",
@@ -41,6 +43,7 @@ export const users: User[] = [
     initials: "SJ",
     branchIds: ["br-1"],
     status: "active",
+    staffId: "STF-213",
   },
   {
     id: "u-teacher",

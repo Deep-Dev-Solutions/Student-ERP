@@ -1,6 +1,8 @@
 import { createApi, fakeBaseQuery } from "@reduxjs/toolkit/query/react";
 import { db, mockActor, type MockDb } from "@/mocks/db";
 import { buildVoucher, feeStanding, settleVoucher, voucherBalance } from "@/lib/fees";
+import { computePayslip } from "@/lib/payroll";
+import { periodsOf, teachersFrom } from "@/mocks/staff";
 import type {
   AcademicSession,
   Branch,
@@ -13,6 +15,12 @@ import type {
   FeePlan,
   Concession,
   DayClosing,
+  StaffMember,
+  TeacherAllocation,
+  Payslip,
+  PayrollRun,
+  Advance,
+  SalaryComponent,
   RolePermissionsState,
   SchoolClass,
   SchoolRules,
@@ -39,7 +47,7 @@ import type {
 
 type Tag =
   | "Voucher" | "Session" | "Branch" | "User" | "Class" | "Section"
-  | "Subject" | "ClassSubject" | "Permissions" | "Rules" | "Campus" | "Student" | "StudentActivity" | "Register" | "UnlockRequest" | "StaffAttendance" | "Payment" | "FeeStructure" | "DayClosing" | "FeeReminder";
+  | "Subject" | "ClassSubject" | "Permissions" | "Rules" | "Campus" | "Student" | "StudentActivity" | "Register" | "UnlockRequest" | "StaffAttendance" | "Payment" | "FeeStructure" | "DayClosing" | "FeeReminder" | "Staff" | "Allocation" | "Payroll";
 
 /** A read endpoint that returns one collection from the mock database. */
 const read = <K extends keyof MockDb>(key: K, tag?: Tag) => ({
@@ -123,7 +131,7 @@ const putStudent = (student: Student) => {
 export const api = createApi({
   reducerPath: "api",
   baseQuery: fakeBaseQuery<{ status: number; message: string }>(),
-  tagTypes: ["Voucher", "Session", "Branch", "User", "Class", "Section", "Subject", "ClassSubject", "Permissions", "Rules", "Campus", "Student", "StudentActivity", "Register", "UnlockRequest", "StaffAttendance", "Payment", "FeeStructure", "DayClosing", "FeeReminder"],
+  tagTypes: ["Voucher", "Session", "Branch", "User", "Class", "Section", "Subject", "ClassSubject", "Permissions", "Rules", "Campus", "Student", "StudentActivity", "Register", "UnlockRequest", "StaffAttendance", "Payment", "FeeStructure", "DayClosing", "FeeReminder", "Staff", "Allocation", "Payroll"],
   // Demo data never goes stale; keep it for the whole visit.
   keepUnusedDataFor: 60 * 60 * 24,
   endpoints: (build) => ({
@@ -142,10 +150,12 @@ export const api = createApi({
     getConcessions: build.query<MockDb["concessions"], void>(read("concessions", "FeeStructure")),
     getDayClosings: build.query<MockDb["dayClosings"], void>(read("dayClosings", "DayClosing")),
     getFeeReminders: build.query<MockDb["feeReminders"], void>(read("feeReminders", "FeeReminder")),
-    getStaff: build.query<MockDb["staff"], void>(read("staff")),
-    getAllocations: build.query<MockDb["allocations"], void>(read("allocations")),
-    getTeachers: build.query<MockDb["teachers"], void>(read("teachers")),
-    getPayroll: build.query<MockDb["payroll"], void>(read("payroll")),
+    getStaff: build.query<MockDb["staff"], void>(read("staff", "Staff")),
+    getAllocations: build.query<MockDb["allocations"], void>(read("allocations", "Allocation")),
+    getTeachers: build.query<MockDb["teachers"], void>(read("teachers", "Staff")),
+    getPayrollRuns: build.query<MockDb["payrollRuns"], void>(read("payrollRuns", "Payroll")),
+    getPayslips: build.query<MockDb["payslips"], void>(read("payslips", "Payroll")),
+    getAdvances: build.query<MockDb["advances"], void>(read("advances", "Payroll")),
     getExams: build.query<MockDb["exams"], void>(read("exams")),
     getMarks: build.query<MockDb["marks"], void>(read("marks")),
     getTeacherMarks: build.query<MockDb["teacherMarks"], void>(read("teacherMarks")),
@@ -433,6 +443,155 @@ export const api = createApi({
         return { data: day };
       },
       invalidatesTags: ["StaffAttendance"],
+    }),
+
+    // Staff and allocations --------------------------------------------------
+    /** Adds a staff member (no id yet) or updates one. */
+    saveStaff: build.mutation<StaffMember, Omit<StaffMember, "id" | "staffId" | "avatar"> & { id?: string }>({
+      queryFn: (input) => {
+        if (input.name.trim().length < 3) return fail(400, "Enter the full name");
+        if (db.staff.some((m) => m.id !== input.id && m.email.toLowerCase() === input.email.toLowerCase()))
+          return fail(409, `${input.email} belongs to another staff member`);
+        if (input.cnic && db.staff.some((m) => m.id !== input.id && m.cnic === input.cnic)) return fail(409, "Another staff member has this CNIC");
+        const existing = db.staff.find((m) => m.id === input.id);
+        const nextNo = Math.max(...db.staff.map((m) => Number(m.staffId.replace(/\D/g, "")) || 0)) + 1;
+        const saved: StaffMember = {
+          ...(existing ?? {}),
+          ...input,
+          id: existing?.id ?? newId("st"),
+          staffId: existing?.staffId ?? `STF-${nextNo}`,
+          avatar: initialsOf(input.name),
+          name: input.name.trim(),
+        } as StaffMember;
+        db.staff = existing ? db.staff.map((m) => (m.id === saved.id ? saved : m)) : [...db.staff, saved];
+        db.teachers = teachersFrom(db.staff);
+        return { data: saved };
+      },
+      invalidatesTags: ["Staff"],
+    }),
+    /** On leave, back to active, or left (which also frees their allocations). */
+    setStaffStatus: build.mutation<null, { id: string; status: StaffMember["status"]; date?: string; reason?: string }>({
+      queryFn: ({ id, status, date, reason }) => {
+        const member = db.staff.find((m) => m.id === id);
+        if (!member) return fail(404, "Staff member not found");
+        if (status === "terminated" && (!date || !reason?.trim())) return fail(400, "Enter the leaving date and reason");
+        db.staff = db.staff.map((m) =>
+          m.id === id ? { ...m, status, ...(status === "terminated" ? { left: { date: date!, reason: reason!.trim() } } : { left: undefined }) } : m
+        );
+        if (status === "terminated") {
+          db.allocations = db.allocations.filter((a) => a.teacherId !== member.staffId);
+          db.sections = db.sections.map((s) => (s.inchargeId === member.staffId ? { ...s, inchargeId: undefined } : s));
+        }
+        db.teachers = teachersFrom(db.staff);
+        return { data: null };
+      },
+      invalidatesTags: ["Staff", "Allocation", "Section"],
+    }),
+    /** Sets who teaches a subject to a section (teacherId null clears it), and its periods. */
+    setAllocation: build.mutation<TeacherAllocation | null, { classId: string; sectionId: string; subjectId: string; teacherId: string | null; weeklyPeriods?: number }>({
+      queryFn: ({ classId, sectionId, subjectId, teacherId, weeklyPeriods }) => {
+        const existing = db.allocations.find((a) => a.sectionId === sectionId && a.subjectId === subjectId);
+        if (!teacherId) {
+          db.allocations = db.allocations.filter((a) => a !== existing);
+          return { data: null };
+        }
+        const teacher = db.staff.find((m) => m.staffId === teacherId);
+        if (!teacher || !teacher.teaches || teacher.status === "terminated") return fail(400, "Choose a current teacher");
+        if (weeklyPeriods !== undefined && (!Number.isInteger(weeklyPeriods) || weeklyPeriods < 1 || weeklyPeriods > 12))
+          return fail(400, "Periods a week should be between 1 and 12");
+        const saved: TeacherAllocation = existing
+          ? { ...existing, teacherId, weeklyPeriods: weeklyPeriods ?? existing.weeklyPeriods }
+          : { id: newId("alc"), teacherId, subjectId, classId, sectionId, weeklyPeriods: weeklyPeriods ?? 6 };
+        db.allocations = existing ? db.allocations.map((a) => (a === existing ? saved : a)) : [...db.allocations, saved];
+        return { data: saved };
+      },
+      invalidatesTags: ["Allocation"],
+    }),
+
+    // Payroll ----------------------------------------------------------------
+    /** Starts a month's payroll: a draft payslip for everyone on staff, with absences from staff attendance. */
+    startPayroll: build.mutation<PayrollRun, { branchId: string; month: string }>({
+      queryFn: ({ branchId, month }) => {
+        if (db.payrollRuns.some((r) => r.branchId === branchId && r.month === month)) return fail(409, "Payroll for this month has already started");
+        const run: PayrollRun = { id: newId("run"), branchId, month, status: "draft", createdAt: new Date().toISOString(), createdBy: mockActor() };
+        const members = db.staff.filter((m) => m.branchId === branchId && (m.status !== "terminated" || (m.left && m.left.date >= `${month}-01`)));
+        const slips = members.map((m) => {
+          const absentDays = db.staffAttendance
+            .filter((d) => d.branchId === branchId && d.date.startsWith(month))
+            .filter((d) => d.marks[m.staffId] === "absent").length;
+          const advance = db.advances.find((a) => a.staffId === m.staffId && a.recovered < a.amount);
+          const advanceRecovery = advance ? Math.min(advance.monthlyRecovery, advance.amount - advance.recovered) : 0;
+          return computePayslip(
+            m,
+            { id: newId("slip"), runId: run.id, month, status: "draft" },
+            { absentDays, adjustments: [], advanceRecovery, periodsPerWeek: periodsOf(m.staffId, db.allocations) }
+          );
+        });
+        db.payrollRuns = [...db.payrollRuns, run];
+        db.payslips = [...db.payslips, ...slips];
+        return { data: run };
+      },
+      invalidatesTags: ["Payroll"],
+    }),
+    /** Changes a draft payslip's absences or one-off adjustments and recalculates it. */
+    updatePayslip: build.mutation<Payslip, { id: string; absentDays: number; adjustments: SalaryComponent[] }>({
+      queryFn: ({ id, absentDays, adjustments }) => {
+        const slip = db.payslips.find((p) => p.id === id);
+        if (!slip) return fail(404, "Payslip not found");
+        const run = db.payrollRuns.find((r) => r.id === slip.runId);
+        if (run?.status !== "draft") return fail(409, "This payroll is finalised; payslips can't change");
+        if (!Number.isInteger(absentDays) || absentDays < 0 || absentDays > 31) return fail(400, "Absent days should be between 0 and 31");
+        if (adjustments.some((a) => !a.label.trim() || !Number.isInteger(a.amount) || a.amount === 0)) return fail(400, "Each adjustment needs a label and an amount");
+        const member = db.staff.find((m) => m.staffId === slip.staffId);
+        if (!member) return fail(404, "Staff member not found");
+        const updated = computePayslip(member, slip, { absentDays, adjustments, advanceRecovery: slip.advanceRecovery, periodsPerWeek: slip.periodsPerWeek });
+        db.payslips = db.payslips.map((p) => (p.id === id ? updated : p));
+        return { data: updated };
+      },
+      invalidatesTags: ["Payroll"],
+    }),
+    finalisePayroll: build.mutation<null, string>({
+      queryFn: (runId) => {
+        const run = db.payrollRuns.find((r) => r.id === runId);
+        if (!run || run.status !== "draft") return fail(409, "Only a draft payroll can be finalised");
+        db.payrollRuns = db.payrollRuns.map((r) => (r.id === runId ? { ...r, status: "finalised", finalisedAt: new Date().toISOString() } : r));
+        return { data: null };
+      },
+      invalidatesTags: ["Payroll"],
+    }),
+    /** Marks payslips paid and takes their advance recoveries off the advances. */
+    markPayslipsPaid: build.mutation<null, { ids: string[]; method: NonNullable<Payslip["method"]> }>({
+      queryFn: ({ ids, method }) => {
+        const slips = db.payslips.filter((p) => ids.includes(p.id) && p.status === "draft");
+        if (slips.some((p) => db.payrollRuns.find((r) => r.id === p.runId)?.status === "draft")) return fail(409, "Finalise the payroll before paying");
+        const paidAt = new Date().toISOString();
+        db.payslips = db.payslips.map((p) => (slips.includes(p) ? { ...p, status: "paid", paidAt, method } : p));
+        for (const p of slips) {
+          if (!p.advanceRecovery) continue;
+          db.advances = db.advances.map((a) =>
+            a.staffId === p.staffId && a.recovered < a.amount ? { ...a, recovered: Math.min(a.amount, a.recovered + p.advanceRecovery) } : a
+          );
+        }
+        const runIds = new Set(slips.map((p) => p.runId));
+        db.payrollRuns = db.payrollRuns.map((r) =>
+          runIds.has(r.id) && db.payslips.filter((p) => p.runId === r.id).every((p) => p.status === "paid") ? { ...r, status: "paid" } : r
+        );
+        return { data: null };
+      },
+      invalidatesTags: ["Payroll"],
+    }),
+    addAdvance: build.mutation<Advance, Omit<Advance, "id" | "recovered">>({
+      queryFn: (input) => {
+        if (!Number.isInteger(input.amount) || input.amount <= 0) return fail(400, "Enter the advance in whole rupees");
+        if (!Number.isInteger(input.monthlyRecovery) || input.monthlyRecovery <= 0 || input.monthlyRecovery > input.amount)
+          return fail(400, "Monthly recovery should be more than 0 and no more than the advance");
+        if (!input.reason.trim()) return fail(400, "Give a reason");
+        if (db.advances.some((a) => a.staffId === input.staffId && a.recovered < a.amount)) return fail(409, "This person is still repaying an advance");
+        const advance: Advance = { ...input, id: newId("adv"), recovered: 0, reason: input.reason.trim() };
+        db.advances = [...db.advances, advance];
+        return { data: advance };
+      },
+      invalidatesTags: ["Payroll"],
     }),
 
     // Students ---------------------------------------------------------------
@@ -765,7 +924,7 @@ export const prefilledReads = {
   getStudentActivity: "studentActivity", getRegisters: "registers", getUnlockRequests: "unlockRequests", getStaffAttendance: "staffAttendance", getVouchers: "vouchers", getPayments: "payments", getFeeHeads: "feeHeads", getFeePlans: "feePlans",
   getConcessions: "concessions", getDayClosings: "dayClosings", getFeeReminders: "feeReminders",
   getStaff: "staff", getAllocations: "allocations", getTeachers: "teachers",
-  getPayroll: "payroll", getExams: "exams", getMarks: "marks", getTeacherMarks: "teacherMarks",
+  getPayrollRuns: "payrollRuns", getPayslips: "payslips", getAdvances: "advances", getExams: "exams", getMarks: "marks", getTeacherMarks: "teacherMarks",
   getCampusProfile: "campusProfile", getRolePermissions: "rolePermissions", getSchoolRules: "schoolRules",
   getClasses: "classes", getSections: "sections", getSubjects: "subjects", getClassSubjects: "classSubjects",
   getChapters: "chapters", getPaperQuestions: "paperQuestions", getAlternativeQuestions: "alternativeQuestions",
@@ -820,7 +979,17 @@ export const {
   useGetStaffQuery,
   useGetAllocationsQuery,
   useGetTeachersQuery,
-  useGetPayrollQuery,
+  useGetPayrollRunsQuery,
+  useGetPayslipsQuery,
+  useGetAdvancesQuery,
+  useSaveStaffMutation,
+  useSetStaffStatusMutation,
+  useSetAllocationMutation,
+  useStartPayrollMutation,
+  useUpdatePayslipMutation,
+  useFinalisePayrollMutation,
+  useMarkPayslipsPaidMutation,
+  useAddAdvanceMutation,
   useGetExamsQuery,
   useGetMarksQuery,
   useGetTeacherMarksQuery,

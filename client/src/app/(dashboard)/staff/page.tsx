@@ -8,7 +8,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import {
   Users,
   GraduationCap,
@@ -27,6 +27,7 @@ const TABS = ["directory", "allocations", "payroll"] as const;
 
 export default function StaffPage() {
   const canSeePayroll = useCan("fin_manage_payroll");
+  const canAddStaff = useCan("adm_onboard_staff");
   const [activeTab, setActiveTab] = useUrlTab("directory", canSeePayroll ? TABS : ["directory", "allocations"]);
 
   return (
@@ -36,14 +37,16 @@ export default function StaffPage() {
         description="Staff records, subject and class allocations, and monthly payroll."
         actions={
           <>
-            <Button variant="outline">
+            <ButtonLink href="/attendance?tab=staff" variant="outline">
               <FileSpreadsheet data-icon="inline-start" />
               Monthly attendance report
-            </Button>
-            <Button onClick={() => setActiveTab("directory")}>
-              <UserPlus data-icon="inline-start" />
-              Add staff member
-            </Button>
+            </ButtonLink>
+            {canAddStaff ? (
+              <ButtonLink href="/staff/new">
+                <UserPlus data-icon="inline-start" />
+                Add staff member
+              </ButtonLink>
+            ) : null}
           </>
         }
       />

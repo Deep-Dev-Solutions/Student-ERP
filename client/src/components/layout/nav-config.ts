@@ -73,6 +73,9 @@ const subPageLabels: [RegExp, string][] = [
   [/^\/students\/import$/, "Import students"],
   [/^\/students\/[^/]+\/edit$/, "Edit student"],
   [/^\/students\/[^/]+$/, "Student profile"],
+  [/^\/staff\/new$/, "Add staff member"],
+  [/^\/staff\/[^/]+\/edit$/, "Edit staff member"],
+  [/^\/staff\/[^/]+$/, "Staff profile"],
 ];
 
 export function isNavItemActive(pathname: string, item: NavItem) {

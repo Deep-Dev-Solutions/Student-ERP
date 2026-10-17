@@ -5,11 +5,9 @@ import { useCan, useCurrentUser } from "@/hooks/use-session";
 import {
   useGetAllocationsQuery,
   useGetClassSubjectsQuery,
-  useGetClassesQuery,
   useGetSchoolRulesQuery,
   useGetSectionsQuery,
   useGetStudentsQuery,
-  useGetSubjectsQuery,
 } from "@/store/api";
 import type { AttendanceRegister, SchoolRules, Student } from "@/types";
 
@@ -80,8 +78,6 @@ export function useRegisterPermissions(sectionId: string | undefined, subjectId?
   const user = useCurrentUser();
   const { data: rules } = useGetSchoolRulesQuery();
   const { data: sections = [] } = useGetSectionsQuery();
-  const { data: classes = [] } = useGetClassesQuery();
-  const { data: subjects = [] } = useGetSubjectsQuery();
   const { data: allocations = [] } = useGetAllocationsQuery();
   const canLock = useCan("att_lock_roster");
   const canMarkDaily = useCan("att_mark_daily");
@@ -97,11 +93,7 @@ export function useRegisterPermissions(sectionId: string | undefined, subjectId?
       canMark = Boolean(section && section.inchargeId === user?.staffId);
       if (!canMark) reason = "Only this section's class incharge marks its register.";
     } else if (mode === "subject_wise") {
-      const cls = classes.find((c) => c.id === section?.classId);
-      const subject = subjects.find((s) => s.id === subjectId);
-      canMark = allocations.some(
-        (a) => a.teacherId === user?.staffId && a.subject === subject?.name && a.className === cls?.name && a.section === `Section ${section?.name}`
-      );
+      canMark = allocations.some((a) => a.teacherId === user?.staffId && a.subjectId === subjectId && a.sectionId === section?.id);
       if (!canMark) reason = "You can mark only the subjects you teach in this section.";
     } else {
       canMark = false;

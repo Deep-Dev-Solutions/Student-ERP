@@ -33,16 +33,11 @@ import { StatCard } from "@/components/shared/StatCard";
 import { statusVariant } from "@/lib/status";
 import { useUrlParam } from "@/hooks/use-url-state";
 import { useGetStaffQuery } from "@/store/api";
+import Link from "next/link";
+import { useCurrentBranch } from "@/hooks/use-session";
+import { downloadFile, toCsv } from "@/lib/csv";
+import { formatDate } from "@/lib/format";
 import { StaffMember } from "../types";
-
-const departmentOptions = [
-  { value: "all", label: "All departments" },
-  { value: "science", label: "Science" },
-  { value: "mathematics", label: "Mathematics" },
-  { value: "it-&-cs", label: "IT & CS" },
-  { value: "humanities", label: "Humanities" },
-  { value: "sports", label: "Sports" },
-];
 
 const staffStatusOptions = [
   { value: "all", label: "All statuses" },
@@ -58,7 +53,12 @@ const staffStatusLabels: Record<StaffMember["status"], string> = {
 };
 
 export function StaffDirectory() {
-  const { data: staffMembers = [] } = useGetStaffQuery();
+  const branch = useCurrentBranch();
+  const staffMembers = (useGetStaffQuery().data ?? []).filter((m) => m.branchId === branch?.id);
+  const departmentOptions = [
+    { value: "all", label: "All departments" },
+    ...[...new Set(staffMembers.map((m) => m.department))].sort().map((d) => ({ value: d.toLowerCase().replace(/\s+/g, "-"), label: d })),
+  ];
   const [searchQuery, setSearchQuery] = useUrlParam("q", "");
   const [selectedDept, setSelectedDept] = useUrlParam("dept", "all");
   const [selectedStatus, setSelectedStatus] = useUrlParam("status", "all");
@@ -108,7 +108,19 @@ export function StaffDirectory() {
               <h2 className="text-base font-semibold">Staff directory</h2>
               <p className="mt-0.5 text-sm text-muted-foreground">Teaching and administrative staff at this campus.</p>
             </div>
-            <Button variant="outline">
+            <Button
+              variant="outline"
+              disabled={filteredStaff.length === 0}
+              onClick={() =>
+                downloadFile(
+                  `staff-${branch?.code ?? "campus"}.csv`,
+                  toCsv([
+                    ["Staff ID", "Name", "Job title", "Department", "Employment", "Mobile", "Email", "CNIC", "Joined", "Status"],
+                    ...filteredStaff.map((m) => [m.staffId, m.name, m.role, m.department, m.employment, m.phone, m.email, m.cnic, m.joinDate, staffStatusLabels[m.status]]),
+                  ])
+                )
+              }
+            >
               <Download data-icon="inline-start" />
               Export directory
             </Button>
@@ -197,7 +209,9 @@ export function StaffDirectory() {
                         {staff.avatar}
                       </span>
                       <div className="min-w-0">
-                        <p className="font-medium">{staff.name}</p>
+                        <Link href={`/staff/${staff.id}`} className="rounded font-medium outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/40">
+                          {staff.name}
+                        </Link>
                         <p className="flex items-center gap-1 text-xs break-all text-muted-foreground">
                           <Mail aria-hidden className="size-3 shrink-0" />
                           {staff.email}
@@ -216,7 +230,7 @@ export function StaffDirectory() {
                   <TableCell>
                     <Badge variant={statusVariant(staff.status)}>{staffStatusLabels[staff.status]}</Badge>
                   </TableCell>
-                  <TableCell className="hidden pr-5 text-right text-muted-foreground xl:table-cell">{staff.joinDate}</TableCell>
+                  <TableCell className="hidden pr-5 text-right text-muted-foreground xl:table-cell">{formatDate(staff.joinDate)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
