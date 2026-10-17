@@ -7,6 +7,7 @@ import { isNavItemActive, teacherNavGroups } from "@/components/layout/nav-confi
 
 const shortLabels: Record<string, string> = {
   "/teacher-portal": "Home",
+  "/teacher-portal/classes": "Classes",
   "/teacher-portal/attendance": "Attendance",
   "/teacher-portal/marks": "Marks",
   "/teacher-portal/paper-maker": "Papers",
@@ -15,7 +16,11 @@ const shortLabels: Record<string, string> = {
 const navItems = teacherNavGroups.flatMap((group) => group.items);
 
 export function MobileBottomNav() {
-  const pathname = usePathname();
+  return <MobileBottomNavContent pathname={usePathname()} />;
+}
+
+/** The bar itself; takes the path so it can render before the path is known (prerendering). */
+export function MobileBottomNavContent({ pathname }: { pathname: string }) {
 
   return (
     <nav

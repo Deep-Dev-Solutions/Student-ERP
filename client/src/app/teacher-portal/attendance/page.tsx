@@ -1,25 +1,33 @@
 "use client";
 
+import { useState } from "react";
+import { CalendarCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { LabeledSelect } from "@/components/shared/LabeledSelect";
-import { useClassSectionPicker } from "@/hooks/use-academics";
-import { useCurrentBranch, useCurrentUser } from "@/hooks/use-session";
+import { useCurrentBranch } from "@/hooks/use-session";
 import { useToday } from "@/features/attendance/hooks";
-import { useGetClassesQuery, useGetSectionsQuery } from "@/store/api";
+import { useTeachingSections } from "@/features/teacher-portal/hooks";
+import { useGetSchoolRulesQuery } from "@/store/api";
 import { MobileAttendanceList } from "@/features/teacher-portal/components/MobileAttendanceList";
 
+const modeNote = {
+  single_marker: "A designated person marks attendance at this school, so there's nothing for you to mark here.",
+  admin_oversight: "The office records attendance at this school, so there's nothing for you to mark here.",
+} as const;
 
 export default function TeacherAttendancePage() {
-  const user = useCurrentUser();
   const branch = useCurrentBranch();
   const isoToday = useToday();
-  const { data: sections = [] } = useGetSectionsQuery();
-  const { data: classes = [] } = useGetClassesQuery();
-  // A class incharge starts on their own section.
-  const ownSection = sections.find((s) => user?.staffId && s.inchargeId === user.staffId);
-  const ownClass = classes.find((c) => c.id === ownSection?.classId);
-  const picker = useClassSectionPicker(ownSection && ownClass ? { className: ownClass.name, section: ownSection.name } : { className: "Class 10", section: "B" });
+  const mode = useGetSchoolRulesQuery().data?.attendance.mode ?? "class_incharge";
+  const teaching = useTeachingSections();
+  // Class incharges mark their own section; in subject-wise mode, each teacher marks the subjects they teach.
+  const own = mode === "class_incharge" ? teaching.filter((t) => t.incharge) : mode === "subject_wise" ? teaching.filter((t) => t.subjects.length) : [];
+  const [pickedSection, setPickedSection] = useState("");
+  const current = own.find((t) => t.section.id === pickedSection) ?? own[0];
+  const [pickedSubject, setPickedSubject] = useState("");
+  const subject = mode === "subject_wise" ? (current?.subjects.find((s) => s.id === pickedSubject) ?? current?.subjects[0]) : undefined;
 
   // Rendered on the client at request time (see teacher-portal/loading.tsx).
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
@@ -32,15 +40,51 @@ export default function TeacherAttendancePage() {
             <h1 className="text-xl font-semibold">Mark attendance</h1>
             <p className="text-sm text-muted-foreground">{today}</p>
           </div>
-          <Badge variant="info">Period 2</Badge>
+          {current ? <Badge variant="info">{subject ? subject.name : "Class incharge"}</Badge> : null}
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <LabeledSelect label="Class" options={picker.classOptions} value={picker.classId} onValueChange={picker.setClassId} />
-          <LabeledSelect label="Section" options={picker.sectionOptions} value={picker.sectionId} onValueChange={picker.setSectionId} />
-        </div>
+        {own.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3">
+            <LabeledSelect
+              label="Section"
+              className={subject ? "" : "col-span-2"}
+              options={own.map((t) => ({ value: t.section.id, label: t.label }))}
+              value={current?.section.id ?? ""}
+              onValueChange={(v) => {
+                setPickedSection(v);
+                setPickedSubject("");
+              }}
+            />
+            {subject && current ? (
+              <LabeledSelect label="Subject" options={current.subjects.map((s) => ({ value: s.id, label: s.name }))} value={subject.id} onValueChange={setPickedSubject} />
+            ) : null}
+          </div>
+        ) : null}
       </Card>
 
-      <MobileAttendanceList branchId={branch?.id ?? ""} classId={picker.classId} sectionId={picker.sectionId} date={isoToday ?? ""} />
+      {current ? (
+        <MobileAttendanceList
+          key={`${current.section.id}-${subject?.id ?? ""}`}
+          branchId={branch?.id ?? ""}
+          classId={current.cls.id}
+          sectionId={current.section.id}
+          subjectId={subject?.id}
+          date={isoToday ?? ""}
+        />
+      ) : (
+        <Card className="py-0">
+          <EmptyState
+            icon={CalendarCheck}
+            title="No register for you to mark"
+            description={
+              mode === "class_incharge"
+                ? "At this school the class incharge marks attendance, and you aren't incharge of a section."
+                : mode === "subject_wise"
+                  ? "You don't have any subjects assigned yet. Ask the branch admin."
+                  : modeNote[mode]
+            }
+          />
+        </Card>
+      )}
     </div>
   );
 }

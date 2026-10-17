@@ -59,6 +59,7 @@ export const teacherNavGroups: NavGroup[] = [
     label: "Teaching",
     items: [
       { href: "/teacher-portal", label: "Overview", icon: LayoutDashboard, exact: true },
+      { href: "/teacher-portal/classes", label: "My classes", icon: UsersRound },
       { href: "/teacher-portal/attendance", label: "Mark attendance", icon: CalendarCheck },
       { href: "/teacher-portal/marks", label: "Marks & grades", icon: ClipboardList },
       { href: "/teacher-portal/paper-maker", label: "Paper maker", icon: FileText },
@@ -69,6 +70,8 @@ export const teacherNavGroups: NavGroup[] = [
 /** Labels for nested routes that are not nav items themselves. */
 const subPageLabels: [RegExp, string][] = [
   [/^\/teacher-portal\/paper-maker\/generate$/, "Generate paper"],
+  [/^\/teacher-portal\/classes\/[^/]+$/, "Class list"],
+  [/^\/teacher-portal\/profile$/, "My profile"],
   [/^\/students\/new$/, "New admission"],
   [/^\/students\/import$/, "Import students"],
   [/^\/students\/[^/]+\/edit$/, "Edit student"],

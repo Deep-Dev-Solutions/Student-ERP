@@ -15,6 +15,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { sectionRoster } from "@/lib/results";
+import { useGetStudentsQuery } from "@/store/api";
 import { useRegisterPermissions } from "@/features/attendance/hooks";
 import { useOutboxFlush, useRegisterEditor } from "@/features/attendance/useRegisterEditor";
 import type { AttendanceStatus } from "@/types";
@@ -34,15 +36,19 @@ interface MobileAttendanceListProps {
   branchId: string;
   classId: string;
   sectionId: string;
+  /** Set when the school takes attendance subject by subject. */
+  subjectId?: string;
   /** Empty until the device's date is known. */
   date: string;
 }
 
-export function MobileAttendanceList({ branchId, classId, sectionId, date }: MobileAttendanceListProps) {
+export function MobileAttendanceList({ branchId, classId, sectionId, subjectId, date }: MobileAttendanceListProps) {
   useOutboxFlush();
-  const perms = useRegisterPermissions(sectionId);
-  const editor = useRegisterEditor(sectionId && date ? { branchId, classId, sectionId, date } : null);
+  const perms = useRegisterPermissions(sectionId, subjectId);
+  const editor = useRegisterEditor(sectionId && date ? { branchId, classId, sectionId, date, ...(subjectId ? { subjectId } : {}) } : null);
   const canEdit = perms.canMark && !editor.locked && !editor.holiday && !editor.future;
+  const { data: students = [] } = useGetStudentsQuery();
+  const rollNo = new Map(sectionRoster(students, sectionId).map((r) => [r.student.id, r.rollNo]));
 
   const count = (status: AttendanceStatus) => editor.roster.filter((s) => editor.marks[s.id]?.status === status).length;
   const presentCount = count("present");
@@ -116,7 +122,7 @@ export function MobileAttendanceList({ branchId, classId, sectionId, date }: Mob
                   </span>
                   <div>
                     <p className="font-medium">{student.name}</p>
-                    <p className="text-xs text-muted-foreground">Roll {student.id}</p>
+                    <p className="text-xs text-muted-foreground">Roll {rollNo.get(student.id) ?? student.id}</p>
                   </div>
                 </div>
 

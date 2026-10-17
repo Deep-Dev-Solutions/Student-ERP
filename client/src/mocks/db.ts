@@ -4,7 +4,7 @@
  */
 import { registers, staffAttendance, unlockRequests } from "./registers";
 import { branches, sessions } from "./branches";
-import { examMarks, examPapers, exams, teacherMarks } from "./exams";
+import { examMarks, examPapers, exams } from "./exams";
 import { concessions, dayClosings, feeHeads, feePlans, feeReminders, payments, vouchers } from "./fees";
 import { feeStanding } from "@/lib/fees";
 import { alternativeQuestions, chapters, paperQuestions } from "./paper";
@@ -41,7 +41,6 @@ export const db = {
   exams,
   examPapers,
   examMarks,
-  teacherMarks,
   campusProfile,
   rolePermissions,
   schoolRules,

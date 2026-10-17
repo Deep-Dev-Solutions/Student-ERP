@@ -40,13 +40,3 @@ export interface ExamMark {
   updatedAt: string;
   updatedBy: string;
 }
-
-/** One student's marks on a teacher's mobile list. */
-export interface StudentMarksItem {
-  id: string;
-  rollNo: string;
-  name: string;
-  avatar: string;
-  obtainedMarks: number | "";
-  maxMarks: number;
-}
