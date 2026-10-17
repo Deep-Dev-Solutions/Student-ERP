@@ -1,6 +1,6 @@
 # DeepDev ERP frontend audit, against the reference checklist
 
-> **Progress, 15 Oct 2026:** Phases A and B are done (Phase A except the visual parts of A9). Phase C is done except C6 (import) and the C7 printouts. Phase D is done except D6's on-screen month view. B3, B5 and B10 are fixed. See the checkboxes in §8. B1 (repeat payment) and B7 (shortcuts open the wrong tab) are fixed. Rendered markup is unchanged from the redesign, checked by a DOM diff of 25 screens at 1440 and 390px.
+> **Progress, 15 Oct 2026:** Phases A and B are done (Phase A except the visual parts of A9). Phase C is done. Phase D is done except D6's on-screen month view. B3, B5 and B10 are fixed. See the checkboxes in §8. B1 (repeat payment) and B7 (shortcuts open the wrong tab) are fixed. Rendered markup is unchanged from the redesign, checked by a DOM diff of 25 screens at 1440 and 390px.
 
 *Read-only, `client/` on `feat/ui-redesign` at `0fb81aa`, 13 Oct 2026. I read every UI file under `src/` plus `package.json`, `next.config.ts`, `tsconfig.json`, `eslint.config.mjs`, `components.json` and `globals.css`. There is no Tailwind config file, because Tailwind v4 is configured in CSS. I ran `npx tsc --noEmit` and `npx eslint` without `--fix`.*
 
@@ -380,8 +380,8 @@ All targets exist. There are no dead nav links.
 - [x] C3. 4-step admission at `/students/new`: B-form, photo, address, admission number and date, branch, guardians and siblings, duplicate check, masks, working draft, then land on the profile.
 - [x] C4. Edit page.
 - [x] C5. Dialogs: change section, transfer branch, electives, withdraw, re-admit, guardians, documents, delete.
-- [ ] C6. `/students/import`: template, upload, column mapping, validation, import, error file. **Not done:** the page exists but still shows the old import panel.
-- [ ] C7. Printouts (admission form, student list); wire the row actions and export. **Partly done:** row actions and CSV export work; the printouts are not built.
+- [x] C6. `/students/import`: template, upload, column mapping, validation, import, error file. Takes CSV; Excel `.xlsx` needs a parsing library, pending your approval.
+- [x] C7. Printouts (admission form, student list); wire the row actions and export.
 
 **Phase D: Attendance (P1)**
 - [x] D1. Class, section, date and subject drive the roster (fixes B3 and B5); all-present by default; keyboard shortcuts (P/A/L, arrow keys).

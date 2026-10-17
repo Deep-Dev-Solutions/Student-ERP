@@ -11,6 +11,7 @@ import {
   FileText,
   History,
   Pencil,
+  Printer,
   RotateCcw,
   ShieldAlert,
   Trash2,
@@ -140,9 +141,13 @@ export function StudentProfile({ studentId }: { studentId: string }) {
       <PageHeader
         title={student.name}
         meta={<Badge variant={statusVariant(status)}>{studentStatusLabels[status]}</Badge>}
-        description={`Roll ID ${student.id}, admission no. ${student.admissionNo}. ${where.className}, ${where.sectionLabel.toLowerCase()}, ${where.branchName}.`}
+        description={`Roll ID ${student.id}, admission no. ${student.admissionNo}. ${where.className}, section ${where.sectionName}, ${where.branchName}.`}
         actions={
           <>
+            <ButtonLink href={`/print/students/${student.id}`} variant="outline" target="_blank">
+              <Printer data-icon="inline-start" />
+              Print admission form
+            </ButtonLink>
             {canManage ? (
               <>
                 <ButtonLink href={`/students/${student.id}/edit`} variant="outline">
@@ -321,7 +326,7 @@ function OverviewTab({ student, canManage, onAction }: { student: Student; canMa
         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Detail label="Campus">{where.branchName}</Detail>
           <Detail label="Class and section">
-            {where.className}, {where.sectionLabel.toLowerCase()}
+            {where.className}, section {where.sectionName}
           </Detail>
           <Detail label="Class incharge">{incharge?.name ?? "Not assigned"}</Detail>
           <Detail label="Electives">{electives.length ? electives.join(", ") : "None"}</Detail>
@@ -385,7 +390,7 @@ function OverviewTab({ student, canManage, onAction }: { student: Student; canMa
                       {s.name}
                     </Link>
                     <p className="text-xs text-muted-foreground">
-                      {s.id}, {p.className}, {p.sectionLabel.toLowerCase()}
+                      {s.id}, {p.className}, section {p.sectionName}
                     </p>
                   </div>
                   <Badge variant={statusVariant(studentStatus(s))}>{studentStatusLabels[studentStatus(s)]}</Badge>

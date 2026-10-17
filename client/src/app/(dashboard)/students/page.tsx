@@ -1,6 +1,6 @@
 "use client";
 
-import { FileDown, UploadCloud, UserPlus } from "lucide-react";
+import { FileDown, Printer, UploadCloud, UserPlus } from "lucide-react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StudentDirectory } from "@/features/students/components";
@@ -29,6 +29,14 @@ export default function StudentsPage() {
             <Button variant="outline" onClick={exportCsv} disabled={view.total === 0}>
               <FileDown data-icon="inline-start" />
               Export CSV
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => window.open(`/print/students${window.location.search}`, "_blank", "noopener")}
+              disabled={view.total === 0}
+            >
+              <Printer data-icon="inline-start" />
+              Print list
             </Button>
             {canAdmit && !readOnly ? (
               <>

@@ -299,9 +299,21 @@ export const api = createApi({
     importStudents: build.mutation<Student[], AdmissionInput[]>({
       queryFn: (inputs) => {
         const created = inputs.map((input, i) => createStudent(input, i));
-        db.students = [...db.students, ...created];
-        for (const s of created) logActivity(s.id, `Admitted to ${placement(s.classId, s.sectionId)} by spreadsheet import.`);
-        return { data: created };
+        // Link siblings: students who share a guardian's mobile number, both ways.
+        const linked = created.map((s) => {
+          const phones = new Set(s.guardians.map((g) => g.phone));
+          const siblings = [...db.students, ...created].filter((o) => o.id !== s.id && o.guardians.some((g) => phones.has(g.phone)));
+          return { ...s, siblingIds: siblings.map((o) => o.id) };
+        });
+        db.students = [
+          ...db.students.map((o) => {
+            const newSiblings = linked.filter((s) => s.siblingIds.includes(o.id)).map((s) => s.id);
+            return newSiblings.length ? { ...o, siblingIds: [...new Set([...o.siblingIds, ...newSiblings])] } : o;
+          }),
+          ...linked,
+        ];
+        for (const s of linked) logActivity(s.id, `Admitted to ${placement(s.classId, s.sectionId)} by spreadsheet import.`);
+        return { data: linked };
       },
       invalidatesTags: ["Student", "StudentActivity"],
     }),

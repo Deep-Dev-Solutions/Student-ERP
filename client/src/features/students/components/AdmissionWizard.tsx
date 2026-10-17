@@ -445,7 +445,7 @@ export function AdmissionWizard() {
               })()],
               ["Other guardians", String(guardians.length - 1)],
               ["Siblings linked", siblingIds.length ? students.filter((s) => siblingIds.includes(s.id)).map((s) => s.name).join(", ") : "None"],
-              ["Class and section", `${classes.find((c) => c.id === placement.classId)?.name ?? "—"}, ${section ? sectionLabel(section).toLowerCase() : "—"}`],
+              ["Class and section", `${classes.find((c) => c.id === placement.classId)?.name ?? "—"}, ${section ? `section ${section.name}` : "—"}`],
               ["Admission date", placement.admissionDate ? formatDate(placement.admissionDate) : "—"],
               ["Monthly fee", `${formatRupees(Math.round(fee * (1 - discount / 100)))}${discount ? ` after ${discount}% discount` : ""}`],
             ].map(([label, text]) => (
