@@ -10,7 +10,10 @@ import { ButtonLink } from "@/components/ui/button";
 import { formatPercent, formatRupees } from "@/lib/format";
 import { statusVariant } from "@/lib/status";
 import { useGetVouchersQuery } from "@/store/api";
-import type { FeeVoucher, Student } from "@/types";
+import { useToday } from "@/features/attendance/hooks";
+import { monthLabel, voucherState, voucherStateLabels } from "@/lib/fees";
+import { formatDate } from "@/lib/format";
+import type { Student } from "@/types";
 import { usePlacement } from "../hooks";
 import { attendanceBreakdown, primaryGuardian, studentStatus, studentStatusLabels } from "../status";
 
@@ -20,23 +23,18 @@ interface StudentProfileDrawerProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const voucherLabels: Record<FeeVoucher["status"], string> = {
-  paid: "Paid",
-  unpaid: "Unpaid",
-  partial: "Partly paid",
-  overdue: "Overdue",
-};
 
 /** Quick view from the directory; the full record is on the profile page. */
 export function StudentProfileDrawer({ student, open, onOpenChange }: StudentProfileDrawerProps) {
   const placement = usePlacement();
   const { data: vouchers = [] } = useGetVouchersQuery();
+  const today = useToday();
   if (!student) return null;
 
   const where = placement(student);
   const guardian = primaryGuardian(student);
   const status = studentStatus(student);
-  const feeHistory = vouchers.filter((v) => v.studentId === student.id);
+  const feeHistory = vouchers.filter((v) => v.studentId === student.id && v.status !== "cancelled").sort((a, b) => b.month.localeCompare(a.month));
   const days = attendanceBreakdown(student);
   const attendanceSummary = [
     { label: "Days present", value: days.present },
@@ -101,13 +99,13 @@ export function StudentProfileDrawer({ student, open, onOpenChange }: StudentPro
                 {feeHistory.map((row) => (
                   <li key={row.id} className="flex items-center justify-between gap-3 p-3">
                     <div>
-                      <p className="font-medium">{row.month} tuition</p>
+                      <p className="font-medium">{monthLabel(row.month)}</p>
                       <p className="text-xs text-muted-foreground">
-                        {row.voucherNumber}, due {row.dueDate}
+                        {row.voucherNumber}, due {formatDate(row.dueDate)}
                       </p>
                     </div>
-                    <Badge variant={statusVariant(row.status)}>
-                      {voucherLabels[row.status]} {formatRupees(row.totalAmount)}
+                    <Badge variant={statusVariant(voucherState(row, today))}>
+                      {voucherStateLabels[voucherState(row, today)]} {formatRupees(row.totalAmount)}
                     </Badge>
                   </li>
                 ))}

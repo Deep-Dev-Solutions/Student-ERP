@@ -18,6 +18,7 @@ export const campusProfile: CampusProfileData = {
 
 export const rolePermissions: RolePermissionsState = {
   fin_collect_fee: { owner: true, branch_admin: true, teacher: false, front_desk: true, accountant: true },
+  fin_manage_fees: { owner: true, branch_admin: true, teacher: false, front_desk: false, accountant: true },
   fin_view_defaulters: { owner: true, branch_admin: true, teacher: false, front_desk: true, accountant: true },
   fin_send_sms: { owner: true, branch_admin: true, teacher: false, front_desk: true, accountant: true },
   fin_waive_fee: { owner: true, branch_admin: true, teacher: false, front_desk: false, accountant: false },

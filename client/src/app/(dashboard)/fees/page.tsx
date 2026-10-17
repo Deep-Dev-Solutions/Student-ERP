@@ -13,11 +13,14 @@ import {
   AlertTriangle,
   Receipt,
   FileSpreadsheet,
+  FileText,
+  CalendarCheck,
+  Layers,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { PointOfSale, DefaultersTable } from "@/features/fees/components";
+import { PointOfSale, DefaultersTable, VouchersPanel, DailyClosing, FeeStructure } from "@/features/fees/components";
 
-const TABS = ["pos", "defaulters"] as const;
+const TABS = ["pos", "vouchers", "defaulters", "closing", "structure"] as const;
 
 export default function FeesPage() {
   const [activeTab, setActiveTab] = useUrlTab("pos", TABS);
@@ -26,10 +29,10 @@ export default function FeesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Fee collection"
-        description="Take payments at the counter, issue receipts and follow up on overdue fees."
+        description="Take payments, generate vouchers, follow up on overdue fees and close the day's cash."
         actions={
           <>
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => setActiveTab("closing")}>
               <FileSpreadsheet data-icon="inline-start" />
               Daily cash report
             </Button>
@@ -47,17 +50,38 @@ export default function FeesPage() {
             <CreditCard />
             Counter
           </TabsTrigger>
+          <TabsTrigger value="vouchers">
+            <FileText />
+            Vouchers
+          </TabsTrigger>
           <TabsTrigger value="defaulters">
             <AlertTriangle />
             Defaulters and arrears
+          </TabsTrigger>
+          <TabsTrigger value="closing">
+            <CalendarCheck />
+            Daily closing
+          </TabsTrigger>
+          <TabsTrigger value="structure">
+            <Layers />
+            Fee structure
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="pos">
           <PointOfSale />
         </TabsContent>
+        <TabsContent value="vouchers">
+          <VouchersPanel />
+        </TabsContent>
         <TabsContent value="defaulters">
           <DefaultersTable />
+        </TabsContent>
+        <TabsContent value="closing">
+          <DailyClosing />
+        </TabsContent>
+        <TabsContent value="structure">
+          <FeeStructure />
         </TabsContent>
       </Tabs>
     </div>

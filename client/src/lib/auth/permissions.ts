@@ -21,6 +21,8 @@ const ROUTE_ACCESS: { prefix: string | RegExp; roles: Role[] }[] = [
   { prefix: "/students/import", roles: [...ADMIN_ROLES, "front_desk"] },
   { prefix: /^\/students\/[^/]+\/edit$/, roles: [...ADMIN_ROLES, "front_desk"] },
   { prefix: "/print/students", roles: [...ADMIN_ROLES, "accountant", "front_desk"] },
+  { prefix: "/print/vouchers", roles: [...ADMIN_ROLES, "accountant", "front_desk"] },
+  { prefix: "/print/receipts", roles: [...ADMIN_ROLES, "accountant", "front_desk"] },
   { prefix: "/dashboard", roles: [...ADMIN_ROLES, "accountant", "front_desk"] },
   { prefix: "/students", roles: [...ADMIN_ROLES, "accountant", "front_desk"] },
   { prefix: "/attendance", roles: [...ADMIN_ROLES, "front_desk"] },

@@ -23,7 +23,7 @@ export function SchoolLetterhead({ title, meta }: { title: string; meta?: React.
         </div>
       </div>
       <div className="sm:text-right">
-        <h1 className="text-xl font-semibold">{title}</h1>
+        <h1 className="text-xl font-semibold whitespace-nowrap">{title}</h1>
         {meta ? <div className="text-xs text-muted-foreground">{meta}</div> : null}
       </div>
     </header>

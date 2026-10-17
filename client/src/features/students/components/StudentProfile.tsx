@@ -41,6 +41,8 @@ import { useGrader, useReadOnly } from "@/hooks/use-academics";
 import { useCan } from "@/hooks/use-session";
 import { useUrlParam, useUrlTab } from "@/hooks/use-url-state";
 import { formatDate, formatPercent, formatRupees } from "@/lib/format";
+import { monthLabel, voucherBalance, voucherState, voucherStateLabels } from "@/lib/fees";
+import { useToday } from "@/features/attendance/hooks";
 import { statusVariant } from "@/lib/status";
 import {
   errorMessage,
@@ -427,7 +429,8 @@ function AttendanceTab({ student }: { student: Student }) {
 
 function FeesTab({ student }: { student: Student }) {
   const { data: vouchers = [] } = useGetVouchersQuery();
-  const mine = vouchers.filter((v) => v.studentId === student.id);
+  const today = useToday();
+  const mine = vouchers.filter((v) => v.studentId === student.id).sort((a, b) => b.month.localeCompare(a.month));
   const fee = Math.round(student.monthlyFee * (1 - student.discountPercent / 100));
 
   return (
@@ -462,18 +465,20 @@ function FeesTab({ student }: { student: Student }) {
                 <TableHead className="hidden lg:table-cell">Voucher</TableHead>
                 <TableHead className="hidden xl:table-cell">Due</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="hidden text-right sm:table-cell">Owed</TableHead>
                 <TableHead className="pr-5">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {mine.map((v) => (
                 <TableRow key={v.id}>
-                  <TableCell className="pl-5 font-medium">{v.month}</TableCell>
+                  <TableCell className="pl-5 font-medium">{monthLabel(v.month)}</TableCell>
                   <TableCell className="hidden text-muted-foreground lg:table-cell">{v.voucherNumber}</TableCell>
-                  <TableCell className="hidden xl:table-cell">{v.dueDate}</TableCell>
+                  <TableCell className="hidden xl:table-cell">{formatDate(v.dueDate)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatRupees(v.totalAmount)}</TableCell>
+                  <TableCell className="hidden text-right tabular-nums sm:table-cell">{formatRupees(voucherBalance(v))}</TableCell>
                   <TableCell className="pr-5">
-                    <Badge variant={statusVariant(v.status)}>{v.status === "partial" ? "Partly paid" : v.status[0].toUpperCase() + v.status.slice(1)}</Badge>
+                    <Badge variant={statusVariant(voucherState(v, today))}>{voucherStateLabels[voucherState(v, today)]}</Badge>
                   </TableCell>
                 </TableRow>
               ))}

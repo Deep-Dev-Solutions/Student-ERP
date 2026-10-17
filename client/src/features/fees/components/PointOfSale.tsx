@@ -7,7 +7,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Search,
   Receipt,
@@ -20,22 +21,20 @@ import {
   Check,
   CreditCard,
   ShieldCheck,
+  AlertCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { statusVariant } from "@/lib/status";
-import { useUrlParam } from "@/hooks/use-url-state";
-import { formatRupees } from "@/lib/format";
-import { useGetVouchersQuery, useRecordPaymentMutation } from "@/store/api";
-import { FeeVoucher, PaymentMethod } from "../types";
+import { useToday } from "@/features/attendance/hooks";
+import { primaryGuardian } from "@/features/students/status";
+import { usePlacement } from "@/features/students/hooks";
 import { useReadOnly } from "@/hooks/use-academics";
-
-const voucherStatusLabels: Record<FeeVoucher["status"], string> = {
-  unpaid: "Unpaid",
-  partial: "Partly paid",
-  overdue: "Overdue",
-  paid: "Paid",
-};
+import { useCan, useCurrentBranch } from "@/hooks/use-session";
+import { useUrlParam } from "@/hooks/use-url-state";
+import { lateFineFor, monthLabel, voucherBalance, voucherState, voucherStateLabels } from "@/lib/fees";
+import { formatDate, formatRupees } from "@/lib/format";
+import { errorMessage, useGetSchoolRulesQuery, useGetStudentsQuery, useGetVouchersQuery, useRecordPaymentMutation } from "@/store/api";
+import { FeeVoucher, PaymentMethod } from "../types";
 
 const paymentMethods: { value: PaymentMethod; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { value: "cash", label: "Cash", icon: Wallet },
@@ -44,59 +43,101 @@ const paymentMethods: { value: PaymentMethod; label: string; icon: React.Compone
   { value: "cheque", label: "Cheque", icon: Receipt },
 ];
 
+const stateVariant = { paid: "success", partial: "warning", unpaid: "warning", overdue: "danger", cancelled: "neutral" } as const;
+
 export function PointOfSale() {
   const readOnly = useReadOnly();
-  const { data: vouchers = [] } = useGetVouchersQuery();
-  const [recordPayment] = useRecordPaymentMutation();
-  // Keep only the id, so the selected voucher always reflects the latest
-  // data: once paid, it reads as paid and can't be collected again.
-  const [selectedId, setSelectedId] = useState(vouchers[0]?.id);
+  const today = useToday();
+  const branch = useCurrentBranch();
+  const canWaive = useCan("fin_waive_fee");
+  const placement = usePlacement();
+  const { data: allVouchers = [] } = useGetVouchersQuery();
+  const { data: students = [] } = useGetStudentsQuery();
+  const { data: rules } = useGetSchoolRulesQuery();
+  const [recordPayment, { isLoading: recording }] = useRecordPaymentMutation();
+  const [selectedId, setSelectedId] = useState<string>();
   const [searchQuery, setSearchQuery] = useUrlParam("find", "");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
-  const [amountReceived, setAmountReceived] = useState<string>(
-    vouchers[0]?.totalAmount.toString() ?? ""
-  );
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [lastReceiptNumber, setLastReceiptNumber] = useState<string>("");
+  const [amountReceived, setAmountReceived] = useState<string | null>(null);
+  const [waiveFine, setWaiveFine] = useState(false);
+  const [receipt, setReceipt] = useState<{ id: string; receiptNo: string; total: number; change: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const selectedVoucher = vouchers.find((v) => v.id === selectedId) ?? vouchers[0];
-  if (!selectedVoucher) return null;
+  const studentOf = (v: FeeVoucher) => students.find((s) => s.id === v.studentId);
+  const atCampus = allVouchers.filter((v) => v.branchId === branch?.id && v.status !== "cancelled");
+  const query = searchQuery.trim().toLowerCase();
+  const digits = query.replace(/\D/g, "");
+
+  // Outstanding vouchers, oldest due first. A search also finds paid ones.
+  const vouchers = atCampus
+    .filter((v) => {
+      const s = studentOf(v);
+      if (!query) return voucherBalance(v) > 0;
+      return (
+        s?.name.toLowerCase().includes(query) ||
+        v.studentId.toLowerCase().includes(query) ||
+        v.voucherNumber.toLowerCase().includes(query) ||
+        (digits.length >= 4 && s?.guardians.some((g) => g.phone.replace(/\D/g, "").includes(digits)))
+      );
+    })
+    .sort((a, b) => Number(voucherBalance(b) > 0) - Number(voucherBalance(a) > 0) || a.dueDate.localeCompare(b.dueDate));
+
+  const selectedVoucher = vouchers.find((v) => v.id === selectedId) ?? atCampus.find((v) => v.id === selectedId) ?? vouchers[0];
 
   const handleSelectVoucher = (voucher: FeeVoucher) => {
     setSelectedId(voucher.id);
-    setAmountReceived(voucher.totalAmount.toString());
-    setPaymentSuccess(false);
+    setAmountReceived(null);
+    setWaiveFine(false);
+    setReceipt(null);
+    setError(null);
   };
 
-  const numericReceived = parseFloat(amountReceived) || 0;
-  const balanceReturn = Math.max(0, numericReceived - selectedVoucher.totalAmount);
+  if (!selectedVoucher) {
+    return (
+      <Card className="py-0">
+        <EmptyState
+          icon={Search}
+          title={query ? "No vouchers match" : "Nothing awaiting payment"}
+          description={query ? "Search by the student's name, roll ID, voucher number or guardian's phone." : "Every voucher at this campus is paid. Generate next month's vouchers from the Vouchers tab."}
+          action={
+            query ? (
+              <Button variant="outline" onClick={() => setSearchQuery("")}>
+                Clear search
+              </Button>
+            ) : undefined
+          }
+        />
+      </Card>
+    );
+  }
+
+  const student = studentOf(selectedVoucher);
+  const due = voucherBalance(selectedVoucher);
+  const fineOwed = today ? lateFineFor(selectedVoucher, today, rules) : 0;
+  const fine = waiveFine ? 0 : fineOwed;
+  const payable = due + fine;
+  const received = amountReceived === null ? payable : Number(amountReceived) || 0;
+  const applied = Math.min(Math.max(0, received - fine), due);
+  const change = Math.max(0, received - payable);
+  const isPaid = due === 0;
+  const otherDues = atCampus.filter((v) => v.studentId === selectedVoucher.studentId && v.id !== selectedVoucher.id && voucherBalance(v) > 0);
+  const where = student ? placement(student) : undefined;
+  const breakdown = [
+    ...selectedVoucher.lines.map((l) => ({ label: l.label, amount: l.amount })),
+    ...(selectedVoucher.discount ? [{ label: "Discount", amount: -selectedVoucher.discount }] : []),
+    ...(selectedVoucher.paidAmount ? [{ label: "Paid already", amount: -selectedVoucher.paidAmount }] : []),
+    ...(fineOwed ? [{ label: waiveFine ? "Late fine (waived)" : "Late fine", amount: fine }] : []),
+  ];
 
   const handleRecordPayment = async () => {
-    const result = await recordPayment({
-      voucherId: selectedVoucher.id,
-      method: paymentMethod,
-      amount: numericReceived,
-    });
-    if ("error" in result) return;
-    setLastReceiptNumber(`REC-${Math.floor(100000 + Math.random() * 900000)}`);
-    setPaymentSuccess(true);
+    setError(null);
+    if (received < fine + 1) return setError(fine ? `Collect at least the late fine plus something towards the voucher (more than ${formatRupees(fine)}).` : "Enter the amount received.");
+    const result = await recordPayment({ voucherId: selectedVoucher.id, method: paymentMethod, amount: applied, lateFine: fine });
+    if ("error" in result) return setError(errorMessage(result.error));
+    setReceipt({ id: result.data.id, receiptNo: result.data.receiptNo, total: applied + fine, change });
+    setAmountReceived(null);
+    setWaiveFine(false);
   };
-
-  const filteredVouchers = vouchers.filter(
-    (v) =>
-      v.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.studentId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.voucherNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.guardianPhone.includes(searchQuery)
-  );
-
-  const isPaid = selectedVoucher.status === "paid";
-  const breakdown = [
-    { label: "Tuition", amount: selectedVoucher.tuitionFee },
-    { label: "Exam fee", amount: selectedVoucher.examFee },
-    { label: "Lab and computer", amount: selectedVoucher.labFee },
-    { label: "Arrears and late fine", amount: selectedVoucher.arrears },
-  ].filter((row) => row.amount > 0);
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -114,14 +155,11 @@ export function PointOfSale() {
             />
           </div>
           <p className="text-sm text-muted-foreground" aria-live="polite">
-            <span className="font-medium text-foreground">
-              {filteredVouchers.filter((v) => v.status !== "paid").length}
-            </span>{" "}
-            awaiting payment
+            <span className="font-medium text-foreground">{vouchers.filter((v) => voucherBalance(v) > 0).length}</span> awaiting payment
           </p>
         </div>
 
-        {filteredVouchers.length === 0 ? (
+        {vouchers.length === 0 ? (
           <Card className="py-0">
             <EmptyState
               icon={Search}
@@ -136,8 +174,12 @@ export function PointOfSale() {
           </Card>
         ) : (
           <ul className="space-y-2" aria-label="Fee vouchers">
-            {filteredVouchers.map((voucher) => {
-              const isSelected = selectedVoucher?.id === voucher.id;
+            {vouchers.map((voucher) => {
+              const isSelected = selectedVoucher.id === voucher.id;
+              const s = studentOf(voucher);
+              const g = s ? primaryGuardian(s) : undefined;
+              const p = s ? placement(s) : undefined;
+              const state = voucherState(voucher, today);
               return (
                 <li key={voucher.id}>
                   <button
@@ -156,41 +198,39 @@ export function PointOfSale() {
                           aria-hidden
                           className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground"
                         >
-                          {voucher.avatar}
+                          {s?.avatar}
                         </span>
                         <div>
                           <p className="font-medium">
-                            {voucher.studentName}{" "}
+                            {s?.name ?? voucher.studentId}{" "}
                             <span className="font-normal text-muted-foreground">{voucher.studentId}</span>
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {voucher.className}, {voucher.section} · {voucher.voucherNumber}
+                            {p?.className}, {p?.sectionLabel} · {voucher.voucherNumber}, {monthLabel(voucher.month)}
                           </p>
                         </div>
                       </div>
 
                       <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:gap-1">
                         <p className="text-right">
-                          <span className="text-base font-semibold">{formatRupees(voucher.totalAmount)}</span>
-                          {voucher.arrears > 0 ? (
-                            <span className="block text-xs text-muted-foreground">
-                              includes {formatRupees(voucher.arrears)} arrears
-                            </span>
+                          <span className="text-base font-semibold">{formatRupees(voucherBalance(voucher) || voucher.totalAmount)}</span>
+                          {voucher.paidAmount > 0 && voucherBalance(voucher) > 0 ? (
+                            <span className="block text-xs text-muted-foreground">of {formatRupees(voucher.totalAmount)}</span>
                           ) : null}
                         </p>
-                        <Badge variant={statusVariant(voucher.status)}>{voucherStatusLabels[voucher.status]}</Badge>
+                        <Badge variant={stateVariant[state]}>{voucherStateLabels[state]}</Badge>
                       </div>
                     </div>
 
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2.5 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1.5">
-                        <span className="text-foreground">{voucher.guardianName}</span>
+                        <span className="text-foreground">{g?.name}</span>
                         <Phone aria-hidden className="size-3" />
-                        {voucher.guardianPhone}
+                        {g?.phone}
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock aria-hidden className="size-3.5" />
-                        Due {voucher.dueDate}
+                        Due {formatDate(voucher.dueDate)}
                       </span>
                     </div>
                   </button>
@@ -207,22 +247,25 @@ export function PointOfSale() {
             <CardTitle>
               <h2>Take payment</h2>
             </CardTitle>
-            <CardDescription className="mt-0.5">Counter 1</CardDescription>
+            <CardDescription className="mt-0.5">{branch?.name}</CardDescription>
           </div>
 
-          {paymentSuccess ? (
+          {receipt ? (
             <div role="status" className="rounded-lg border border-success/30 bg-success-tint p-5 text-center">
               <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-success text-success-foreground">
                 <Check aria-hidden className="size-5" />
               </span>
-              <p className="mt-3 text-base font-semibold text-success">Payment recorded</p>
-              <p className="mt-1 text-sm text-success">Receipt {lastReceiptNumber}</p>
+              <p className="mt-3 text-base font-semibold text-success">Payment of {formatRupees(receipt.total)} recorded</p>
+              <p className="mt-1 text-sm text-success">
+                Receipt {receipt.receiptNo}
+                {receipt.change ? `. Give back ${formatRupees(receipt.change)} in change.` : ""}
+              </p>
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-                <Button variant="outline" size="sm">
+                <ButtonLink href={`/print/receipts/${receipt.id}`} target="_blank" variant="outline" size="sm">
                   <Printer data-icon="inline-start" />
                   Print receipt
-                </Button>
-                <Button size="sm" onClick={() => setPaymentSuccess(false)}>
+                </ButtonLink>
+                <Button size="sm" onClick={() => setReceipt(null)}>
                   Next payment
                 </Button>
               </div>
@@ -231,12 +274,11 @@ export function PointOfSale() {
             <>
               <div className="rounded-lg border border-border bg-muted/50 p-3.5">
                 <p className="font-medium">
-                  {selectedVoucher.studentName}{" "}
+                  {student?.name}{" "}
                   <span className="font-normal text-muted-foreground">{selectedVoucher.studentId}</span>
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {selectedVoucher.className}, {selectedVoucher.section} · {selectedVoucher.voucherNumber},{" "}
-                  {selectedVoucher.month}
+                  {where?.className}, {where?.sectionLabel} · {selectedVoucher.voucherNumber}, {monthLabel(selectedVoucher.month)}
                 </p>
               </div>
 
@@ -244,16 +286,28 @@ export function PointOfSale() {
                 {breakdown.map((row) => (
                   <div key={row.label} className="flex items-center justify-between border-b border-border py-2">
                     <dt className="text-muted-foreground">{row.label}</dt>
-                    <dd className="tabular-nums">{formatRupees(row.amount)}</dd>
+                    <dd className="tabular-nums">{row.amount < 0 ? `−${formatRupees(-row.amount)}` : formatRupees(row.amount)}</dd>
                   </div>
                 ))}
                 <div className="flex items-center justify-between pt-3">
                   <dt className="font-semibold">Total payable</dt>
-                  <dd className="text-lg font-semibold tabular-nums">
-                    {formatRupees(selectedVoucher.totalAmount)}
-                  </dd>
+                  <dd className="text-lg font-semibold tabular-nums">{formatRupees(payable)}</dd>
                 </div>
               </dl>
+
+              {otherDues.length ? (
+                <p className="rounded-lg border border-warning/30 bg-warning-tint p-3 text-sm text-warning">
+                  Also owed:{" "}
+                  {otherDues.map((v, i) => (
+                    <span key={v.id}>
+                      {i ? ", " : ""}
+                      <button type="button" onClick={() => handleSelectVoucher(v)} className="rounded font-medium underline outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
+                        {monthLabel(v.month)} {formatRupees(voucherBalance(v))}
+                      </button>
+                    </span>
+                  ))}
+                </p>
+              ) : null}
 
               {isPaid ? (
                 <p className="flex items-center gap-2 rounded-lg border border-success/30 bg-success-tint p-3 text-sm text-success">
@@ -288,6 +342,13 @@ export function PointOfSale() {
                     </div>
                   </fieldset>
 
+                  {fineOwed && canWaive ? (
+                    <label className="flex cursor-pointer items-center gap-2 text-sm">
+                      <Checkbox checked={waiveFine} onCheckedChange={(c) => setWaiveFine(c)} />
+                      Waive the {formatRupees(fineOwed)} late fine
+                    </label>
+                  ) : null}
+
                   <div>
                     <label htmlFor="amount-received" className="mb-1.5 block text-sm font-medium">
                       Amount received (Rs)
@@ -296,30 +357,32 @@ export function PointOfSale() {
                       id="amount-received"
                       type="number"
                       inputMode="numeric"
-                      value={amountReceived}
+                      value={amountReceived ?? String(payable)}
                       onChange={(e) => setAmountReceived(e.target.value)}
                       className="h-11 bg-card text-base font-semibold tabular-nums"
                     />
                     <p className="mt-2 flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm">
-                      <span className="text-muted-foreground">Change to return</span>
-                      <span className="font-semibold tabular-nums">{formatRupees(balanceReturn)}</span>
+                      <span className="text-muted-foreground">{received < payable ? "Still owed after this" : "Change to return"}</span>
+                      <span className="font-semibold tabular-nums">{formatRupees(received < payable ? payable - Math.max(received, 0) : change)}</span>
                     </p>
                   </div>
+
+                  {error ? (
+                    <p role="alert" className="flex items-center gap-2 text-sm text-danger">
+                      <AlertCircle aria-hidden className="size-4 shrink-0" />
+                      {error}
+                    </p>
+                  ) : null}
 
                   <Button
                     size="lg"
                     className="h-12 w-full text-base"
                     onClick={handleRecordPayment}
-                    disabled={readOnly || numericReceived < selectedVoucher.totalAmount}
+                    disabled={readOnly || recording || received <= fine}
                   >
                     <ShieldCheck data-icon="inline-start" className="size-5" />
-                    Record payment of {formatRupees(selectedVoucher.totalAmount)}
+                    {applied < due ? `Record part payment of ${formatRupees(applied + fine)}` : `Record payment of ${formatRupees(payable)}`}
                   </Button>
-                  {numericReceived < selectedVoucher.totalAmount ? (
-                    <p className="-mt-2 text-center text-sm text-muted-foreground">
-                      Enter at least the total payable to record the payment.
-                    </p>
-                  ) : null}
                 </>
               )}
             </>

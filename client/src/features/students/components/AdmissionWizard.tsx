@@ -12,7 +12,7 @@ import { classLabel, sectionLabel, useBranchClasses, useClassSubjects, useReadOn
 import { useCurrentBranch } from "@/hooks/use-session";
 import { formatDate, formatRupees } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { errorMessage, useAdmitStudentMutation, useGetSchoolRulesQuery, useGetSectionsQuery, useGetStudentsQuery } from "@/store/api";
+import { errorMessage, useAdmitStudentMutation, useGetConcessionsQuery, useGetFeePlansQuery, useGetSchoolRulesQuery, useGetSectionsQuery, useGetStudentsQuery } from "@/store/api";
 import type { Guardian, Student } from "@/types";
 import { usePlacement } from "../hooks";
 import { relationLabels } from "../status";
@@ -83,6 +83,9 @@ export function AdmissionWizard() {
   const { data: sections = [] } = useGetSectionsQuery();
   const { data: rules } = useGetSchoolRulesQuery();
   const [admit, { isLoading }] = useAdmitStudentMutation();
+  const { data: plans = [] } = useGetFeePlansQuery();
+  const { data: concessions = [] } = useGetConcessionsQuery();
+  const planTuition = (classId: string) => String(plans.find((p) => p.classId === classId)?.amounts.tuition ?? 3000);
 
   const defaultClass = classes.find((c) => c.name === "Class 9") ?? classes[0];
   const firstSection = (classId: string) =>
@@ -96,7 +99,7 @@ export function AdmissionWizard() {
     classId: defaultClass?.id ?? "",
     sectionId: defaultClass ? firstSection(defaultClass.id) : "",
     admissionDate: todayIso(),
-    monthlyFee: "3000",
+    monthlyFee: defaultClass ? String(plans.find((p) => p.classId === defaultClass.id)?.amounts.tuition ?? 3000) : "3000",
     discountPercent: "0",
     electiveSubjectIds: [],
   }));
@@ -364,7 +367,7 @@ export function AdmissionWizard() {
               label="Class"
               options={classes.map((c) => ({ value: c.id, label: classLabel(c, true) }))}
               value={placement.classId}
-              onValueChange={(v) => setPlacement((p) => ({ ...p, classId: v, sectionId: firstSection(v), electiveSubjectIds: [] }))}
+              onValueChange={(v) => setPlacement((p) => ({ ...p, classId: v, sectionId: firstSection(v), electiveSubjectIds: [], monthlyFee: planTuition(v) }))}
               placeholder="Choose a class"
             />
             <SelectField
@@ -383,6 +386,13 @@ export function AdmissionWizard() {
               inputMode="numeric"
               value={placement.monthlyFee}
               onChange={(e) => setPlacement((p) => ({ ...p, monthlyFee: e.target.value.replace(/\D/g, "") }))}
+            />
+            <SelectField
+              id="admit-concession"
+              label="Concession"
+              options={[{ value: "none", label: "None" }, ...concessions.map((c) => ({ value: String(c.percent), label: `${c.name}, ${c.percent}%` }))]}
+              value={concessions.some((c) => String(c.percent) === placement.discountPercent) ? placement.discountPercent : "none"}
+              onValueChange={(v) => setPlacement((p) => ({ ...p, discountPercent: v === "none" ? "0" : v }))}
             />
             <TextField
               id="admit-discount"

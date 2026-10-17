@@ -6,10 +6,10 @@ import { Save, UserRound } from "lucide-react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { FormStatus, TextField } from "@/components/shared/FormFields";
+import { FormStatus, SelectField, TextField } from "@/components/shared/FormFields";
 import { useReadOnly } from "@/hooks/use-academics";
 import { formatRupees } from "@/lib/format";
-import { errorMessage, useGetStudentsQuery, useUpdateStudentMutation } from "@/store/api";
+import { errorMessage, useGetConcessionsQuery, useGetStudentsQuery, useUpdateStudentMutation } from "@/store/api";
 import type { Guardian, Student } from "@/types";
 import { GuardiansEditor, validateGuardians } from "./GuardiansEditor";
 import { fullName, StudentDetailsFields, validateStudentDetails, type StudentDetails } from "./StudentDetailsFields";
@@ -57,6 +57,7 @@ function EditForm({ student }: { student: Student }) {
   const [discount, setDiscount] = useState(String(student.discountPercent));
   const [error, setError] = useState<string | null>(null);
   const [update, { isLoading }] = useUpdateStudentMutation();
+  const { data: concessions = [] } = useGetConcessionsQuery();
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,7 +117,14 @@ function EditForm({ student }: { student: Student }) {
           </CardTitle>
           <CardDescription className="mt-0.5">Changes apply from the next voucher.</CardDescription>
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <SelectField
+            id="edit-concession"
+            label="Concession"
+            options={[{ value: "none", label: "None" }, ...concessions.map((c) => ({ value: String(c.percent), label: `${c.name}, ${c.percent}%` }))]}
+            value={concessions.some((c) => String(c.percent) === discount) ? discount : "none"}
+            onValueChange={(v) => setDiscount(v === "none" ? "0" : v)}
+          />
           <TextField id="edit-fee" label="Monthly tuition (Rs)" inputMode="numeric" value={monthlyFee} onChange={(e) => setMonthlyFee(e.target.value.replace(/\D/g, ""))} />
           <TextField id="edit-discount" label="Discount (%)" inputMode="numeric" value={discount} onChange={(e) => setDiscount(e.target.value.replace(/[^\d.]/g, ""))} />
           <div className="flex flex-col justify-end rounded-lg bg-muted px-3 py-2 text-sm">

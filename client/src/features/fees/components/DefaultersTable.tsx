@@ -35,11 +35,23 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { StatCard } from "@/components/shared/StatCard";
 import { statusVariant } from "@/lib/status";
 import { useBranchClasses, useReadOnly } from "@/hooks/use-academics";
+import { useCurrentBranch } from "@/hooks/use-session";
 import { useUrlParam } from "@/hooks/use-url-state";
-import { formatRupees } from "@/lib/format";
-import { useGetDefaultersQuery } from "@/store/api";
-import { DefaulterRecord } from "../types";
+import { useToday } from "@/features/attendance/hooks";
+import { usePlacement } from "@/features/students/hooks";
+import { primaryGuardian } from "@/features/students/status";
+import { downloadFile, toCsv } from "@/lib/csv";
+import { daysOverdue, monthLabel, voucherBalance, voucherState } from "@/lib/fees";
+import { formatDate, formatRupees } from "@/lib/format";
+import {
+  useGetFeeRemindersQuery,
+  useGetPaymentsQuery,
+  useGetStudentsQuery,
+  useGetVouchersQuery,
+  useSendFeeRemindersMutation,
+} from "@/store/api";
 
+type Severity = "warning" | "defaulter" | "critical";
 
 const severityOptions = [
   { value: "all", label: "Any time overdue" },
@@ -48,7 +60,7 @@ const severityOptions = [
   { value: "critical", label: "Over 60 days" },
 ];
 
-const severityLabels: Record<DefaulterRecord["status"], string> = {
+const severityLabels: Record<Severity, string> = {
   warning: "Under 30 days",
   defaulter: "30 to 60 days",
   critical: "Over 60 days",
@@ -56,23 +68,57 @@ const severityLabels: Record<DefaulterRecord["status"], string> = {
 
 export function DefaultersTable() {
   const readOnly = useReadOnly();
-  const { data: defaulters = [] } = useGetDefaultersQuery();
+  const today = useToday();
+  const branch = useCurrentBranch();
+  const placement = usePlacement();
+  const { data: vouchers = [] } = useGetVouchersQuery();
+  const { data: students = [] } = useGetStudentsQuery();
+  const { data: payments = [] } = useGetPaymentsQuery();
+  const { data: reminders = [] } = useGetFeeRemindersQuery();
+  const [sendReminders, { isLoading: isBulkSending }] = useSendFeeRemindersMutation();
+  const classes = useBranchClasses();
   const classOptions = [
     { value: "all", label: "All classes" },
-    ...useBranchClasses().map((c) => ({ value: c.name.toLowerCase().replace(/\s+/g, "-"), label: c.name })),
+    ...classes.map((c) => ({ value: c.name.toLowerCase().replace(/\s+/g, "-"), label: c.name })),
   ];
   const [searchQuery, setSearchQuery] = useUrlParam("q", "");
   const [selectedClass, setSelectedClass] = useUrlParam("class", "all");
   const [selectedSeverity, setSelectedSeverity] = useUrlParam("severity", "all");
-  const [sentReminders, setSentReminders] = useState<string[]>([]);
-  const [isBulkSending, setIsBulkSending] = useState(false);
-  const [bulkSentSuccess, setBulkSentSuccess] = useState(false);
+  const [bulkSentSuccess, setBulkSentSuccess] = useState<number | null>(null);
+
+  // One row per student with overdue vouchers at this campus, from the vouchers themselves.
+  const overdue = vouchers.filter((v) => v.branchId === branch?.id && voucherState(v, today) === "overdue");
+  const defaulters = [...new Set(overdue.map((v) => v.studentId))].map((studentId) => {
+    const student = students.find((s) => s.id === studentId);
+    const own = overdue.filter((v) => v.studentId === studentId).sort((a, b) => a.month.localeCompare(b.month));
+    const guardian = student ? primaryGuardian(student) : undefined;
+    const where = student ? placement(student) : undefined;
+    const days = today ? daysOverdue(own[0], today) : 0;
+    const status: Severity = days > 60 ? "critical" : days >= 30 ? "defaulter" : "warning";
+    const lastPayment = payments.filter((p) => p.studentId === studentId && !p.reversed).sort((a, b) => b.at.localeCompare(a.at))[0];
+    return {
+      id: studentId,
+      studentId,
+      studentName: student?.name ?? studentId,
+      className: where?.className ?? "",
+      section: where?.sectionLabel ?? "",
+      guardianName: guardian?.name ?? "—",
+      guardianPhone: guardian?.phone ?? "—",
+      monthsUnpaid: own.map((v) => monthLabel(v.month).replace(/ \d{4}$/, "")),
+      totalArrears: own.reduce((n, v) => n + voucherBalance(v), 0),
+      daysOverdue: days,
+      lastPaymentDate: lastPayment ? formatDate(lastPayment.at.slice(0, 10)) : undefined,
+      status,
+    };
+  }).sort((a, b) => b.daysOverdue - a.daysOverdue);
+  const sentReminders = reminders.filter((r) => r.at.slice(0, 10) === today).map((r) => r.studentId);
 
   const filteredDefaulters = defaulters.filter((student) => {
+    const q = searchQuery.toLowerCase();
     const matchesSearch =
-      student.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.studentId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.guardianName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.studentName.toLowerCase().includes(q) ||
+      student.studentId.toLowerCase().includes(q) ||
+      student.guardianName.toLowerCase().includes(q) ||
       student.guardianPhone.includes(searchQuery);
 
     const matchesClass =
@@ -85,28 +131,28 @@ export function DefaultersTable() {
     return matchesSearch && matchesClass && matchesSeverity;
   });
 
-  const totalOutstanding = defaulters.reduce(
-    (sum, d) => sum + d.totalArrears,
-    0
-  );
-  const criticalCount = defaulters.filter(
-    (d) => d.status === "critical"
-  ).length;
+  const totalOutstanding = defaulters.reduce((sum, d) => sum + d.totalArrears, 0);
+  const criticalCount = defaulters.filter((d) => d.status === "critical").length;
 
   const handleSendReminder = (id: string) => {
     if (sentReminders.includes(id)) return;
-    setSentReminders((prev) => [...prev, id]);
+    sendReminders([id]);
   };
 
-  const handleBulkReminders = () => {
-    setIsBulkSending(true);
-    setTimeout(() => {
-      setIsBulkSending(false);
-      setBulkSentSuccess(true);
-      setSentReminders(defaulters.map((d) => d.id));
-      setTimeout(() => setBulkSentSuccess(false), 4000);
-    }, 1000);
+  const handleBulkReminders = async () => {
+    const ids = filteredDefaulters.map((d) => d.id).filter((id) => !sentReminders.includes(id));
+    const result = await sendReminders(ids);
+    if (!("error" in result)) setBulkSentSuccess(ids.length);
   };
+
+  const exportCsv = () =>
+    downloadFile(
+      `overdue-fees-${branch?.code ?? "campus"}-${today ?? ""}.csv`,
+      toCsv([
+        ["Roll ID", "Student", "Class", "Section", "Guardian", "Mobile", "Months unpaid", "Arrears (Rs)", "Days overdue", "Last paid"],
+        ...filteredDefaulters.map((d) => [d.studentId, d.studentName, d.className, d.section, d.guardianName, d.guardianPhone, d.monthsUnpaid.join(" "), d.totalArrears, d.daysOverdue, d.lastPaymentDate ?? "never"]),
+      ])
+    );
 
   const filteredTotal = filteredDefaulters.reduce((acc, d) => acc + d.totalArrears, 0);
   const isFiltered = searchQuery !== "" || selectedClass !== "all" || selectedSeverity !== "all";
@@ -120,7 +166,7 @@ export function DefaultersTable() {
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard label="Total arrears" value={formatRupees(totalOutstanding)} footer="Outstanding across all classes" />
-        <StatCard label="Students with overdue fees" value={defaulters.length} footer="More than 15 days overdue" />
+        <StatCard label="Students with overdue fees" value={defaulters.length} footer="Past the due date" />
         <StatCard
           label="Over 60 days"
           value={criticalCount}
@@ -143,11 +189,11 @@ export function DefaultersTable() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline">
+              <Button variant="outline" onClick={exportCsv} disabled={filteredDefaulters.length === 0}>
                 <Download data-icon="inline-start" />
                 Export CSV
               </Button>
-              <Button onClick={handleBulkReminders} disabled={readOnly || isBulkSending || sentReminders.length === defaulters.length}>
+              <Button onClick={handleBulkReminders} disabled={readOnly || isBulkSending || filteredDefaulters.every((d) => sentReminders.includes(d.id))}>
                 {isBulkSending ? (
                   <>
                     <Clock data-icon="inline-start" className="motion-safe:animate-spin" />
@@ -156,7 +202,7 @@ export function DefaultersTable() {
                 ) : (
                   <>
                     <Send data-icon="inline-start" />
-                    Send SMS to all
+                    {isFiltered ? "Send SMS to these" : "Send SMS to all"}
                   </>
                 )}
               </Button>
@@ -166,7 +212,7 @@ export function DefaultersTable() {
           {bulkSentSuccess ? (
             <p role="status" className="flex items-center gap-2 rounded-lg border border-success/30 bg-success-tint p-3 text-sm text-success">
               <CheckCircle2 aria-hidden className="size-4 shrink-0" />
-              SMS reminders sent to all {defaulters.length} guardians.
+              SMS reminders sent to {bulkSentSuccess} guardians.
             </p>
           ) : null}
 
@@ -264,7 +310,7 @@ export function DefaultersTable() {
                     </TableCell>
                     <TableCell className="hidden 2xl:table-cell">
                       <p>{student.monthsUnpaid.join(", ")}</p>
-                      <p className="text-xs text-muted-foreground">{student.daysOverdue} days past due</p>
+                      <p className="text-xs text-muted-foreground">{student.daysOverdue} days past the oldest due date</p>
                     </TableCell>
                     <TableCell className="text-right">
                       <p className="font-semibold">{formatRupees(student.totalArrears)}</p>
@@ -284,6 +330,7 @@ export function DefaultersTable() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleSendReminder(student.id)}
+                          disabled={readOnly}
                           aria-label={`Send SMS reminder to ${student.guardianName}`}
                         >
                           <MessageSquare />

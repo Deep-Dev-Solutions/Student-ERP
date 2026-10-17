@@ -1,5 +1,6 @@
 import { createApi, fakeBaseQuery } from "@reduxjs/toolkit/query/react";
 import { db, mockActor, type MockDb } from "@/mocks/db";
+import { buildVoucher, feeStanding, settleVoucher, voucherBalance } from "@/lib/fees";
 import type {
   AcademicSession,
   Branch,
@@ -7,6 +8,11 @@ import type {
   ClassSubject,
   FeeVoucher,
   PaymentInput,
+  Payment,
+  FeeHead,
+  FeePlan,
+  Concession,
+  DayClosing,
   RolePermissionsState,
   SchoolClass,
   SchoolRules,
@@ -32,8 +38,8 @@ import type {
  */
 
 type Tag =
-  | "Voucher" | "Defaulter" | "Session" | "Branch" | "User" | "Class" | "Section"
-  | "Subject" | "ClassSubject" | "Permissions" | "Rules" | "Campus" | "Student" | "StudentActivity" | "Register" | "UnlockRequest" | "StaffAttendance";
+  | "Voucher" | "Session" | "Branch" | "User" | "Class" | "Section"
+  | "Subject" | "ClassSubject" | "Permissions" | "Rules" | "Campus" | "Student" | "StudentActivity" | "Register" | "UnlockRequest" | "StaffAttendance" | "Payment" | "FeeStructure" | "DayClosing" | "FeeReminder";
 
 /** A read endpoint that returns one collection from the mock database. */
 const read = <K extends keyof MockDb>(key: K, tag?: Tag) => ({
@@ -102,6 +108,12 @@ function createStudent(input: AdmissionInput, index = 0): Student {
   };
 }
 
+/** Recomputes balance and fee status for students whose vouchers changed. */
+function syncFees(studentIds: string[]) {
+  const ids = new Set(studentIds);
+  db.students = db.students.map((s) => (ids.has(s.id) ? { ...s, ...feeStanding(s.id, db.vouchers) } : s));
+}
+
 /** Replaces one student record. */
 const putStudent = (student: Student) => {
   db.students = db.students.map((s) => (s.id === student.id ? student : s));
@@ -111,7 +123,7 @@ const putStudent = (student: Student) => {
 export const api = createApi({
   reducerPath: "api",
   baseQuery: fakeBaseQuery<{ status: number; message: string }>(),
-  tagTypes: ["Voucher", "Defaulter", "Session", "Branch", "User", "Class", "Section", "Subject", "ClassSubject", "Permissions", "Rules", "Campus", "Student", "StudentActivity", "Register", "UnlockRequest", "StaffAttendance"],
+  tagTypes: ["Voucher", "Session", "Branch", "User", "Class", "Section", "Subject", "ClassSubject", "Permissions", "Rules", "Campus", "Student", "StudentActivity", "Register", "UnlockRequest", "StaffAttendance", "Payment", "FeeStructure", "DayClosing", "FeeReminder"],
   // Demo data never goes stale; keep it for the whole visit.
   keepUnusedDataFor: 60 * 60 * 24,
   endpoints: (build) => ({
@@ -124,7 +136,12 @@ export const api = createApi({
     getUnlockRequests: build.query<MockDb["unlockRequests"], void>(read("unlockRequests", "UnlockRequest")),
     getStaffAttendance: build.query<MockDb["staffAttendance"], void>(read("staffAttendance", "StaffAttendance")),
     getVouchers: build.query<MockDb["vouchers"], void>(read("vouchers", "Voucher")),
-    getDefaulters: build.query<MockDb["defaulters"], void>(read("defaulters", "Defaulter")),
+    getPayments: build.query<MockDb["payments"], void>(read("payments", "Payment")),
+    getFeeHeads: build.query<MockDb["feeHeads"], void>(read("feeHeads", "FeeStructure")),
+    getFeePlans: build.query<MockDb["feePlans"], void>(read("feePlans", "FeeStructure")),
+    getConcessions: build.query<MockDb["concessions"], void>(read("concessions", "FeeStructure")),
+    getDayClosings: build.query<MockDb["dayClosings"], void>(read("dayClosings", "DayClosing")),
+    getFeeReminders: build.query<MockDb["feeReminders"], void>(read("feeReminders", "FeeReminder")),
     getStaff: build.query<MockDb["staff"], void>(read("staff")),
     getAllocations: build.query<MockDb["allocations"], void>(read("allocations")),
     getTeachers: build.query<MockDb["teachers"], void>(read("teachers")),
@@ -144,17 +161,158 @@ export const api = createApi({
     getAlternativeQuestions: build.query<MockDb["alternativeQuestions"], void>(read("alternativeQuestions")),
     getTeacherDay: build.query<MockDb["teacherDay"], void>(read("teacherDay")),
 
-    /** Records a full payment against a voucher and marks it paid. */
-    recordPayment: build.mutation<FeeVoucher, PaymentInput>({
-      queryFn: ({ voucherId }) => {
+    /** Records a full or partial payment against a voucher, with any late fine on top. */
+    recordPayment: build.mutation<Payment, PaymentInput>({
+      queryFn: ({ voucherId, amount, method, lateFine }) => {
         const voucher = db.vouchers.find((v) => v.id === voucherId);
         if (!voucher) return fail(404, "Voucher not found");
-        if (voucher.status === "paid") return fail(409, "This voucher is already paid");
-        const paid: FeeVoucher = { ...voucher, status: "paid" };
-        db.vouchers = db.vouchers.map((v) => (v.id === voucherId ? paid : v));
-        return { data: paid };
+        if (voucher.status === "cancelled") return fail(409, "This voucher was cancelled");
+        const due = voucherBalance(voucher);
+        if (due === 0) return fail(409, "This voucher is already paid");
+        if (!Number.isInteger(amount) || amount <= 0) return fail(400, "Enter the amount received in whole rupees");
+        if (amount > due) return fail(400, `Only Rs ${due.toLocaleString("en-US")} is due on this voucher`);
+        const payment: Payment = {
+          id: newId("pay"),
+          receiptNo: `REC-${String(db.payments.length + 1).padStart(5, "0")}`,
+          voucherId,
+          studentId: voucher.studentId,
+          branchId: voucher.branchId,
+          amount,
+          lateFine: Math.max(0, lateFine),
+          method,
+          at: new Date().toISOString(),
+          by: mockActor(),
+        };
+        db.payments = [...db.payments, payment];
+        db.vouchers = db.vouchers.map((v) => (v.id === voucherId ? settleVoucher(v, db.payments) : v));
+        syncFees([voucher.studentId]);
+        logActivity(voucher.studentId, `Paid Rs ${amount.toLocaleString("en-US")}${payment.lateFine ? ` plus Rs ${payment.lateFine.toLocaleString("en-US")} late fine` : ""} in ${method}, receipt ${payment.receiptNo}.`);
+        return { data: payment };
       },
-      invalidatesTags: ["Voucher"],
+      invalidatesTags: ["Voucher", "Payment", "Student", "StudentActivity"],
+    }),
+    /** Undoes a payment, with a reason. The receipt stays on record, marked reversed. */
+    reversePayment: build.mutation<null, { id: string; reason: string }>({
+      queryFn: ({ id, reason }) => {
+        if (reason.trim().length < 10) return fail(400, "Explain why the payment is being reversed.");
+        const payment = db.payments.find((p) => p.id === id);
+        if (!payment) return fail(404, "Payment not found");
+        if (payment.reversed) return fail(409, "This payment was already reversed");
+        if (db.dayClosings.some((c) => c.branchId === payment.branchId && c.date === payment.at.slice(0, 10)))
+          return fail(409, "That day is closed. Record a correction on today's date instead.");
+        db.payments = db.payments.map((p) => (p.id === id ? { ...p, reversed: { at: new Date().toISOString(), by: mockActor(), reason: reason.trim() } } : p));
+        db.vouchers = db.vouchers.map((v) => (v.id === payment.voucherId ? settleVoucher(v, db.payments) : v));
+        syncFees([payment.studentId]);
+        logActivity(payment.studentId, `Receipt ${payment.receiptNo} reversed: ${reason.trim()}`);
+        return { data: null };
+      },
+      invalidatesTags: ["Voucher", "Payment", "Student", "StudentActivity"],
+    }),
+    /** Creates a month's vouchers for the students given; students who already have one are skipped. */
+    generateVouchers: build.mutation<{ created: number; skipped: number }, { month: string; dueDate: string; studentIds: string[] }>({
+      queryFn: ({ month, dueDate, studentIds }) => {
+        if (!/^\d{4}-\d{2}$/.test(month)) return fail(400, "Choose a month");
+        if (!dueDate.startsWith(month)) return fail(400, "The due date should fall in the billing month");
+        const issueDate = new Date().toISOString().slice(0, 10);
+        let skipped = 0;
+        const created: FeeVoucher[] = [];
+        for (const id of studentIds) {
+          const student = db.students.find((s) => s.id === id && s.enrollment === "active");
+          if (!student || db.vouchers.some((v) => v.studentId === id && v.month === month && v.status !== "cancelled")) {
+            skipped++;
+            continue;
+          }
+          const plan = db.feePlans.find((p) => p.classId === student.classId);
+          const voucher = buildVoucher(student, month, plan, db.feeHeads, { issueDate, dueDate });
+          created.push(db.vouchers.some((v) => v.id === voucher.id) ? { ...voucher, id: newId("vch") } : voucher);
+        }
+        db.vouchers = [...db.vouchers, ...created];
+        syncFees(created.map((v) => v.studentId));
+        return { data: { created: created.length, skipped } };
+      },
+      invalidatesTags: ["Voucher", "Student"],
+    }),
+    cancelVoucher: build.mutation<null, { id: string; reason: string }>({
+      queryFn: ({ id, reason }) => {
+        if (reason.trim().length < 5) return fail(400, "Give a reason for cancelling.");
+        const voucher = db.vouchers.find((v) => v.id === id);
+        if (!voucher) return fail(404, "Voucher not found");
+        if (voucher.paidAmount > 0) return fail(409, "Payments were taken on this voucher. Reverse them first.");
+        db.vouchers = db.vouchers.map((v) => (v.id === id ? { ...v, status: "cancelled", cancelled: { at: new Date().toISOString(), by: mockActor(), reason: reason.trim() } } : v));
+        syncFees([voucher.studentId]);
+        logActivity(voucher.studentId, `Voucher ${voucher.voucherNumber} cancelled: ${reason.trim()}`);
+        return { data: null };
+      },
+      invalidatesTags: ["Voucher", "Student", "StudentActivity"],
+    }),
+    saveFeeHead: build.mutation<FeeHead, FeeHead>({
+      queryFn: (head) => {
+        if (!head.name.trim()) return fail(400, "Give the fee head a name");
+        if (db.feeHeads.some((h) => h.id !== head.id && h.name.toLowerCase() === head.name.trim().toLowerCase()))
+          return fail(409, `${head.name} already exists`);
+        const saved = { ...head, name: head.name.trim() };
+        db.feeHeads = db.feeHeads.some((h) => h.id === head.id) ? db.feeHeads.map((h) => (h.id === head.id ? saved : h)) : [...db.feeHeads, saved];
+        return { data: saved };
+      },
+      invalidatesTags: ["FeeStructure"],
+    }),
+    removeFeeHead: build.mutation<null, string>({
+      queryFn: (id) => {
+        if (id === "tuition") return fail(400, "Tuition can't be removed");
+        db.feeHeads = db.feeHeads.filter((h) => h.id !== id);
+        db.feePlans = db.feePlans.map((p) => {
+          const { [id]: _removed, ...amounts } = p.amounts;
+          void _removed;
+          return { ...p, amounts };
+        });
+        return { data: null };
+      },
+      invalidatesTags: ["FeeStructure"],
+    }),
+    saveFeePlan: build.mutation<FeePlan, FeePlan>({
+      queryFn: (plan) => {
+        if (Object.values(plan.amounts).some((a) => !Number.isInteger(a) || a < 0)) return fail(400, "Amounts must be whole rupees");
+        db.feePlans = db.feePlans.some((p) => p.id === plan.id) ? db.feePlans.map((p) => (p.id === plan.id ? plan : p)) : [...db.feePlans, plan];
+        return { data: plan };
+      },
+      invalidatesTags: ["FeeStructure"],
+    }),
+    saveConcession: build.mutation<Concession, Concession>({
+      queryFn: (c) => {
+        if (!c.name.trim()) return fail(400, "Give the concession a name");
+        if (!(c.percent > 0 && c.percent <= 100)) return fail(400, "The discount must be between 1 and 100%");
+        const saved = { ...c, name: c.name.trim() };
+        db.concessions = db.concessions.some((x) => x.id === c.id) ? db.concessions.map((x) => (x.id === c.id ? saved : x)) : [...db.concessions, saved];
+        return { data: saved };
+      },
+      invalidatesTags: ["FeeStructure"],
+    }),
+    removeConcession: build.mutation<null, string>({
+      queryFn: (id) => {
+        db.concessions = db.concessions.filter((c) => c.id !== id);
+        return { data: null };
+      },
+      invalidatesTags: ["FeeStructure"],
+    }),
+    sendFeeReminders: build.mutation<null, string[]>({
+      queryFn: (studentIds) => {
+        const at = new Date().toISOString();
+        db.feeReminders = [...db.feeReminders, ...studentIds.map((studentId) => ({ id: newId("rem"), studentId, at, by: mockActor() }))];
+        for (const id of studentIds) logActivity(id, "Fee reminder sent by SMS.");
+        return { data: null };
+      },
+      invalidatesTags: ["FeeReminder", "StudentActivity"],
+    }),
+    /** Closes a day's collections at a campus. After this, that day's payments can't be reversed. */
+    closeDay: build.mutation<DayClosing, Omit<DayClosing, "id" | "closedAt" | "closedBy">>({
+      queryFn: (input) => {
+        if (db.dayClosings.some((c) => c.branchId === input.branchId && c.date === input.date)) return fail(409, "This day is already closed");
+        if (!Number.isInteger(input.cashCounted) || input.cashCounted < 0) return fail(400, "Enter the cash counted in whole rupees");
+        const closing: DayClosing = { ...input, id: newId("close"), closedAt: new Date().toISOString(), closedBy: mockActor() };
+        db.dayClosings = [...db.dayClosings, closing];
+        return { data: closing };
+      },
+      invalidatesTags: ["DayClosing"],
     }),
 
     // Attendance -------------------------------------------------------------
@@ -604,7 +762,8 @@ export const api = createApi({
  */
 export const prefilledReads = {
   getUsers: "users", getBranches: "branches", getSessions: "sessions", getStudents: "students",
-  getStudentActivity: "studentActivity", getRegisters: "registers", getUnlockRequests: "unlockRequests", getStaffAttendance: "staffAttendance", getVouchers: "vouchers", getDefaulters: "defaulters",
+  getStudentActivity: "studentActivity", getRegisters: "registers", getUnlockRequests: "unlockRequests", getStaffAttendance: "staffAttendance", getVouchers: "vouchers", getPayments: "payments", getFeeHeads: "feeHeads", getFeePlans: "feePlans",
+  getConcessions: "concessions", getDayClosings: "dayClosings", getFeeReminders: "feeReminders",
   getStaff: "staff", getAllocations: "allocations", getTeachers: "teachers",
   getPayroll: "payroll", getExams: "exams", getMarks: "marks", getTeacherMarks: "teacherMarks",
   getCampusProfile: "campusProfile", getRolePermissions: "rolePermissions", getSchoolRules: "schoolRules",
@@ -642,7 +801,22 @@ export const {
   useMarkAlertsSentMutation,
   useSaveStaffAttendanceMutation,
   useGetVouchersQuery,
-  useGetDefaultersQuery,
+  useGetPaymentsQuery,
+  useGetFeeHeadsQuery,
+  useGetFeePlansQuery,
+  useGetConcessionsQuery,
+  useGetDayClosingsQuery,
+  useGetFeeRemindersQuery,
+  useGenerateVouchersMutation,
+  useCancelVoucherMutation,
+  useReversePaymentMutation,
+  useSaveFeeHeadMutation,
+  useRemoveFeeHeadMutation,
+  useSaveFeePlanMutation,
+  useSaveConcessionMutation,
+  useRemoveConcessionMutation,
+  useSendFeeRemindersMutation,
+  useCloseDayMutation,
   useGetStaffQuery,
   useGetAllocationsQuery,
   useGetTeachersQuery,

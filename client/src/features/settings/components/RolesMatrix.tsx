@@ -48,6 +48,12 @@ const permissionSections: {
         module: "financial",
       },
       {
+        id: "fin_manage_fees",
+        name: "Set fee plans and generate vouchers",
+        description: "Change fee heads, class fee plans and concessions, and issue or cancel monthly vouchers",
+        module: "financial",
+      },
+      {
         id: "fin_view_defaulters",
         name: "View overdue fees and defaulters",
         description: "View aging debtor accounts and overdue payment summaries",

@@ -1,1 +1,1 @@
-export type { PaymentMethod, FeeVoucher, DefaulterRecord } from "@/types/fees";
+export type { PaymentMethod, FeeVoucher, Payment, FeeHead, FeePlan, Concession, DayClosing } from "@/types/fees";

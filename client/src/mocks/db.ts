@@ -5,7 +5,8 @@
 import { registers, staffAttendance, unlockRequests } from "./registers";
 import { branches, sessions } from "./branches";
 import { exams, marks, teacherMarks } from "./exams";
-import { defaulters, vouchers } from "./fees";
+import { concessions, dayClosings, feeHeads, feePlans, feeReminders, payments, vouchers } from "./fees";
+import { feeStanding } from "@/lib/fees";
 import { alternativeQuestions, chapters, paperQuestions } from "./paper";
 import { campusProfile, rolePermissions, schoolRules } from "./settings";
 import { allocations, payroll, staff, teachers } from "./staff";
@@ -18,13 +19,19 @@ export const db = {
   users,
   branches,
   sessions,
-  students,
+  // Balances and fee status follow the vouchers, the way the API will keep them.
+  students: students.map((s) => ({ ...s, ...feeStanding(s.id, vouchers) })),
   studentActivity,
   registers,
   unlockRequests,
   staffAttendance,
   vouchers,
-  defaulters,
+  payments,
+  feeHeads,
+  feePlans,
+  concessions,
+  dayClosings,
+  feeReminders,
   staff,
   allocations,
   teachers,

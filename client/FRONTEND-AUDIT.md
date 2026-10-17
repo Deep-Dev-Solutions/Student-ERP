@@ -1,6 +1,6 @@
 # DeepDev ERP frontend audit, against the reference checklist
 
-> **Progress, 15 Oct 2026:** Phases A and B are done (Phase A except the visual parts of A9). Phase C is done. Phase D is done except D6's on-screen month view. B3, B5 and B10 are fixed. See the checkboxes in §8. B1 (repeat payment) and B7 (shortcuts open the wrong tab) are fixed. Rendered markup is unchanged from the redesign, checked by a DOM diff of 25 screens at 1440 and 390px.
+> **Progress, 17 Oct 2026:** Phases A and B are done (Phase A except the visual parts of A9). Phase C is done. Phase D is done except D6's on-screen month view. Phase E is done; B1 is also fixed properly through payment records. B3, B5 and B10 are fixed. See the checkboxes in §8. B1 (repeat payment) and B7 (shortcuts open the wrong tab) are fixed. Rendered markup is unchanged from the redesign, checked by a DOM diff of 25 screens at 1440 and 390px.
 
 *Read-only, `client/` on `feat/ui-redesign` at `0fb81aa`, 13 Oct 2026. I read every UI file under `src/` plus `package.json`, `next.config.ts`, `tsconfig.json`, `eslint.config.mjs`, `components.json` and `globals.css`. There is no Tailwind config file, because Tailwind v4 is configured in CSS. I ran `npx tsc --noEmit` and `npx eslint` without `--fix`.*
 
@@ -393,12 +393,12 @@ All targets exist. There are no dead nav links.
 - [x] Extra: marking works offline. Unsent registers are kept on the device and submitted when the connection is back.
 
 **Phase E: Fees (P1)**
-- [ ] E1. Fee structure (heads, class plans, concessions, late-fine rule).
-- [ ] E2. Voucher generation with preview; voucher list with reprint and cancel; printable voucher.
-- [ ] E3. Counter: partial payment, receipt view and print.
-- [ ] E4. Payment reversal with a reason.
-- [ ] E5. Defaulters: aging columns, export.
-- [ ] E6. Daily closing report.
+- [x] E1. Fee structure (heads, class plans, concessions, late-fine rule).
+- [x] E2. Voucher generation with preview; voucher list with reprint and cancel; printable voucher (a three-copy bank challan, single or bulk).
+- [x] E3. Counter: partial payment, receipt view and print. Includes an automatic late fine that can be waived.
+- [x] E4. Payment reversal with a reason.
+- [x] E5. Defaulters: aging columns, export. Now worked out from overdue vouchers.
+- [x] E6. Daily closing report. Includes the cash count, closing the day, and a CSV report.
 
 **Phase F: Staff and payroll (P1)**
 - [ ] F1. Add or edit staff; staff profile.
