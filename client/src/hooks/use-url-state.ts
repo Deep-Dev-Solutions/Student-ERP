@@ -10,6 +10,22 @@ import { useCallback, useSyncExternalStore } from "react";
 
 const URL_CHANGE = "dd:urlchange";
 
+// Next.js links change the URL with history.pushState/replaceState, which
+// fire no event. Wrap them once so a link to the same page with new query
+// parameters updates tabs and filters. The event is deferred because Next
+// calls these while React is committing, when updates can't be scheduled.
+if (typeof window !== "undefined" && !(window as { __ddHistoryPatched?: boolean }).__ddHistoryPatched) {
+  (window as { __ddHistoryPatched?: boolean }).__ddHistoryPatched = true;
+  for (const method of ["pushState", "replaceState"] as const) {
+    const original = window.history[method];
+    window.history[method] = function (this: History, ...args: Parameters<History["pushState"]>) {
+      const result = original.apply(this, args);
+      queueMicrotask(() => window.dispatchEvent(new Event(URL_CHANGE)));
+      return result;
+    };
+  }
+}
+
 function subscribe(onChange: () => void) {
   window.addEventListener("popstate", onChange);
   window.addEventListener(URL_CHANGE, onChange);

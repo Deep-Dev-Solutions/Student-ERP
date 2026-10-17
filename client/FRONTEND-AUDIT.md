@@ -1,6 +1,6 @@
 # DeepDev ERP frontend audit, against the reference checklist
 
-> **Progress, 15 Oct 2026:** Phases A and B are done (Phase A except the visual parts of A9). Phase C is done except C6 (import) and the C7 printouts. See the checkboxes in §8. B1 (repeat payment) and B7 (shortcuts open the wrong tab) are fixed. Rendered markup is unchanged from the redesign, checked by a DOM diff of 25 screens at 1440 and 390px.
+> **Progress, 15 Oct 2026:** Phases A and B are done (Phase A except the visual parts of A9). Phase C is done except C6 (import) and the C7 printouts. Phase D is done except D6's on-screen month view. B3, B5 and B10 are fixed. See the checkboxes in §8. B1 (repeat payment) and B7 (shortcuts open the wrong tab) are fixed. Rendered markup is unchanged from the redesign, checked by a DOM diff of 25 screens at 1440 and 390px.
 
 *Read-only, `client/` on `feat/ui-redesign` at `0fb81aa`, 13 Oct 2026. I read every UI file under `src/` plus `package.json`, `next.config.ts`, `tsconfig.json`, `eslint.config.mjs`, `components.json` and `globals.css`. There is no Tailwind config file, because Tailwind v4 is configured in CSS. I ran `npx tsc --noEmit` and `npx eslint` without `--fix`.*
 
@@ -384,12 +384,13 @@ All targets exist. There are no dead nav links.
 - [ ] C7. Printouts (admission form, student list); wire the row actions and export. **Partly done:** row actions and CSV export work; the printouts are not built.
 
 **Phase D: Attendance (P1)**
-- [ ] D1. Class, section, date and subject drive the roster (fixes B3 and B5); all-present by default; keyboard shortcuts (P/A/L, arrow keys).
-- [ ] D2. Locked registers read-only in Mark (fixes B10); unlock request with a reason and role check; change log.
-- [ ] D3. Absentees taken from the submitted register; dynamic message template.
-- [ ] D4. Holidays block marking.
-- [ ] D5. Staff attendance.
-- [ ] D6. Monthly sheet.
+- [x] D1. Class, section, date and subject drive the roster (fixes B3 and B5); all-present by default; keyboard shortcuts (P/A/L, arrow keys).
+- [x] D2. Locked registers read-only in Mark (fixes B10); unlock request with a reason and role check; change log.
+- [x] D3. Absentees taken from the submitted register; dynamic message template.
+- [x] D4. Holidays block marking. Sundays are blocked too.
+- [x] D5. Staff attendance. It's a Staff tab on Attendance.
+- [ ] D6. Monthly sheet. **Partly done:** the CSV export works; there's no on-screen month view yet.
+- [x] Extra: marking works offline. Unsent registers are kept on the device and submitted when the connection is back.
 
 **Phase E: Fees (P1)**
 - [ ] E1. Fee structure (heads, class plans, concessions, late-fine rule).

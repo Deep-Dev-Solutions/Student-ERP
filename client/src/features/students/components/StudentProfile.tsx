@@ -77,9 +77,9 @@ const documentKinds: Record<StudentDocument["kind"], string> = {
 
 const genderLabels: Record<Student["gender"], string> = { male: "Male", female: "Female", other: "Other" };
 
-function Detail({ label, children }: { label: string; children: React.ReactNode }) {
+function Detail({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <div>
+    <div className={className}>
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="mt-0.5 font-medium">{children || "—"}</dd>
     </div>
@@ -310,9 +310,9 @@ function OverviewTab({ student, canManage, onAction }: { student: Student; canMa
           <Detail label="Blood group">{student.bloodGroup}</Detail>
           <Detail label="Religion">{student.religion}</Detail>
           <Detail label="Admitted on">{formatDate(student.admissionDate)}</Detail>
-          <div className="sm:col-span-2">
-            <Detail label="Address">{student.address}</Detail>
-          </div>
+          <Detail label="Address" className="sm:col-span-2">
+            {student.address}
+          </Detail>
           <Detail label="Previous school">{student.previousSchool}</Detail>
         </dl>
       </SectionCard>
@@ -454,8 +454,8 @@ function FeesTab({ student }: { student: Student }) {
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead className="pl-5">Month</TableHead>
-                <TableHead className="hidden sm:table-cell">Voucher</TableHead>
-                <TableHead className="hidden md:table-cell">Due</TableHead>
+                <TableHead className="hidden lg:table-cell">Voucher</TableHead>
+                <TableHead className="hidden xl:table-cell">Due</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead className="pr-5">Status</TableHead>
               </TableRow>
@@ -464,8 +464,8 @@ function FeesTab({ student }: { student: Student }) {
               {mine.map((v) => (
                 <TableRow key={v.id}>
                   <TableCell className="pl-5 font-medium">{v.month}</TableCell>
-                  <TableCell className="hidden text-muted-foreground sm:table-cell">{v.voucherNumber}</TableCell>
-                  <TableCell className="hidden md:table-cell">{v.dueDate}</TableCell>
+                  <TableCell className="hidden text-muted-foreground lg:table-cell">{v.voucherNumber}</TableCell>
+                  <TableCell className="hidden xl:table-cell">{v.dueDate}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatRupees(v.totalAmount)}</TableCell>
                   <TableCell className="pr-5">
                     <Badge variant={statusVariant(v.status)}>{v.status === "partial" ? "Partly paid" : v.status[0].toUpperCase() + v.status.slice(1)}</Badge>

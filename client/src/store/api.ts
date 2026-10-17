@@ -18,6 +18,10 @@ import type {
   AdmissionInput,
   Guardian,
   Withdrawal,
+  AttendanceRegister,
+  RegisterChange,
+  StaffAttendanceDay,
+  UnlockRequest,
 } from "@/types";
 
 /*
@@ -29,7 +33,7 @@ import type {
 
 type Tag =
   | "Voucher" | "Defaulter" | "Session" | "Branch" | "User" | "Class" | "Section"
-  | "Subject" | "ClassSubject" | "Permissions" | "Rules" | "Campus" | "Student" | "StudentActivity";
+  | "Subject" | "ClassSubject" | "Permissions" | "Rules" | "Campus" | "Student" | "StudentActivity" | "Register" | "UnlockRequest" | "StaffAttendance";
 
 /** A read endpoint that returns one collection from the mock database. */
 const read = <K extends keyof MockDb>(key: K, tag?: Tag) => ({
@@ -107,7 +111,7 @@ const putStudent = (student: Student) => {
 export const api = createApi({
   reducerPath: "api",
   baseQuery: fakeBaseQuery<{ status: number; message: string }>(),
-  tagTypes: ["Voucher", "Defaulter", "Session", "Branch", "User", "Class", "Section", "Subject", "ClassSubject", "Permissions", "Rules", "Campus", "Student", "StudentActivity"],
+  tagTypes: ["Voucher", "Defaulter", "Session", "Branch", "User", "Class", "Section", "Subject", "ClassSubject", "Permissions", "Rules", "Campus", "Student", "StudentActivity", "Register", "UnlockRequest", "StaffAttendance"],
   // Demo data never goes stale; keep it for the whole visit.
   keepUnusedDataFor: 60 * 60 * 24,
   endpoints: (build) => ({
@@ -116,10 +120,9 @@ export const api = createApi({
     getSessions: build.query<MockDb["sessions"], void>(read("sessions", "Session")),
     getStudents: build.query<MockDb["students"], void>(read("students", "Student")),
     getStudentActivity: build.query<MockDb["studentActivity"], void>(read("studentActivity", "StudentActivity")),
-    getAttendanceRoster: build.query<MockDb["attendanceRoster"], void>(read("attendanceRoster")),
-    getClassLocks: build.query<MockDb["classLocks"], void>(read("classLocks")),
-    getAbsentees: build.query<MockDb["absentees"], void>(read("absentees")),
-    getTeacherRoster: build.query<MockDb["teacherRoster"], void>(read("teacherRoster")),
+    getRegisters: build.query<MockDb["registers"], void>(read("registers", "Register")),
+    getUnlockRequests: build.query<MockDb["unlockRequests"], void>(read("unlockRequests", "UnlockRequest")),
+    getStaffAttendance: build.query<MockDb["staffAttendance"], void>(read("staffAttendance", "StaffAttendance")),
     getVouchers: build.query<MockDb["vouchers"], void>(read("vouchers", "Voucher")),
     getDefaulters: build.query<MockDb["defaulters"], void>(read("defaulters", "Defaulter")),
     getStaff: build.query<MockDb["staff"], void>(read("staff")),
@@ -152,6 +155,126 @@ export const api = createApi({
         return { data: paid };
       },
       invalidatesTags: ["Voucher"],
+    }),
+
+    // Attendance -------------------------------------------------------------
+    /** Saves a register. Resubmitting a reopened register records each change and locks it again. */
+    submitRegister: build.mutation<
+      AttendanceRegister,
+      Pick<AttendanceRegister, "branchId" | "classId" | "sectionId" | "date" | "subjectId" | "marks">
+    >({
+      queryFn: (input) => {
+        const id = input.subjectId ? `${input.sectionId}:${input.date}:${input.subjectId}` : `${input.sectionId}:${input.date}`;
+        const existing = db.registers.find((r) => r.id === id);
+        const now = new Date().toISOString();
+        if (existing?.lockedAt && !existing.reopened) return fail(409, "This register is locked. Ask a branch admin to reopen it.");
+        if (!existing) {
+          const created: AttendanceRegister = { ...input, id, submittedAt: now, submittedBy: mockActor(), changes: [] };
+          db.registers = [...db.registers, created];
+          return { data: created };
+        }
+        const changes: RegisterChange[] = Object.entries(input.marks)
+          .filter(([studentId, mark]) => existing.marks[studentId] && existing.marks[studentId].status !== mark.status)
+          .map(([studentId, mark]) => ({
+            at: now,
+            by: mockActor(),
+            studentId,
+            from: existing.marks[studentId].status,
+            to: mark.status,
+            reason: existing.reopened?.reason ?? "",
+          }));
+        const updated: AttendanceRegister = {
+          ...existing,
+          marks: input.marks,
+          submittedAt: now,
+          submittedBy: mockActor(),
+          changes: [...existing.changes, ...changes],
+          ...(existing.reopened ? { lockedAt: now, lockedBy: mockActor(), reopened: undefined } : {}),
+        };
+        db.registers = db.registers.map((r) => (r.id === id ? updated : r));
+        return { data: updated };
+      },
+      invalidatesTags: ["Register"],
+    }),
+    lockRegisters: build.mutation<null, string[]>({
+      queryFn: (ids) => {
+        const now = new Date().toISOString();
+        db.registers = db.registers.map((r) =>
+          ids.includes(r.id) && !r.lockedAt ? { ...r, lockedAt: now, lockedBy: mockActor(), reopened: undefined } : r
+        );
+        return { data: null };
+      },
+      invalidatesTags: ["Register"],
+    }),
+    /** Reopens a locked register so it can be corrected. Only branch admins; a reason is required. */
+    unlockRegister: build.mutation<null, { id: string; reason: string }>({
+      queryFn: ({ id, reason }) => {
+        if (reason.trim().length < 10) return fail(400, "Explain why the register needs changing (at least a short sentence).");
+        const register = db.registers.find((r) => r.id === id);
+        if (!register) return fail(404, "Register not found");
+        const now = new Date().toISOString();
+        db.registers = db.registers.map((r) =>
+          r.id === id ? { ...r, lockedAt: undefined, lockedBy: undefined, reopened: { at: now, by: mockActor(), reason: reason.trim() } } : r
+        );
+        db.unlockRequests = db.unlockRequests.map((u) =>
+          u.registerId === id && u.status === "pending" ? { ...u, status: "approved", decidedBy: mockActor(), decidedAt: now } : u
+        );
+        return { data: null };
+      },
+      invalidatesTags: ["Register", "UnlockRequest"],
+    }),
+    requestUnlock: build.mutation<UnlockRequest, { registerId: string; reason: string }>({
+      queryFn: ({ registerId, reason }) => {
+        if (reason.trim().length < 10) return fail(400, "Explain what needs changing (at least a short sentence).");
+        if (db.unlockRequests.some((u) => u.registerId === registerId && u.status === "pending"))
+          return fail(409, "A request to reopen this register is already waiting.");
+        const request: UnlockRequest = {
+          id: newId("unlock"),
+          registerId,
+          reason: reason.trim(),
+          requestedBy: mockActor(),
+          requestedAt: new Date().toISOString(),
+          status: "pending",
+        };
+        db.unlockRequests = [request, ...db.unlockRequests];
+        return { data: request };
+      },
+      invalidatesTags: ["UnlockRequest"],
+    }),
+    decideUnlock: build.mutation<null, { id: string; approve: boolean }>({
+      queryFn: ({ id, approve }) => {
+        const request = db.unlockRequests.find((u) => u.id === id);
+        if (!request || request.status !== "pending") return fail(404, "This request was already handled");
+        const now = new Date().toISOString();
+        db.unlockRequests = db.unlockRequests.map((u) =>
+          u.id === id ? { ...u, status: approve ? "approved" : "declined", decidedBy: mockActor(), decidedAt: now } : u
+        );
+        if (approve) {
+          db.registers = db.registers.map((r) =>
+            r.id === request.registerId
+              ? { ...r, lockedAt: undefined, lockedBy: undefined, reopened: { at: now, by: mockActor(), reason: `${request.reason} (requested by ${request.requestedBy})` } }
+              : r
+          );
+        }
+        return { data: null };
+      },
+      invalidatesTags: ["Register", "UnlockRequest"],
+    }),
+    markAlertsSent: build.mutation<null, string[]>({
+      queryFn: (ids) => {
+        const now = new Date().toISOString();
+        db.registers = db.registers.map((r) => (ids.includes(r.id) ? { ...r, alertsSentAt: now } : r));
+        return { data: null };
+      },
+      invalidatesTags: ["Register"],
+    }),
+    saveStaffAttendance: build.mutation<StaffAttendanceDay, Pick<StaffAttendanceDay, "branchId" | "date" | "marks">>({
+      queryFn: (input) => {
+        const day: StaffAttendanceDay = { ...input, id: `${input.branchId}:${input.date}`, savedAt: new Date().toISOString(), savedBy: mockActor() };
+        db.staffAttendance = [...db.staffAttendance.filter((d) => d.id !== day.id), day];
+        return { data: day };
+      },
+      invalidatesTags: ["StaffAttendance"],
     }),
 
     // Students ---------------------------------------------------------------
@@ -469,8 +592,7 @@ export const api = createApi({
  */
 export const prefilledReads = {
   getUsers: "users", getBranches: "branches", getSessions: "sessions", getStudents: "students",
-  getStudentActivity: "studentActivity", getAttendanceRoster: "attendanceRoster", getClassLocks: "classLocks", getAbsentees: "absentees",
-  getTeacherRoster: "teacherRoster", getVouchers: "vouchers", getDefaulters: "defaulters",
+  getStudentActivity: "studentActivity", getRegisters: "registers", getUnlockRequests: "unlockRequests", getStaffAttendance: "staffAttendance", getVouchers: "vouchers", getDefaulters: "defaulters",
   getStaff: "staff", getAllocations: "allocations", getTeachers: "teachers",
   getPayroll: "payroll", getExams: "exams", getMarks: "marks", getTeacherMarks: "teacherMarks",
   getCampusProfile: "campusProfile", getRolePermissions: "rolePermissions", getSchoolRules: "schoolRules",
@@ -497,10 +619,16 @@ export const {
   useAddStudentDocumentMutation,
   useRemoveStudentDocumentMutation,
   useDeleteStudentMutation,
-  useGetAttendanceRosterQuery,
-  useGetClassLocksQuery,
-  useGetAbsenteesQuery,
-  useGetTeacherRosterQuery,
+  useGetRegistersQuery,
+  useGetUnlockRequestsQuery,
+  useGetStaffAttendanceQuery,
+  useSubmitRegisterMutation,
+  useLockRegistersMutation,
+  useUnlockRegisterMutation,
+  useRequestUnlockMutation,
+  useDecideUnlockMutation,
+  useMarkAlertsSentMutation,
+  useSaveStaffAttendanceMutation,
   useGetVouchersQuery,
   useGetDefaultersQuery,
   useGetStaffQuery,

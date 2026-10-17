@@ -1,1 +1,1 @@
-export type { AttendanceStatus, StudentAttendanceRecord, ClassLockRecord } from "@/types/attendance";
+export type { AttendanceStatus, AttendanceMark, AttendanceRegister, RegisterChange, UnlockRequest } from "@/types/attendance";

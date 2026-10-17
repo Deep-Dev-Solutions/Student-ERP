@@ -92,9 +92,8 @@ export function useGrader() {
  */
 export function useClassSectionPicker(defaults: { className?: string; section?: string } = {}, opts: { withStage?: boolean; withShift?: boolean } = {}) {
   const classes = useBranchClasses();
-  const [pickedClassId, setPickedClassId] = useState<string | undefined>(
-    () => classes.find((c) => c.name === defaults.className)?.id
-  );
+  // Nothing is picked until the user chooses, so the defaults can follow the signed-in user.
+  const [pickedClassId, setPickedClassId] = useState<string | undefined>();
   const selectedClass = classes.find((c) => c.id === pickedClassId) ?? classes.find((c) => c.name === defaults.className) ?? classes[0];
   const sections = useClassSections(selectedClass?.id);
   const [pickedSectionId, setPickedSectionId] = useState<string | undefined>();

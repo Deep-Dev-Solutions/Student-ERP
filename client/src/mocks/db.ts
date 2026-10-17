@@ -2,7 +2,7 @@
  * In-memory mock database behind the RTK Query API. Mutations replace
  * records rather than editing them, because the store freezes what it holds.
  */
-import { absentees, attendanceRoster, classLocks, teacherRoster } from "./attendance";
+import { registers, staffAttendance, unlockRequests } from "./registers";
 import { branches, sessions } from "./branches";
 import { exams, marks, teacherMarks } from "./exams";
 import { defaulters, vouchers } from "./fees";
@@ -20,10 +20,9 @@ export const db = {
   sessions,
   students,
   studentActivity,
-  attendanceRoster,
-  classLocks,
-  absentees,
-  teacherRoster,
+  registers,
+  unlockRequests,
+  staffAttendance,
   vouchers,
   defaulters,
   staff,
