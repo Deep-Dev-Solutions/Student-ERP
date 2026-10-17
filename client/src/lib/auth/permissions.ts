@@ -20,6 +20,7 @@ const ROUTE_ACCESS: { prefix: string | RegExp; roles: Role[] }[] = [
   { prefix: "/staff/new", roles: ADMIN_ROLES },
   { prefix: /^\/staff\/[^/]+\/edit$/, roles: ADMIN_ROLES },
   { prefix: "/print/payslips", roles: [...ADMIN_ROLES, "accountant"] },
+  { prefix: "/print/report-cards", roles: ADMIN_ROLES },
   { prefix: "/students/new", roles: [...ADMIN_ROLES, "front_desk"] },
   { prefix: "/students/import", roles: [...ADMIN_ROLES, "front_desk"] },
   { prefix: /^\/students\/[^/]+\/edit$/, roles: [...ADMIN_ROLES, "front_desk"] },

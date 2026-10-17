@@ -1,29 +1,44 @@
 export type ExamStatus = "upcoming" | "ongoing" | "completed";
+export type ExamType = "midterm" | "final" | "monthly" | "quiz";
 
-export interface ExamTerm {
+/** An exam held across one or more classes at a campus. */
+export interface Exam {
   id: string;
+  branchId: string;
+  sessionId: string;
   title: string;
-  termType: "midterm" | "final" | "monthly" | "quiz";
-  academicYear: string;
+  termType: ExamType;
   startDate: string;
   endDate: string;
-  totalSubjects: number;
-  classesIncluded: string[];
-  status: ExamStatus;
+  classIds: string[];
+  /** Set when results are published; marks are then locked. */
+  publishedAt?: string;
+  createdBy: string;
 }
 
-/** One student's marks in the admin grid. */
-export interface StudentMarksRecord {
+/** One line of the date sheet: a subject's paper for a class. */
+export interface ExamPaper {
   id: string;
+  examId: string;
+  classId: string;
+  subjectId: string;
+  date: string;
+  totalMarks: number;
+  passMarks: number;
+}
+
+/** A student's marks in one paper. */
+export interface ExamMark {
+  id: string;
+  examId: string;
+  subjectId: string;
   studentId: string;
-  rollNo: string;
-  studentName: string;
-  avatar: string;
-  className: string;
-  section: string;
-  obtainedMarks: number | "";
-  maxMarks: number;
-  remarks?: string;
+  /** Null while absent or not marked yet. */
+  obtained: number | null;
+  absent: boolean;
+  remark?: string;
+  updatedAt: string;
+  updatedBy: string;
 }
 
 /** One student's marks on a teacher's mobile list. */

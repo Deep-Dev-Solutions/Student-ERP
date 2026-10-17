@@ -47,7 +47,9 @@ import { statusVariant } from "@/lib/status";
 import {
   errorMessage,
   useAddStudentDocumentMutation,
-  useGetMarksQuery,
+  useGetExamMarksQuery,
+  useGetExamPapersQuery,
+  useGetExamsQuery,
   useGetSectionsQuery,
   useGetStudentActivityQuery,
   useGetStudentsQuery,
@@ -491,17 +493,38 @@ function FeesTab({ student }: { student: Student }) {
 }
 
 function ResultsTab({ student }: { student: Student }) {
-  const { data: marks = [] } = useGetMarksQuery();
+  const { data: marks = [] } = useGetExamMarksQuery();
+  const { data: papers = [] } = useGetExamPapersQuery();
+  const { data: exams = [] } = useGetExamsQuery();
+  const { data: subjects = [] } = useGetSubjectsQuery();
   const grade = useGrader();
-  const mine = marks.filter((m) => m.studentId === student.id && m.obtainedMarks !== "");
+  const rows = marks
+    .filter((m) => m.studentId === student.id && (m.absent || m.obtained !== null))
+    .map((m) => ({
+      mark: m,
+      exam: exams.find((e) => e.id === m.examId),
+      paper: papers.find((p) => p.examId === m.examId && p.subjectId === m.subjectId && p.classId === student.classId),
+      subject: subjects.find((s) => s.id === m.subjectId)?.name ?? "",
+    }))
+    .filter((r) => r.exam && r.paper)
+    .sort((a, b) => b.exam!.startDate.localeCompare(a.exam!.startDate) || a.paper!.date.localeCompare(b.paper!.date));
+  const published = [...new Map(rows.filter((r) => r.exam!.publishedAt).map((r) => [r.exam!.id, r.exam!])).values()];
 
   return (
     <Card className="gap-0 py-0">
-      <div className="border-b border-border p-5 sm:p-6">
-        <h2 className="text-base font-semibold">Results</h2>
-        <p className="mt-0.5 text-sm text-muted-foreground">Marks entered for this session.</p>
+      <div className="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6">
+        <div>
+          <h2 className="text-base font-semibold">Results</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">Marks entered for this session.</p>
+        </div>
+        {published[0] ? (
+          <ButtonLink href={`/print/report-cards?exam=${published[0].id}&student=${student.id}`} variant="outline" target="_blank">
+            <Printer data-icon="inline-start" />
+            Report card
+          </ButtonLink>
+        ) : null}
       </div>
-      {mine.length === 0 ? (
+      {rows.length === 0 ? (
         <EmptyState icon={BookOpen} title="No results yet" description="Marks appear here once teachers enter them for an exam." />
       ) : (
         <Table>
@@ -514,21 +537,19 @@ function ResultsTab({ student }: { student: Student }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mine.map((m) => {
-              const pct = Math.round((Number(m.obtainedMarks) / m.maxMarks) * 100);
+            {rows.map(({ mark: m, exam, paper, subject }) => {
+              const pct = m.obtained !== null ? Math.round((m.obtained / paper!.totalMarks) * 100) : null;
               const g = grade(pct);
               return (
                 <TableRow key={m.id}>
                   <TableCell className="pl-5">
-                    <p className="font-medium">Mid-term exam 2026</p>
-                    <p className="text-xs text-muted-foreground">Physics</p>
+                    <p className="font-medium">{exam!.title}</p>
+                    <p className="text-xs text-muted-foreground">{subject}</p>
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {m.obtainedMarks} / {m.maxMarks}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{pct}%</TableCell>
+                  <TableCell className="text-right tabular-nums">{m.absent ? "Absent" : `${m.obtained} / ${paper!.totalMarks}`}</TableCell>
+                  <TableCell className="text-right tabular-nums">{pct !== null ? `${pct}%` : "—"}</TableCell>
                   <TableCell className="pr-5 text-center">
-                    <Badge variant={g.variant}>{g.label}</Badge>
+                    <Badge variant={m.obtained !== null && m.obtained < paper!.passMarks ? "danger" : g.variant}>{m.absent ? "—" : g.label}</Badge>
                   </TableCell>
                 </TableRow>
               );

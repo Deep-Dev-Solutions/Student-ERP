@@ -4,6 +4,9 @@ import { buildVoucher, feeStanding, settleVoucher, voucherBalance } from "@/lib/
 import { computePayslip } from "@/lib/payroll";
 import { periodsOf, teachersFrom } from "@/mocks/staff";
 import type {
+  Exam,
+  ExamMark,
+  ExamPaper,
   AcademicSession,
   Branch,
   CampusProfileData,
@@ -47,7 +50,7 @@ import type {
 
 type Tag =
   | "Voucher" | "Session" | "Branch" | "User" | "Class" | "Section"
-  | "Subject" | "ClassSubject" | "Permissions" | "Rules" | "Campus" | "Student" | "StudentActivity" | "Register" | "UnlockRequest" | "StaffAttendance" | "Payment" | "FeeStructure" | "DayClosing" | "FeeReminder" | "Staff" | "Allocation" | "Payroll";
+  | "Subject" | "ClassSubject" | "Permissions" | "Rules" | "Campus" | "Student" | "StudentActivity" | "Register" | "UnlockRequest" | "StaffAttendance" | "Payment" | "FeeStructure" | "DayClosing" | "FeeReminder" | "Staff" | "Allocation" | "Payroll" | "Exam";
 
 /** A read endpoint that returns one collection from the mock database. */
 const read = <K extends keyof MockDb>(key: K, tag?: Tag) => ({
@@ -131,7 +134,7 @@ const putStudent = (student: Student) => {
 export const api = createApi({
   reducerPath: "api",
   baseQuery: fakeBaseQuery<{ status: number; message: string }>(),
-  tagTypes: ["Voucher", "Session", "Branch", "User", "Class", "Section", "Subject", "ClassSubject", "Permissions", "Rules", "Campus", "Student", "StudentActivity", "Register", "UnlockRequest", "StaffAttendance", "Payment", "FeeStructure", "DayClosing", "FeeReminder", "Staff", "Allocation", "Payroll"],
+  tagTypes: ["Voucher", "Session", "Branch", "User", "Class", "Section", "Subject", "ClassSubject", "Permissions", "Rules", "Campus", "Student", "StudentActivity", "Register", "UnlockRequest", "StaffAttendance", "Payment", "FeeStructure", "DayClosing", "FeeReminder", "Staff", "Allocation", "Payroll", "Exam"],
   // Demo data never goes stale; keep it for the whole visit.
   keepUnusedDataFor: 60 * 60 * 24,
   endpoints: (build) => ({
@@ -156,8 +159,9 @@ export const api = createApi({
     getPayrollRuns: build.query<MockDb["payrollRuns"], void>(read("payrollRuns", "Payroll")),
     getPayslips: build.query<MockDb["payslips"], void>(read("payslips", "Payroll")),
     getAdvances: build.query<MockDb["advances"], void>(read("advances", "Payroll")),
-    getExams: build.query<MockDb["exams"], void>(read("exams")),
-    getMarks: build.query<MockDb["marks"], void>(read("marks")),
+    getExams: build.query<MockDb["exams"], void>(read("exams", "Exam")),
+    getExamPapers: build.query<MockDb["examPapers"], void>(read("examPapers", "Exam")),
+    getExamMarks: build.query<MockDb["examMarks"], void>(read("examMarks", "Exam")),
     getTeacherMarks: build.query<MockDb["teacherMarks"], void>(read("teacherMarks")),
     getCampusProfile: build.query<MockDb["campusProfile"], void>(read("campusProfile", "Campus")),
     getRolePermissions: build.query<MockDb["rolePermissions"], void>(read("rolePermissions", "Permissions")),
@@ -594,6 +598,117 @@ export const api = createApi({
       invalidatesTags: ["Payroll"],
     }),
 
+    // Exams ------------------------------------------------------------------
+    saveExam: build.mutation<Exam, Omit<Exam, "id" | "createdBy" | "publishedAt"> & { id?: string }>({
+      queryFn: (input) => {
+        const title = input.title.trim();
+        if (title.length < 3) return fail(400, "Enter the exam name");
+        if (!input.startDate || !input.endDate) return fail(400, "Enter the start and end dates");
+        if (input.endDate < input.startDate) return fail(400, "The end date must be on or after the start date");
+        if (input.classIds.length === 0) return fail(400, "Choose at least one class");
+        const existing = input.id ? db.exams.find((e) => e.id === input.id) : undefined;
+        if (input.id && !existing) return fail(404, "Exam not found");
+        if (existing?.publishedAt) return fail(409, "Results are published; unpublish them to change this exam");
+        if (db.exams.some((e) => e.id !== input.id && e.branchId === input.branchId && e.title.toLowerCase() === title.toLowerCase()))
+          return fail(409, "An exam with this name already exists");
+        if (existing) {
+          const dropped = existing.classIds.filter((c) => !input.classIds.includes(c));
+          const droppedMarks = db.examMarks.filter((m) => m.examId === existing.id && dropped.includes(db.students.find((s) => s.id === m.studentId)?.classId ?? ""));
+          if (droppedMarks.length) return fail(409, "Marks are entered for a class you removed; keep that class or delete its marks first");
+          const outside = db.examPapers.filter((p) => p.examId === existing.id && input.classIds.includes(p.classId) && (p.date < input.startDate || p.date > input.endDate));
+          if (outside.length) return fail(409, `${outside.length} date sheet papers fall outside the new dates; move them first`);
+          db.examPapers = db.examPapers.filter((p) => !(p.examId === existing.id && dropped.includes(p.classId)));
+        }
+        const saved: Exam = existing
+          ? { ...existing, ...input, title, id: existing.id }
+          : { ...input, title, id: newId("ex"), createdBy: mockActor() };
+        db.exams = existing ? db.exams.map((e) => (e.id === saved.id ? saved : e)) : [saved, ...db.exams];
+        return { data: saved };
+      },
+      invalidatesTags: ["Exam"],
+    }),
+    /** Deletes an exam with its date sheet and marks. */
+    deleteExam: build.mutation<null, string>({
+      queryFn: (id) => {
+        const exam = db.exams.find((e) => e.id === id);
+        if (!exam) return fail(404, "Exam not found");
+        if (exam.publishedAt) return fail(409, "Results are published; unpublish them before deleting");
+        db.exams = db.exams.filter((e) => e.id !== id);
+        db.examPapers = db.examPapers.filter((p) => p.examId !== id);
+        db.examMarks = db.examMarks.filter((m) => m.examId !== id);
+        return { data: null };
+      },
+      invalidatesTags: ["Exam"],
+    }),
+    /** Replaces one class's date sheet for an exam. */
+    saveDateSheet: build.mutation<ExamPaper[], { examId: string; classId: string; papers: Pick<ExamPaper, "subjectId" | "date" | "totalMarks" | "passMarks">[] }>({
+      queryFn: ({ examId, classId, papers }) => {
+        const exam = db.exams.find((e) => e.id === examId);
+        if (!exam) return fail(404, "Exam not found");
+        if (exam.publishedAt) return fail(409, "Results are published; the date sheet can't change");
+        const subjectName = (id: string) => db.subjects.find((s) => s.id === id)?.name ?? "a subject";
+        for (const p of papers) {
+          if (!p.date || p.date < exam.startDate || p.date > exam.endDate) return fail(400, `${subjectName(p.subjectId)}: the date must fall within the exam dates`);
+          if (!Number.isInteger(p.totalMarks) || p.totalMarks < 1 || p.totalMarks > 1000) return fail(400, `${subjectName(p.subjectId)}: total marks should be between 1 and 1000`);
+          if (!Number.isInteger(p.passMarks) || p.passMarks < 0 || p.passMarks > p.totalMarks) return fail(400, `${subjectName(p.subjectId)}: pass marks can't be more than the total`);
+          const top = Math.max(0, ...db.examMarks.filter((m) => m.examId === examId && m.subjectId === p.subjectId && db.students.find((s) => s.id === m.studentId)?.classId === classId).map((m) => m.obtained ?? 0));
+          if (top > p.totalMarks) return fail(409, `${subjectName(p.subjectId)}: a student already has ${top} marks, more than the new total`);
+        }
+        const kept = new Set(papers.map((p) => p.subjectId));
+        const marked = db.examMarks.find((m) => m.examId === examId && !kept.has(m.subjectId) && db.students.find((s) => s.id === m.studentId)?.classId === classId);
+        if (marked) return fail(409, `${subjectName(marked.subjectId)} already has marks, so it can't be taken off the date sheet`);
+        const saved = papers.map((p): ExamPaper => {
+          const existing = db.examPapers.find((x) => x.examId === examId && x.classId === classId && x.subjectId === p.subjectId);
+          return { id: existing?.id ?? newId("pap"), examId, classId, ...p };
+        });
+        db.examPapers = [...db.examPapers.filter((x) => !(x.examId === examId && x.classId === classId)), ...saved];
+        return { data: saved };
+      },
+      invalidatesTags: ["Exam"],
+    }),
+    /** Saves marks for one paper; entries not sent are left alone. */
+    saveMarks: build.mutation<ExamMark[], { examId: string; subjectId: string; entries: { studentId: string; obtained: number | null; absent: boolean; remark?: string }[] }>({
+      queryFn: ({ examId, subjectId, entries }) => {
+        const exam = db.exams.find((e) => e.id === examId);
+        if (!exam) return fail(404, "Exam not found");
+        if (exam.publishedAt) return fail(409, "Results are published; marks are locked");
+        const at = new Date().toISOString();
+        const saved: ExamMark[] = [];
+        for (const e of entries) {
+          const student = db.students.find((s) => s.id === e.studentId);
+          const paper = db.examPapers.find((p) => p.examId === examId && p.subjectId === subjectId && p.classId === student?.classId);
+          if (!student || !paper) return fail(400, "This subject isn't on the date sheet for that class");
+          if (e.obtained !== null && (e.obtained < 0 || e.obtained > paper.totalMarks || Math.round(e.obtained * 2) !== e.obtained * 2))
+            return fail(400, `${student.name}: marks should be between 0 and ${paper.totalMarks}, in half marks`);
+          const existing = db.examMarks.find((m) => m.examId === examId && m.subjectId === subjectId && m.studentId === e.studentId);
+          const mark: ExamMark = {
+            id: existing?.id ?? newId("mk"),
+            examId,
+            subjectId,
+            studentId: e.studentId,
+            obtained: e.absent ? null : e.obtained,
+            absent: e.absent,
+            remark: e.remark?.trim() || undefined,
+            updatedAt: at,
+            updatedBy: mockActor(),
+          };
+          db.examMarks = existing ? db.examMarks.map((m) => (m === existing ? mark : m)) : [...db.examMarks, mark];
+          saved.push(mark);
+        }
+        return { data: saved };
+      },
+      invalidatesTags: ["Exam"],
+    }),
+    setResultsPublished: build.mutation<null, { examId: string; published: boolean }>({
+      queryFn: ({ examId, published }) => {
+        const exam = db.exams.find((e) => e.id === examId);
+        if (!exam) return fail(404, "Exam not found");
+        db.exams = db.exams.map((e) => (e.id === examId ? { ...e, publishedAt: published ? new Date().toISOString() : undefined } : e));
+        return { data: null };
+      },
+      invalidatesTags: ["Exam"],
+    }),
+
     // Students ---------------------------------------------------------------
     admitStudent: build.mutation<Student, AdmissionInput>({
       queryFn: (input) => {
@@ -924,7 +1039,7 @@ export const prefilledReads = {
   getStudentActivity: "studentActivity", getRegisters: "registers", getUnlockRequests: "unlockRequests", getStaffAttendance: "staffAttendance", getVouchers: "vouchers", getPayments: "payments", getFeeHeads: "feeHeads", getFeePlans: "feePlans",
   getConcessions: "concessions", getDayClosings: "dayClosings", getFeeReminders: "feeReminders",
   getStaff: "staff", getAllocations: "allocations", getTeachers: "teachers",
-  getPayrollRuns: "payrollRuns", getPayslips: "payslips", getAdvances: "advances", getExams: "exams", getMarks: "marks", getTeacherMarks: "teacherMarks",
+  getPayrollRuns: "payrollRuns", getPayslips: "payslips", getAdvances: "advances", getExams: "exams", getExamPapers: "examPapers", getExamMarks: "examMarks", getTeacherMarks: "teacherMarks",
   getCampusProfile: "campusProfile", getRolePermissions: "rolePermissions", getSchoolRules: "schoolRules",
   getClasses: "classes", getSections: "sections", getSubjects: "subjects", getClassSubjects: "classSubjects",
   getChapters: "chapters", getPaperQuestions: "paperQuestions", getAlternativeQuestions: "alternativeQuestions",
@@ -991,8 +1106,14 @@ export const {
   useMarkPayslipsPaidMutation,
   useAddAdvanceMutation,
   useGetExamsQuery,
-  useGetMarksQuery,
+  useGetExamPapersQuery,
+  useGetExamMarksQuery,
   useGetTeacherMarksQuery,
+  useSaveExamMutation,
+  useDeleteExamMutation,
+  useSaveDateSheetMutation,
+  useSaveMarksMutation,
+  useSetResultsPublishedMutation,
   useGetCampusProfileQuery,
   useGetRolePermissionsQuery,
   useGetSchoolRulesQuery,

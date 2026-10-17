@@ -7,20 +7,22 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import {
   Calendar,
   PenTool,
   FileSpreadsheet,
   Award,
+  Trophy,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import {
   ExamSetup,
   MarksEntryGrid,
+  ResultsPanel,
 } from "@/features/exams/components";
 
-const TABS = ["setup", "marks"] as const;
+const TABS = ["setup", "marks", "results"] as const;
 
 export default function ExamsPage() {
   const [activeTab, setActiveTab] = useUrlTab("setup", TABS);
@@ -32,14 +34,14 @@ export default function ExamsPage() {
         description="Schedule exams, set the date sheet and record marks for each subject."
         actions={
           <>
-            <Button variant="outline">
+            <ButtonLink href="/exams?tab=results" variant="outline">
               <FileSpreadsheet data-icon="inline-start" />
               Result sheet
-            </Button>
-            <Button onClick={() => setActiveTab("marks")}>
+            </ButtonLink>
+            <ButtonLink href="/exams?tab=marks">
               <PenTool data-icon="inline-start" />
               Enter marks
-            </Button>
+            </ButtonLink>
           </>
         }
       />
@@ -54,6 +56,10 @@ export default function ExamsPage() {
             <Award />
             Enter marks
           </TabsTrigger>
+          <TabsTrigger value="results">
+            <Trophy />
+            Results
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="setup">
@@ -61,6 +67,9 @@ export default function ExamsPage() {
         </TabsContent>
         <TabsContent value="marks">
           <MarksEntryGrid />
+        </TabsContent>
+        <TabsContent value="results">
+          <ResultsPanel />
         </TabsContent>
       </Tabs>
     </div>

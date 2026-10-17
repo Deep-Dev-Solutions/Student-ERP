@@ -406,9 +406,9 @@ All targets exist. There are no dead nav links.
 - [x] F3. Payroll: month picker, review and adjustments, advances, payslip view and print, tax export. A month runs draft, then finalised, then paid. Absences come from staff attendance; tax is estimated from the salary slabs; EOBI is deducted; advances are recovered in monthly instalments.
 
 **Phase G: Exams (P1)**
-- [ ] G1. Exam edit and delete; date sheet with total and pass marks per class and subject.
-- [ ] G2. Marks grid: roster follows selectors, absent toggle, inline validation errors (fixes B9), autosave.
-- [ ] G3. Results page with grades and positions; report card print.
+- [x] G1. Exam edit and delete; date sheet with total and pass marks per class and subject. Exams can cover several classes. Pass marks start at the school's pass percentage; papers on the same day are flagged; dates must fall within the exam.
+- [x] G2. Marks grid: roster follows selectors, absent toggle, inline validation errors (fixes B9), autosave. Only subjects on the date sheet are offered; electives list only the students taking them; half marks are allowed; a CSV download replaces the dead result sheet button.
+- [x] G3. Results page with grades and positions; report card print. A new Results tab ranks students by section or whole class, highlights failed papers, exports CSV, and publishes or unpublishes results (publishing locks marks). Report cards print for a student, section or class with section and class positions. The student profile's Results tab now shows real exams.
 
 **Phase H: Paper Maker (P1)**
 - [ ] H1. Paper preview with print styles and an answer key (fixes B2).
