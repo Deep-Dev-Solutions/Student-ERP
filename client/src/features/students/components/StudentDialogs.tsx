@@ -30,11 +30,12 @@ import {
 import type { Student, Withdrawal } from "@/types";
 import { withdrawalReasons } from "../status";
 import { GuardiansEditor, validateGuardians } from "./GuardiansEditor";
+import { localISODate } from "@/lib/dates";
 
 /** Which action dialog is open, if any. */
 export type StudentAction = "section" | "transfer" | "electives" | "withdraw" | "readmit" | "guardians" | "delete";
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
+const todayIso = () => localISODate();
 
 /** Class and section options at one campus, with the section list following the class. */
 function usePlacementPicker(branchId: string, initialClassId = "", initialSectionId = "") {

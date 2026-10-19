@@ -16,6 +16,7 @@ import { CNIC_PATTERN, maskCnic, maskMobile, MOBILE_PATTERN } from "@/lib/masks"
 import { monthlyGross } from "@/lib/payroll";
 import { errorMessage, useGetStaffQuery, useSaveStaffMutation } from "@/store/api";
 import type { SalaryComponent, StaffMember } from "@/types";
+import { localISODate } from "@/lib/dates";
 
 const departments = ["Science", "Mathematics", "Humanities", "IT & CS", "Primary", "Sports", "Administration"];
 const employmentOptions = [
@@ -32,7 +33,7 @@ const blank = (branchId: string): Draft => ({
   phone: "",
   role: "",
   department: "Science",
-  joinDate: new Date().toISOString().slice(0, 10),
+  joinDate: localISODate(),
   status: "active",
   branchId,
   gender: "female",

@@ -430,12 +430,12 @@ All targets exist. There are no dead nav links.
 - [x] J2. Messages: compose to an audience, templates, cost preview, send log. Audiences are all parents, a class or section, overdue fees, today's absentees, staff or teachers (one message per family). Each message is personalised and previewed. Cost is estimated, with WhatsApp falling back to SMS per Settings. Built-in and custom templates; fee reminders and absence alerts also appear in the send log. Rates are planning estimates.
 - [x] J3. Notifications panel; dashboard alerts strip and new-school setup checklist. The header bell lists what needs attention for the signed-in role (teachers see their own registers and marks), and its dot only shows when there's something. The dashboard shows the same items as a strip, plus a 10-step setup checklist that can be hidden.
 
-**Phase K: Console (P2, depends on your v1 decision)**
+**Phase K: Console (P2, depends on your v1 decision)**. Skipped: not in v1 (your decision). The global question bank goes with Phase H.
 - [ ] K1. Tenants list and create (first branch and owner), plan and seats, impersonation, global question bank.
 
 **Phase L: Polish (P2)**
-- [ ] L1. Per-page titles.
-- [ ] L2. Time-zone-safe dates.
-- [ ] L3. Remove unused UI files and dependencies; move `shadcn` to devDependencies.
-- [ ] L4. Dark-mode toggle.
-- [ ] L5. Re-run the Phase 6 checks (axe, overflow, keyboard, contrast) after each phase.
+- [x] L1. Per-page titles. Every route has its own browser tab title ("Students | DeepDev ERP", "Staff profile | DeepDev ERP" and so on), through small layout files; the teacher portal's client layout became a shell component behind a server layout.
+- [x] L2. Time-zone-safe dates. A shared `localISODate()` replaces `toISOString().slice(0, 10)` wherever today's date was meant. In Pakistan (UTC+5) the old code gave yesterday's date between midnight and 5 AM, in admission, withdrawal, payroll, voucher and import defaults.
+- [x] L3. Remove unused UI files and dependencies; move `shadcn` to devDependencies. Removed label, scroll-area and toggle-group, four unused barrel files, and the unused react-hook-form, @hookform/resolvers, zod and @tanstack/react-table (found with an import-reachability check).
+- [x] L4. Dark-mode toggle. Light, Dark or Same as device in the user menu, saved per device. A small head script applies it before paint, so there's no flash.
+- [x] L5. Re-run the Phase 6 checks (axe, overflow, keyboard, contrast) after each phase. Done after every phase. Final run: 58 screens in light and dark mode, 0 axe violations (axe includes colour contrast), every focus indicator present, no unintended overflow at 390, 768, 1024 and 1440 px.

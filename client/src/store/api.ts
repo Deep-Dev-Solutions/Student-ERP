@@ -44,6 +44,7 @@ import type {
   StaffAttendanceDay,
   UnlockRequest,
 } from "@/types";
+import { localISODate } from "@/lib/dates";
 
 /*
  * One API slice for the whole app. Every endpoint reads and writes the
@@ -98,7 +99,7 @@ function logGuardianMessage(branchId: string, studentIds: string[], templateId: 
 const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localISODate();
 
 /** Initials from a name, ignoring titles: "Dr. Tariq Mahmood" -> "TM". */
 export const initialsOf = (name: string) =>
@@ -262,7 +263,7 @@ export const api = createApi({
       queryFn: ({ month, dueDate, studentIds }) => {
         if (!/^\d{4}-\d{2}$/.test(month)) return fail(400, "Choose a month");
         if (!dueDate.startsWith(month)) return fail(400, "The due date should fall in the billing month");
-        const issueDate = new Date().toISOString().slice(0, 10);
+        const issueDate = localISODate();
         let skipped = 0;
         const created: FeeVoucher[] = [];
         for (const id of studentIds) {

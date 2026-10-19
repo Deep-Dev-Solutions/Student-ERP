@@ -10,9 +10,8 @@ import {
   useGetStudentsQuery,
 } from "@/store/api";
 import type { AttendanceRegister, SchoolRules, Student } from "@/types";
+import { localISODate } from "@/lib/dates";
 
-const localDate = (d = new Date()) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 const noSubscribe = () => () => {};
 
@@ -21,7 +20,7 @@ const noSubscribe = () => () => {};
  * and during hydration, since pages are prerendered ahead of time.
  */
 export function useToday(): string | null {
-  return useSyncExternalStore(noSubscribe, () => localDate(), () => null);
+  return useSyncExternalStore(noSubscribe, () => localISODate(), () => null);
 }
 
 function subscribeOnline(onChange: () => void) {

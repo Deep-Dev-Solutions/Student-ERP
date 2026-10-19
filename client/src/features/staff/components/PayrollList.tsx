@@ -33,6 +33,7 @@ import {
   useUpdatePayslipMutation,
 } from "@/store/api";
 import type { Payslip, SalaryComponent, StaffMember } from "@/types";
+import { localISODate } from "@/lib/dates";
 
 type Method = NonNullable<Payslip["method"]>;
 const methodOptions: { value: Method; label: string }[] = [
@@ -486,7 +487,7 @@ function AdvanceDialog({ staff, onClose, onDone }: { staff: StaffMember[]; onClo
   const [amount, setAmount] = useState("");
   const [monthly, setMonthly] = useState("");
   const [reason, setReason] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => localISODate());
   const [error, setError] = useState<string | null>(null);
   const [addAdvance, { isLoading }] = useAddAdvanceMutation();
   const months = Number(amount) && Number(monthly) ? Math.ceil(Number(amount) / Number(monthly)) : 0;

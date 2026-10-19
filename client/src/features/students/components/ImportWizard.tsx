@@ -13,6 +13,7 @@ import { downloadFile, parseCsv } from "@/lib/csv";
 import { cn } from "@/lib/utils";
 import { errorMessage, useGetClassesQuery, useGetSectionsQuery, useGetStudentsQuery, useImportStudentsMutation } from "@/store/api";
 import { autoMap, checkRows, IMPORT_FIELDS, problemsCsv, templateCsv, type CheckedRow, type ImportField } from "../importRows";
+import { localISODate } from "@/lib/dates";
 
 const steps = [
   { title: "Upload", hint: "Your spreadsheet" },
@@ -70,7 +71,7 @@ export function ImportWizard() {
     if (!map || !branch) return;
     if (missingRequired.length) return setError(`Match a column for: ${missingRequired.map((f) => f.label).join(", ")}.`);
     setError(null);
-    setChecked(checkRows(dataRows, map, { branchId: branch.id, classes, sections, students, today: new Date().toISOString().slice(0, 10) }));
+    setChecked(checkRows(dataRows, map, { branchId: branch.id, classes, sections, students, today: localISODate() }));
     setStep(3);
   };
 

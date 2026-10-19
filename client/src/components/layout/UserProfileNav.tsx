@@ -2,17 +2,22 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ChevronDown, CreditCard, LogOut, Settings } from "lucide-react";
+import { ChevronDown, CreditCard, LogOut, Monitor, Moon, Settings, Sun } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useCurrentUser } from "@/hooks/use-session";
 import { canAccessPath } from "@/lib/auth/permissions";
+import { type ThemeChoice, useTheme } from "@/lib/theme";
 import { clearSessionCookie } from "@/lib/auth/session-cookie";
 import { useAppDispatch } from "@/store/hooks";
 import { signedOut } from "@/store/sessionSlice";
@@ -50,10 +55,17 @@ export function toProfileUser(user: User): ProfileUser {
   return { name: user.name, email: user.email, role: user.title, initials: user.initials, avatarUrl: user.avatarUrl };
 }
 
+const themeOptions: { value: ThemeChoice; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+  { value: "system", label: "Same as device", icon: Monitor },
+];
+
 export function UserProfileNav({ user: userProp, links = defaultLinks }: UserProfileNavProps) {
   const dispatch = useAppDispatch();
   const currentUser = useCurrentUser();
   const user = userProp ?? (currentUser ? toProfileUser(currentUser) : undefined);
+  const [theme, setTheme] = useTheme();
   if (!user) return null;
   const visibleLinks = currentUser ? links.filter((l) => canAccessPath(currentUser.role, l.href)) : links;
 
@@ -96,6 +108,20 @@ export function UserProfileNav({ user: userProp, links = defaultLinks }: UserPro
             <span>{label}</span>
           </DropdownMenuItem>
         ))}
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="px-2.5 text-xs text-muted-foreground">Theme</DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as ThemeChoice)}>
+            {themeOptions.map(({ value, label, icon: Icon }) => (
+              <DropdownMenuRadioItem key={value} value={value} className={itemClass}>
+                <Icon className="size-4 text-muted-foreground" />
+                <span>{label}</span>
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
 
         <DropdownMenuSeparator />
 

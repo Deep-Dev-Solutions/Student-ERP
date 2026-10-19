@@ -36,6 +36,7 @@ import {
   useSetStaffStatusMutation,
 } from "@/store/api";
 import type { StaffMember } from "@/types";
+import { localISODate } from "@/lib/dates";
 
 const TABS = ["overview", "teaching", "attendance", "payslips"] as const;
 const statusLabels: Record<StaffMember["status"], string> = { active: "Active", on_leave: "On leave", terminated: "Left" };
@@ -51,7 +52,7 @@ function Detail({ label, children, className }: { label: string; children: React
 }
 
 function LeftDialog({ member, onClose, onDone }: { member: StaffMember; onClose: () => void; onDone: (msg: string) => void }) {
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => localISODate());
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [setStatus, { isLoading }] = useSetStaffStatusMutation();

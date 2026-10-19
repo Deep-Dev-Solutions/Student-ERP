@@ -18,6 +18,7 @@ import { usePlacement } from "../hooks";
 import { relationLabels } from "../status";
 import { emptyGuardian, GuardiansEditor, validateGuardians } from "./GuardiansEditor";
 import { emptyStudentDetails, fullName, StudentDetailsFields, validateStudentDetails, type StudentDetails } from "./StudentDetailsFields";
+import { localISODate } from "@/lib/dates";
 
 const steps = [
   { title: "Student", hint: "Name, birth and B-form" },
@@ -44,7 +45,7 @@ interface Draft {
 }
 
 const DRAFT_KEY = "dd_admission_draft";
-const todayIso = () => new Date().toISOString().slice(0, 10);
+const todayIso = () => localISODate();
 
 function readDraft(): Draft | null {
   try {

@@ -8,6 +8,7 @@ import { studentsCsv, useStudentDirectory } from "@/features/students/useStudent
 import { useReadOnly } from "@/hooks/use-academics";
 import { useCan, useCurrentBranch } from "@/hooks/use-session";
 import { downloadFile } from "@/lib/csv";
+import { localISODate } from "@/lib/dates";
 
 export default function StudentsPage() {
   const canAdmit = useCan("adm_admit_student");
@@ -17,7 +18,7 @@ export default function StudentsPage() {
 
   // Exports every student matching the current filters, not just this page.
   const exportCsv = () =>
-    downloadFile(`students-${branch?.code ?? "campus"}-${new Date().toISOString().slice(0, 10)}.csv`, studentsCsv(view.sorted, placement));
+    downloadFile(`students-${branch?.code ?? "campus"}-${localISODate()}.csv`, studentsCsv(view.sorted, placement));
 
   return (
     <div className="space-y-6">

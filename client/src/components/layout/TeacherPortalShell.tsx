@@ -10,7 +10,8 @@ import { teacherNavGroups } from "@/components/layout/nav-config";
 import { usePortalTeacher } from "@/features/teacher-portal/hooks";
 import { useCanAccess } from "@/hooks/use-session";
 
-export default function TeacherPortalLayout({
+/** The teacher portal's sidebar, header and bottom nav around its pages. */
+export function TeacherPortalShell({
   children,
 }: {
   children: React.ReactNode;

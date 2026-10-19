@@ -6,9 +6,10 @@ import { useStudentDirectory, genderFilterOptions, statusFilterOptions } from ".
 import { primaryGuardian, studentStatus, studentStatusLabels } from "../../status";
 import { PrintToolbar } from "./PrintToolbar";
 import { SchoolLetterhead } from "./SchoolLetterhead";
+import { localISODate } from "@/lib/dates";
 
 const noSubscribe = () => () => {};
-const todayIso = () => new Date().toISOString().slice(0, 10);
+const todayIso = () => localISODate();
 
 /** The student directory, with the filters and sort it was opened with, laid out for paper. */
 export function StudentListPrint() {
