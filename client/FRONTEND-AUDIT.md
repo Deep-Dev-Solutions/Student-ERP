@@ -410,19 +410,19 @@ All targets exist. There are no dead nav links.
 - [x] G2. Marks grid: roster follows selectors, absent toggle, inline validation errors (fixes B9), autosave. Only subjects on the date sheet are offered; electives list only the students taking them; half marks are allowed; a CSV download replaces the dead result sheet button.
 - [x] G3. Results page with grades and positions; report card print. A new Results tab ranks students by section or whole class, highlights failed papers, exports CSV, and publishes or unpublishes results (publishing locks marks). Report cards print for a student, section or class with section and class positions. The student profile's Results tab now shows real exams.
 
-**Phase H: Paper Maker (P1)**. Skipped for now; the team will design it.
-- [ ] H1. Paper preview with print styles and an answer key (fixes B2).
-- [ ] H2. Blueprint step (sections, attempt-any, marks).
-- [ ] H3. Scope drives the questions; at least one chapter required.
-- [ ] H4. Review: lock, edit, add own; live total marks.
-- [ ] H5. Saved papers list.
-- [ ] H6. Question bank browse, add and import.
-- [ ] H7. Spike Urdu RTL and math rendering early.
+**Phase H: Paper Maker (P1)**. Rebuilt to the team's flow brief: board → class → book → chapters and sub topics → questions → details → Submit for printing, with a print queue gated by the `canPrintPapers` permission. See `src/services/paper/README.md`.
+- [x] H1. Paper preview with print styles and an answer key (fixes B2). Teachers preview on screen only; printing, PDF and the answer key are for users with `canPrintPapers`.
+- [x] H2. Blueprint step (sections, attempt-any, marks). Question types, how many of each and marks for each; the paper prints in sections by type. "Attempt any" wasn't in the team's brief, so it isn't built.
+- [x] H3. Scope drives the questions; at least one chapter required. Chapters expand to sub topics with a partial state. Earlier changes warn, then clear or recheck later steps.
+- [x] H4. Review: lock, edit, add own; live total marks. Swap, edit, remove, add own, live total. "Lock" wasn't in the team's brief, so it isn't built.
+- [x] H5. Saved papers list. My papers shows drafts and each paper's status (draft, submitted, printed, returned) with any return note.
+- [ ] H6. Question bank browse, add and import. Not in the team's paper maker brief; left for later.
+- [ ] H7. Spike Urdu RTL and math rendering early. Not in the team's brief; left for later.
 
 **Phase I: Teacher portal (P1)**
 - [x] I1. My classes and student lists, from allocations. A new My classes page (in the nav and bottom bar) lists each section with subjects, periods and the incharge badge; each opens a student list with roll numbers, attendance and the parent's number. Other sections' lists aren't shown. Home counts the teacher's real students.
 - [x] I2. Attendance and marks limited to own sections and subjects (fixes B4). Attendance follows the school's mode: incharge sections, or every taught section plus a subject picker in subject-wise mode. Marks offer only the teacher's subjects that have a paper, with the same validation, absent toggle and autosave as the admin grid (fixes B9 on mobile). Published exams are read-only.
-- [ ] I3. Saved papers. Deferred with Phase H; the team is designing the paper maker.
+- [x] I3. Saved papers. Covered by My papers in the rebuilt paper maker (H5).
 - [x] I4. Profile page. Reached from the user menu: contact details the teacher can update, employment details, teaching load, this month's attendance, and a change-password link.
 
 **Phase J: Reports and messages (P1/P2)**

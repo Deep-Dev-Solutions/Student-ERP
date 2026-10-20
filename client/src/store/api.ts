@@ -1,10 +1,17 @@
 import { createApi, fakeBaseQuery } from "@reduxjs/toolkit/query/react";
-import { db, mockActor, type MockDb } from "@/mocks/db";
+import { db, mockActor, mockActorRole, type MockDb } from "@/mocks/db";
+import { hasPermission } from "@/lib/auth/permissions";
+import { PRINT_PERMISSION, type CallerContext } from "@/services/paper/contract";
+import { mockPaperService } from "@/services/paper/mockPaperService";
 import { buildVoucher, feeStanding, settleVoucher, voucherBalance } from "@/lib/fees";
 import { deliveryChannel, messageCost, renderTemplate, smsSegments } from "@/lib/messaging";
 import { computePayslip } from "@/lib/payroll";
 import { periodsOf, teachersFrom } from "@/mocks/staff";
 import type {
+  BankQuestion,
+  Paper,
+  PaperCatalog,
+  PaperDraftInput,
   MessageBatch,
   MessageRecipient,
   MessageTemplate,
@@ -55,7 +62,7 @@ import { localISODate } from "@/lib/dates";
 
 type Tag =
   | "Voucher" | "Session" | "Branch" | "User" | "Class" | "Section"
-  | "Subject" | "ClassSubject" | "Permissions" | "Rules" | "Campus" | "Student" | "StudentActivity" | "Register" | "UnlockRequest" | "StaffAttendance" | "Payment" | "FeeStructure" | "DayClosing" | "FeeReminder" | "Staff" | "Allocation" | "Payroll" | "Exam" | "Message";
+  | "Subject" | "ClassSubject" | "Permissions" | "Rules" | "Campus" | "Student" | "StudentActivity" | "Register" | "UnlockRequest" | "StaffAttendance" | "Payment" | "FeeStructure" | "DayClosing" | "FeeReminder" | "Staff" | "Allocation" | "Payroll" | "Exam" | "Message" | "Paper";
 
 /** A read endpoint that returns one collection from the mock database. */
 const read = <K extends keyof MockDb>(key: K, tag?: Tag) => ({
@@ -64,6 +71,13 @@ const read = <K extends keyof MockDb>(key: K, tag?: Tag) => ({
 });
 
 const fail = (status: number, message: string) => ({ error: { status, message } });
+
+/** The caller as the paper service sees it. The real API takes this from the sign-in token. */
+const paperCaller = (staffId?: string): CallerContext => ({
+  name: mockActor(),
+  staffId,
+  canPrintPapers: hasPermission(mockActorRole(), PRINT_PERMISSION, db.rolePermissions),
+});
 
 /** Records an automatic message (fee reminder, absence alert) to students' primary guardians in the send log. */
 function logGuardianMessage(branchId: string, studentIds: string[], templateId: string, audience: string, vars: (studentId: string) => Record<string, string>) {
@@ -169,7 +183,7 @@ const putStudent = (student: Student) => {
 export const api = createApi({
   reducerPath: "api",
   baseQuery: fakeBaseQuery<{ status: number; message: string }>(),
-  tagTypes: ["Voucher", "Session", "Branch", "User", "Class", "Section", "Subject", "ClassSubject", "Permissions", "Rules", "Campus", "Student", "StudentActivity", "Register", "UnlockRequest", "StaffAttendance", "Payment", "FeeStructure", "DayClosing", "FeeReminder", "Staff", "Allocation", "Payroll", "Exam", "Message"],
+  tagTypes: ["Voucher", "Session", "Branch", "User", "Class", "Section", "Subject", "ClassSubject", "Permissions", "Rules", "Campus", "Student", "StudentActivity", "Register", "UnlockRequest", "StaffAttendance", "Payment", "FeeStructure", "DayClosing", "FeeReminder", "Staff", "Allocation", "Payroll", "Exam", "Message", "Paper"],
   // Demo data never goes stale; keep it for the whole visit.
   keepUnusedDataFor: 60 * 60 * 24,
   endpoints: (build) => ({
@@ -206,9 +220,17 @@ export const api = createApi({
     getSections: build.query<MockDb["sections"], void>(read("sections", "Section")),
     getSubjects: build.query<MockDb["subjects"], void>(read("subjects", "Subject")),
     getClassSubjects: build.query<MockDb["classSubjects"], void>(read("classSubjects", "ClassSubject")),
-    getChapters: build.query<MockDb["chapters"], void>(read("chapters")),
-    getPaperQuestions: build.query<MockDb["paperQuestions"], void>(read("paperQuestions")),
-    getAlternativeQuestions: build.query<MockDb["alternativeQuestions"], void>(read("alternativeQuestions")),
+    // Paper maker: every call goes through the paper service contract (services/paper).
+    getPaperCatalog: build.query<PaperCatalog, void>({ queryFn: () => mockPaperService.getCatalog(paperCaller()), providesTags: ["Paper"] }),
+    getQuestionBank: build.query<BankQuestion[], void>({
+      queryFn: () => mockPaperService.getQuestionBank(paperCaller(), db.paperCatalog.subTopics.map((t) => t.id)),
+      providesTags: ["Paper"],
+    }),
+    getPapers: build.query<Paper[], void>({ queryFn: () => mockPaperService.listPapers(paperCaller()), providesTags: ["Paper"] }),
+    getPrintablePaper: build.query<Paper, { id: string; answerKey: boolean }>({
+      queryFn: ({ id, answerKey }) => mockPaperService.getPrintable(paperCaller(), id, answerKey),
+      providesTags: ["Paper"],
+    }),
     getTeacherDay: build.query<MockDb["teacherDay"], void>(read("teacherDay")),
 
     /** Records a full or partial payment against a voucher, with any late fine on top. */
@@ -798,6 +820,24 @@ export const api = createApi({
       invalidatesTags: ["Message"],
     }),
 
+    // Paper maker -------------------------------------------------------------
+    savePaperDraft: build.mutation<Paper, PaperDraftInput>({
+      queryFn: (input) => mockPaperService.saveDraft(paperCaller(input.teacherId), input),
+      invalidatesTags: ["Paper"],
+    }),
+    submitPaper: build.mutation<Paper, { id: string; teacherId: string }>({
+      queryFn: ({ id, teacherId }) => mockPaperService.submit(paperCaller(teacherId), id),
+      invalidatesTags: ["Paper"],
+    }),
+    markPaperPrinted: build.mutation<Paper, string>({
+      queryFn: (id) => mockPaperService.markPrinted(paperCaller(), id),
+      invalidatesTags: ["Paper"],
+    }),
+    returnPaper: build.mutation<Paper, { id: string; note: string }>({
+      queryFn: ({ id, note }) => mockPaperService.returnToTeacher(paperCaller(), id, note),
+      invalidatesTags: ["Paper"],
+    }),
+
     // Students ---------------------------------------------------------------
     admitStudent: build.mutation<Student, AdmissionInput>({
       queryFn: (input) => {
@@ -1131,7 +1171,7 @@ export const prefilledReads = {
   getPayrollRuns: "payrollRuns", getPayslips: "payslips", getAdvances: "advances", getExams: "exams", getExamPapers: "examPapers", getExamMarks: "examMarks", getMessages: "messages", getMessageTemplates: "messageTemplates",
   getCampusProfile: "campusProfile", getRolePermissions: "rolePermissions", getSchoolRules: "schoolRules",
   getClasses: "classes", getSections: "sections", getSubjects: "subjects", getClassSubjects: "classSubjects",
-  getChapters: "chapters", getPaperQuestions: "paperQuestions", getAlternativeQuestions: "alternativeQuestions",
+  getPaperCatalog: "paperCatalog", getQuestionBank: "questionBank", getPapers: "papers",
   getTeacherDay: "teacherDay",
 } as const satisfies Partial<Record<keyof typeof api.endpoints, keyof MockDb>>;
 
@@ -1214,9 +1254,14 @@ export const {
   useGetSectionsQuery,
   useGetSubjectsQuery,
   useGetClassSubjectsQuery,
-  useGetChaptersQuery,
-  useGetPaperQuestionsQuery,
-  useGetAlternativeQuestionsQuery,
+  useGetPaperCatalogQuery,
+  useGetQuestionBankQuery,
+  useGetPapersQuery,
+  useGetPrintablePaperQuery,
+  useSavePaperDraftMutation,
+  useSubmitPaperMutation,
+  useMarkPaperPrintedMutation,
+  useReturnPaperMutation,
   useGetTeacherDayQuery,
   useRecordPaymentMutation,
   useAddSessionMutation,

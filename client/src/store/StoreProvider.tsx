@@ -31,7 +31,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
     return store.subscribe(() => {
       const user = findUser(store.getState().session.userId);
-      if (user) setMockActor(`${user.name} (${ROLE_LABELS[user.role]})`);
+      if (user) setMockActor(`${user.name} (${ROLE_LABELS[user.role]})`, user.role);
       try {
         localStorage.setItem(BRANCH_KEY, store.getState().session.branchId);
       } catch {

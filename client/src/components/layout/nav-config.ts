@@ -7,6 +7,7 @@ import {
   IdCard,
   LayoutDashboard,
   MessageSquareText,
+  Printer,
   Settings,
   UsersRound,
   Wallet,
@@ -20,6 +21,8 @@ export interface NavItem {
   exact?: boolean;
   /** Count of items needing action, shown with the highlighter. */
   pending?: number;
+  /** A Settings permission (such as canPrintPapers) the user must hold to see the item. */
+  permission?: string;
 }
 
 export interface NavGroup {
@@ -48,6 +51,7 @@ export const adminNavGroups: NavGroup[] = [
     items: [
       { href: "/academics", label: "Classes & subjects", icon: GraduationCap },
       { href: "/exams", label: "Exams & marks", icon: ClipboardList },
+      { href: "/papers", label: "Print queue", icon: Printer, permission: "canPrintPapers" },
     ],
   },
   {
@@ -75,7 +79,9 @@ export const teacherNavGroups: NavGroup[] = [
 
 /** Labels for nested routes that are not nav items themselves. */
 const subPageLabels: [RegExp, string][] = [
-  [/^\/teacher-portal\/paper-maker\/generate$/, "Generate paper"],
+  [/^\/teacher-portal\/paper-maker\/new$/, "New paper"],
+  [/^\/teacher-portal\/paper-maker\/[^/]+$/, "Paper"],
+  [/^\/papers\/[^/]+$/, "Paper"],
   [/^\/teacher-portal\/classes\/[^/]+$/, "Class list"],
   [/^\/teacher-portal\/profile$/, "My profile"],
   [/^\/students\/new$/, "New admission"],

@@ -2,13 +2,14 @@
  * In-memory mock database behind the RTK Query API. Mutations replace
  * records rather than editing them, because the store freezes what it holds.
  */
+import type { Role } from "@/types";
 import { registers, staffAttendance, unlockRequests } from "./registers";
 import { branches, sessions } from "./branches";
 import { examMarks, examPapers, exams } from "./exams";
 import { messages, messageTemplates } from "./messages";
 import { concessions, dayClosings, feeHeads, feePlans, feeReminders, payments, vouchers } from "./fees";
 import { feeStanding } from "@/lib/fees";
-import { alternativeQuestions, chapters, paperQuestions } from "./paper";
+import { paperCatalog, papers, questionBank } from "./paper";
 import { campusProfile, rolePermissions, schoolRules } from "./settings";
 import { advances, allocations, payrollRuns, payslips, staff, teachers } from "./staff";
 import { classes, classSubjects, sections, subjects } from "./academics";
@@ -51,9 +52,9 @@ export const db = {
   sections,
   subjects,
   classSubjects,
-  chapters,
-  paperQuestions,
-  alternativeQuestions,
+  paperCatalog,
+  questionBank,
+  papers,
   teacherDay: { todayClasses, pendingTasks, teacherSummary },
 };
 
@@ -64,7 +65,11 @@ export type MockDb = typeof db;
  * token; until then the store sets it whenever the signed-in user changes.
  */
 let actor = "Admin";
-export const setMockActor = (name: string) => {
+let actorRole: Role = "owner";
+export const setMockActor = (name: string, role?: Role) => {
   actor = name;
+  if (role) actorRole = role;
 };
 export const mockActor = () => actor;
+/** The signed-in user's role, for permission checks in the mock services (the real API reads it from the token). */
+export const mockActorRole = () => actorRole;

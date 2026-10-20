@@ -1,1 +1,1 @@
-export type { ChapterItem, PaperScopeConfig, QuestionType, PaperQuestion, PaperExportConfig } from "@/types/paper";
+export type { BankQuestion, BlueprintRow, Paper, PaperBook, PaperCatalog, PaperChapter, PaperDetails, PaperDraftInput, PaperQuestion, PaperQuestionType, PaperStatus, PaperSubTopic } from "@/types/paper";

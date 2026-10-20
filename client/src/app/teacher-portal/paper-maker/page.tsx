@@ -1,6 +1,7 @@
-import { redirect } from "next/navigation";
+"use client";
 
-export default function PaperMakerRootPage() {
-  redirect("/teacher-portal/paper-maker/generate");
+import { MyPapers } from "@/features/paper-maker/components/MyPapers";
+
+export default function PaperMakerPage() {
+  return <MyPapers />;
 }
-

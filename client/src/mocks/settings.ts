@@ -28,6 +28,8 @@ export const rolePermissions: RolePermissionsState = {
   acad_enter_marks: { owner: true, branch_admin: true, teacher: true, front_desk: false, accountant: false },
   acad_lock_gradebook: { owner: true, branch_admin: true, teacher: false, front_desk: false, accountant: false },
   acad_manage_allocations: { owner: true, branch_admin: true, teacher: false, front_desk: false, accountant: false },
+  // Who can see the print queue and print exam papers. The backend maps this to roles.
+  canPrintPapers: { owner: true, branch_admin: true, teacher: false, front_desk: false, accountant: false },
 
   att_mark_daily: { owner: true, branch_admin: true, teacher: true, front_desk: true, accountant: false },
   att_lock_roster: { owner: true, branch_admin: true, teacher: false, front_desk: false, accountant: false },

@@ -108,6 +108,12 @@ const permissionSections: {
         description: "Assign faculty educators to subjects, grades, and sections",
         module: "academic",
       },
+      {
+        id: "canPrintPapers",
+        name: "Print exam papers",
+        description: "See the print queue, print papers and answer keys, and return papers to teachers",
+        module: "academic",
+      },
     ],
   },
   {

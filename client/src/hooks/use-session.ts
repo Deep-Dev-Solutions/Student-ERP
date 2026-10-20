@@ -26,15 +26,27 @@ export function useCan(permissionId: string) {
   return Boolean(user && matrix && hasPermission(user.role, permissionId, matrix));
 }
 
-/** Navigation filtered to the sections the signed-in user may open. */
+/**
+ * Feature flags from the mock auth layer. They come from the Settings permission
+ * matrix, so no role names are hardcoded; the backend can map each flag to any role.
+ */
+export function usePermissionFlags() {
+  return { canPrintPapers: useCan("canPrintPapers") };
+}
+
+/** Navigation filtered to the sections the signed-in user may open, and to items whose permission they hold. */
 export function useVisibleNavGroups(groups: NavGroup[]): NavGroup[] {
   const user = useCurrentUser();
+  const { data: matrix } = useGetRolePermissionsQuery();
   return useMemo(() => {
-    if (!user) return groups;
+    if (!user) return groups.map((g) => ({ ...g, items: g.items.filter((i) => !i.permission) })).filter((g) => g.items.length > 0);
     return groups
-      .map((g) => ({ ...g, items: g.items.filter((i) => canAccessPath(user.role, i.href)) }))
+      .map((g) => ({
+        ...g,
+        items: g.items.filter((i) => canAccessPath(user.role, i.href) && (!i.permission || (matrix && hasPermission(user.role, i.permission, matrix)))),
+      }))
       .filter((g) => g.items.length > 0);
-  }, [groups, user]);
+  }, [groups, user, matrix]);
 }
 
 /** Whether the signed-in user may open a path (for links such as the portal switch). */
