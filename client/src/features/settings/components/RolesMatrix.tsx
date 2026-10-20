@@ -1,5 +1,7 @@
 "use client";
 
+import { useModules } from "@/hooks/use-session";
+import { moduleForPermission } from "@/lib/modules";
 import { Fragment, useState } from "react";
 import {
   Card,
@@ -178,6 +180,11 @@ export function RolesMatrix() {
   const { data: defaultPermissions = {} } = useGetRolePermissionsQuery();
   const [matrix, setMatrix] = useState<RolePermissionsState>(defaultPermissions);
   const [savePermissions, { isLoading: isSaving }] = useUpdateRolePermissionsMutation();
+  // Only permissions for modules on the school's plan.
+  const { has } = useModules();
+  const sections = permissionSections
+    .map((section) => ({ ...section, permissions: section.permissions.filter((p) => has(moduleForPermission(p.id))) }))
+    .filter((section) => section.permissions.length > 0);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   const togglePermission = (permId: string, role: RoleKey) => {
@@ -263,7 +270,7 @@ export function RolesMatrix() {
           </TableHeader>
 
           <TableBody>
-            {permissionSections.map((section) => (
+            {sections.map((section) => (
               <Fragment key={section.module}>
                 <TableRow className="bg-muted/60 hover:bg-muted/60">
                   <TableCell colSpan={roles.length + 1} className="pl-5 whitespace-normal">

@@ -430,8 +430,9 @@ All targets exist. There are no dead nav links.
 - [x] J2. Messages: compose to an audience, templates, cost preview, send log. Audiences are all parents, a class or section, overdue fees, today's absentees, staff or teachers (one message per family). Each message is personalised and previewed. Cost is estimated, with WhatsApp falling back to SMS per Settings. Built-in and custom templates; fee reminders and absence alerts also appear in the send log. Rates are planning estimates.
 - [x] J3. Notifications panel; dashboard alerts strip and new-school setup checklist. The header bell lists what needs attention for the signed-in role (teachers see their own registers and marks), and its dot only shows when there's something. The dashboard shows the same items as a strip, plus a 10-step setup checklist that can be hidden.
 
-**Phase K: Console (P2, depends on your v1 decision)**. Skipped: not in v1 (your decision). The global question bank goes with Phase H.
-- [ ] K1. Tenants list and create (first branch and owner), plan and seats, impersonation, global question bank.
+**Phase K: Console (P2, depends on your v1 decision)**. Built: DeepDev ERP is sold per module, and the Console manages schools and their modules. See `src/services/tenant/README.md`.
+- [x] K1. Tenants list and create (first branch and owner), plan and seats, impersonation, global question bank. Each school gets only the modules switched on (on/off, no prices), with requirements handled automatically. Seats are enforced on admission. Schools can be suspended (with a reason) and reactivated. "View as owner" has a banner and an audit entry. The global catalogue and question bank feed the paper maker.
+- [x] K2. Module licensing across the app. Nav, pages, tabs, dashboard cards, notifications, reports, message audiences and Settings follow the school's modules. A paper-maker-only school gets Dashboard, Print queue, Settings and a teacher portal with just the paper maker. Super-admins land on `/console`.
 
 **Phase L: Polish (P2)**
 - [x] L1. Per-page titles. Every route has its own browser tab title ("Students | DeepDev ERP", "Staff profile | DeepDev ERP" and so on), through small layout files; the teacher portal's client layout became a shell component behind a server layout.

@@ -10,6 +10,7 @@ import { messages, messageTemplates } from "./messages";
 import { concessions, dayClosings, feeHeads, feePlans, feeReminders, payments, vouchers } from "./fees";
 import { feeStanding } from "@/lib/fees";
 import { paperCatalog, papers, questionBank } from "./paper";
+import { DEMO_TENANT_ID, tenantBranches, tenants } from "./tenants";
 import { campusProfile, rolePermissions, schoolRules } from "./settings";
 import { advances, allocations, payrollRuns, payslips, staff, teachers } from "./staff";
 import { classes, classSubjects, sections, subjects } from "./academics";
@@ -19,7 +20,7 @@ import { users } from "./users";
 
 export const db = {
   users,
-  branches,
+  branches: [...branches, ...tenantBranches],
   sessions,
   // Balances and fee status follow the vouchers, the way the API will keep them.
   students: students.map((s) => ({ ...s, ...feeStanding(s.id, vouchers) })),
@@ -52,6 +53,7 @@ export const db = {
   sections,
   subjects,
   classSubjects,
+  tenants,
   paperCatalog,
   questionBank,
   papers,
@@ -73,3 +75,10 @@ export const setMockActor = (name: string, role?: Role) => {
 export const mockActor = () => actor;
 /** The signed-in user's role, for permission checks in the mock services (the real API reads it from the token). */
 export const mockActorRole = () => actorRole;
+
+let tenantId = DEMO_TENANT_ID;
+/** The school the signed-in user is working in (the real API reads it from the token). */
+export const setMockTenant = (id: string) => {
+  tenantId = id;
+};
+export const mockTenantId = () => tenantId;

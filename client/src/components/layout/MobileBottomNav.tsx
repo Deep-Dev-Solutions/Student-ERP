@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { isNavItemActive, teacherNavGroups } from "@/components/layout/nav-config";
+import { useVisibleNavGroups } from "@/hooks/use-session";
 
 const shortLabels: Record<string, string> = {
   "/teacher-portal": "Home",
@@ -13,7 +14,6 @@ const shortLabels: Record<string, string> = {
   "/teacher-portal/paper-maker": "Papers",
 };
 
-const navItems = teacherNavGroups.flatMap((group) => group.items);
 
 export function MobileBottomNav() {
   return <MobileBottomNavContent pathname={usePathname()} />;
@@ -21,6 +21,7 @@ export function MobileBottomNav() {
 
 /** The bar itself; takes the path so it can render before the path is known (prerendering). */
 export function MobileBottomNavContent({ pathname }: { pathname: string }) {
+  const navItems = useVisibleNavGroups(teacherNavGroups).flatMap((group) => group.items);
 
   return (
     <nav

@@ -1,5 +1,7 @@
 export interface Branch {
   id: string;
+  /** The school (tenant) the campus belongs to; missing means the demo school. */
+  tenantId?: string;
   name: string;
   code: string;
   location: string;

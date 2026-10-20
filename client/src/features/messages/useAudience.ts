@@ -3,12 +3,12 @@
 import { useToday } from "@/features/attendance/hooks";
 import { primaryGuardian } from "@/features/students/status";
 import { useBranchClasses } from "@/hooks/use-academics";
-import { useCurrentBranch } from "@/hooks/use-session";
+import { useCurrentBranch, useModules } from "@/hooks/use-session";
 import { voucherBalance, voucherState } from "@/lib/fees";
 import { formatRupees } from "@/lib/format";
 import type { TemplateVars } from "@/lib/messaging";
 import { useGetCampusProfileQuery, useGetRegistersQuery, useGetSectionsQuery, useGetStaffQuery, useGetStudentsQuery, useGetVouchersQuery } from "@/store/api";
-import type { AudienceKind, Student } from "@/types";
+import type { AudienceKind, ModuleKey, Student } from "@/types";
 
 export interface Audience {
   kind: AudienceKind;
@@ -24,14 +24,20 @@ export interface Contact {
   vars: TemplateVars;
 }
 
-export const audienceOptions: { value: AudienceKind; label: string }[] = [
-  { value: "all_parents", label: "All parents" },
-  { value: "class_parents", label: "Parents of a class" },
-  { value: "defaulters", label: "Parents with overdue fees" },
-  { value: "absent_today", label: "Parents of today's absentees" },
-  { value: "all_staff", label: "All staff" },
-  { value: "teachers", label: "Teachers" },
+export const audienceOptions: { value: AudienceKind; label: string; module: ModuleKey }[] = [
+  { value: "all_parents", label: "All parents", module: "students" },
+  { value: "class_parents", label: "Parents of a class", module: "students" },
+  { value: "defaulters", label: "Parents with overdue fees", module: "fees" },
+  { value: "absent_today", label: "Parents of today's absentees", module: "attendance" },
+  { value: "all_staff", label: "All staff", module: "staff" },
+  { value: "teachers", label: "Teachers", module: "staff" },
 ];
+
+/** Audiences the school's modules can supply. */
+export function useAudienceOptions() {
+  const { has } = useModules();
+  return audienceOptions.filter((o) => has(o.module));
+}
 
 /** Everyone a message would reach, one entry per phone number (siblings' parents get one message). */
 export function useAudience(audience: Audience): { contacts: Contact[]; label: string; skipped: number } {

@@ -18,6 +18,21 @@ export interface CallerContext {
   /** Staff id of the signed-in teacher, when there is one. */
   staffId?: string;
   canPrintPapers: boolean;
+  /** Platform staff who manage the global catalogue and question bank from the Console. */
+  isPlatformAdmin?: boolean;
+}
+
+export type CatalogKind = "board" | "class" | "book" | "chapter" | "subTopic";
+
+/** Adds (no id) or renames (with id) one node of the catalogue. */
+export interface CatalogItemInput {
+  kind: CatalogKind;
+  id?: string;
+  /** The board for a class, the class for a book, the book for a chapter, the chapter for a sub topic. */
+  parentId?: string;
+  name: string;
+  /** Board short name (e.g. "PTB") or book subject (e.g. "Physics"). */
+  extra?: string;
 }
 
 export interface PaperService {
@@ -37,6 +52,14 @@ export interface PaperService {
   returnToTeacher(ctx: CallerContext, paperId: string, note: string): ServiceResult<Paper>;
   /** The printable paper or answer key (PDF on the real API). Requires canPrintPapers. */
   getPrintable(ctx: CallerContext, paperId: string, answerKey: boolean): ServiceResult<Paper>;
+  /** Adds or renames a board, class, book, chapter or sub topic. Platform admins only. */
+  saveCatalogItem(ctx: CallerContext, input: CatalogItemInput): ServiceResult<PaperCatalog>;
+  /** Removes a catalogue node that has nothing under it and no questions. Platform admins only. */
+  deleteCatalogItem(ctx: CallerContext, kind: CatalogKind, id: string): ServiceResult<PaperCatalog>;
+  /** Adds (no id) or edits a question in the global bank. Platform admins only. */
+  saveBankQuestion(ctx: CallerContext, input: Omit<BankQuestion, "id"> & { id?: string }): ServiceResult<BankQuestion>;
+  /** Removes a question from the bank; papers that already use it keep their copy. Platform admins only. */
+  deleteBankQuestion(ctx: CallerContext, id: string): ServiceResult<null>;
 }
 
 /** The HTTP endpoints the backend builds, and the check each one needs. */
@@ -49,6 +72,10 @@ export const PAPER_ENDPOINTS: { operation: keyof PaperService; method: "GET" | "
   { operation: "markPrinted", method: "POST", path: "/api/papers/:id/printed", access: "canPrintPapers; status must be submitted" },
   { operation: "returnToTeacher", method: "POST", path: "/api/papers/:id/return", access: "canPrintPapers; status must be submitted; note required" },
   { operation: "getPrintable", method: "GET", path: "/api/papers/:id/pdf?answerKey=true|false", access: "canPrintPapers; status submitted or printed" },
+  { operation: "saveCatalogItem", method: "POST", path: "/api/console/paper-catalog (add) · PUT /api/console/paper-catalog/:kind/:id (rename)", access: "Platform admin" },
+  { operation: "deleteCatalogItem", method: "POST", path: "/api/console/paper-catalog/:kind/:id/delete", access: "Platform admin; nothing under it and no questions" },
+  { operation: "saveBankQuestion", method: "POST", path: "/api/console/question-bank (add) · PUT /api/console/question-bank/:id", access: "Platform admin" },
+  { operation: "deleteBankQuestion", method: "POST", path: "/api/console/question-bank/:id/delete", access: "Platform admin" },
 ];
 
 export const PAPER_STATUS_LABELS: Record<PaperStatus, string> = {

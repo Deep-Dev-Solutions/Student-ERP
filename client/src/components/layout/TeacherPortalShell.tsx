@@ -7,8 +7,9 @@ import { PortalSwitch, Sidebar, SidebarContent } from "@/components/layout/Sideb
 import { Header, HeaderContent } from "@/components/layout/Header";
 import { toProfileUser, UserProfileNav } from "@/components/layout/UserProfileNav";
 import { teacherNavGroups } from "@/components/layout/nav-config";
+import { PlanGate, ViewAsBanner } from "@/components/layout/PlanGate";
 import { usePortalTeacher } from "@/features/teacher-portal/hooks";
-import { useCanAccess } from "@/hooks/use-session";
+import { useCanAccess, useVisibleNavGroups } from "@/hooks/use-session";
 
 /** The teacher portal's sidebar, header and bottom nav around its pages. */
 export function TeacherPortalShell({
@@ -19,14 +20,16 @@ export function TeacherPortalShell({
   const canOpenAdmin = useCanAccess("/dashboard");
   // Admins who open the portal see it as the demo teacher until real accounts exist.
   const { user: teacher } = usePortalTeacher();
+  // Portal pages follow the school's modules: a paper-maker-only school sees just the paper maker.
+  const teacherGroups = useVisibleNavGroups(teacherNavGroups);
 
   const sidebarProps = {
-    groups: teacherNavGroups,
+    groups: teacherGroups,
     subtitle: "Teacher portal",
     footer: canOpenAdmin ? <PortalSwitch href="/dashboard" label="Admin console" description="Switch to admin view" icon={ArrowLeftRight} /> : null,
   };
   const headerProps = {
-    groups: teacherNavGroups,
+    groups: teacherGroups,
     actions: (
       <UserProfileNav
         user={teacher ? toProfileUser(teacher) : undefined}
@@ -53,7 +56,12 @@ export function TeacherPortalShell({
         </Suspense>
 
         {/* Bottom padding keeps content clear of the mobile bottom nav. */}
-        <main className="flex-1 pb-24 md:pb-8">{children}</main>
+        <main className="flex-1 pb-24 md:pb-8">
+          <div className="mx-auto max-w-4xl px-4 pt-4 empty:hidden sm:px-6 lg:px-8">
+            <ViewAsBanner />
+          </div>
+          <PlanGate padded>{children}</PlanGate>
+        </main>
 
         <Suspense fallback={<MobileBottomNavContent pathname="" />}>
           <MobileBottomNav />

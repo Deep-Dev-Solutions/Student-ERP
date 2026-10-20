@@ -9,11 +9,13 @@ import {
   AttendanceTrendChart,
   FeeCollectionChart,
   FeeTargetCard,
+  PapersCard,
   QuickActions,
   TodayRegister,
 } from "@/features/dashboard/components";
 import { DashboardAlerts } from "@/features/notifications/components/DashboardAlerts";
 import { SetupChecklist } from "@/features/notifications/components/SetupChecklist";
+import { ModuleOnly } from "@/components/layout/PlanGate";
 import { studentsSummary } from "@/services/dashboard";
 import { formatNumber } from "@/lib/format";
 
@@ -35,10 +37,12 @@ export default function DashboardPage() {
               <Download data-icon="inline-start" />
               Export summary
             </Button>
-            <ButtonLink href="/students/new">
-              <Plus data-icon="inline-start" />
-              Admit student
-            </ButtonLink>
+            <ModuleOnly module="students">
+              <ButtonLink href="/students/new">
+                <Plus data-icon="inline-start" />
+                Admit student
+              </ButtonLink>
+            </ModuleOnly>
           </>
         }
       />
@@ -47,34 +51,51 @@ export default function DashboardPage() {
       <SetupChecklist />
 
       <div className="grid gap-4 lg:grid-cols-12">
-        <div className="min-w-0 lg:col-span-8">
-          <TodayRegister />
-        </div>
+        <ModuleOnly module="attendance">
+          <div className="min-w-0 lg:col-span-8">
+            <TodayRegister />
+          </div>
+        </ModuleOnly>
         <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:col-span-4 lg:grid-cols-1">
-          <FeeTargetCard />
-          <StatCard
-            label="Enrolled students"
-            icon={UsersRound}
-            value={formatNumber(studentsSummary.total)}
-            footer={
-              <>
-                <span className="font-medium text-success">+{studentsSummary.admittedThisMonth}</span>{" "}
-                admitted this month
-              </>
-            }
-          />
+          <ModuleOnly module="fees">
+            <FeeTargetCard />
+          </ModuleOnly>
+          <ModuleOnly module="students">
+            <StatCard
+              label="Enrolled students"
+              icon={UsersRound}
+              value={formatNumber(studentsSummary.total)}
+              footer={
+                <>
+                  <span className="font-medium text-success">+{studentsSummary.admittedThisMonth}</span>{" "}
+                  admitted this month
+                </>
+              }
+            />
+          </ModuleOnly>
         </div>
 
-        <div className="min-w-0 lg:col-span-7">
-          <FeeCollectionChart />
-        </div>
-        <div className="min-w-0 lg:col-span-5">
-          <AttendanceTrendChart />
-        </div>
+        <ModuleOnly module="fees">
+          <div className="min-w-0 lg:col-span-7">
+            <FeeCollectionChart />
+          </div>
+        </ModuleOnly>
+        <ModuleOnly module="attendance">
+          <div className="min-w-0 lg:col-span-5">
+            <AttendanceTrendChart />
+          </div>
+        </ModuleOnly>
+        <ModuleOnly module="paper_maker">
+          <div className="min-w-0 lg:col-span-12">
+            <PapersCard />
+          </div>
+        </ModuleOnly>
 
-        <div className="min-w-0 lg:col-span-8">
-          <ActivityFeed />
-        </div>
+        <ModuleOnly module="students">
+          <div className="min-w-0 lg:col-span-8">
+            <ActivityFeed />
+          </div>
+        </ModuleOnly>
         <div className="min-w-0 lg:col-span-4">
           <QuickActions />
         </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTenantBranches } from "@/hooks/use-session";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,7 +19,6 @@ import {
   errorMessage,
   useChangeSectionMutation,
   useDeleteStudentMutation,
-  useGetBranchesQuery,
   useGetClassesQuery,
   useGetSectionsQuery,
   useReadmitStudentMutation,
@@ -144,7 +144,7 @@ export function ChangeSectionDialog({ students, open, onOpenChange, onDone }: Ac
 }
 
 export function TransferDialog({ student, open, onOpenChange, onDone }: ActionDialogProps & { student: Student }) {
-  const { data: branches = [] } = useGetBranchesQuery();
+  const branches = useTenantBranches();
   const others = branches.filter((b) => b.id !== student.branchId);
   const [branchId, setBranchId] = useState(others[0]?.id ?? "");
   const picker = usePlacementPicker(branchId);

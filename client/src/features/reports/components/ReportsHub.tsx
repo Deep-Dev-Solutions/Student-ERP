@@ -5,6 +5,7 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { SelectField, TextField } from "@/components/shared/FormFields";
+import { useModules } from "@/hooks/use-session";
 import { useUrlParam } from "@/hooks/use-url-state";
 import { downloadFile, toCsv } from "@/lib/csv";
 import { monthLabel } from "@/lib/fees";
@@ -13,14 +14,19 @@ import { REPORTS, type ReportDefinition, type ReportParams } from "../definition
 import { useReportData } from "../useReportData";
 import { ReportTable } from "./ReportTable";
 
-const groups = [...new Set(REPORTS.map((r) => r.group))];
+/** Reports for the modules the school has. */
+export function useAvailableReports() {
+  const { has } = useModules();
+  return REPORTS.filter((r) => has(r.module));
+}
 
 /** The report, month and exam picked, from the URL. */
 export function useReportSelection(data: ReturnType<typeof useReportData>) {
-  const [reportId, setReportId] = useUrlParam("report", REPORTS[0].id);
+  const available = useAvailableReports();
+  const [reportId, setReportId] = useUrlParam("report", available[0]?.id ?? REPORTS[0].id);
   const [monthParam, setMonth] = useUrlParam("month", "");
   const [examParam, setExam] = useUrlParam("exam", "");
-  const report: ReportDefinition = REPORTS.find((r) => r.id === reportId) ?? REPORTS[0];
+  const report: ReportDefinition = available.find((r) => r.id === reportId) ?? available[0] ?? REPORTS[0];
   const exams = data?.exams ?? [];
   const params: ReportParams = {
     month: /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : (data?.today ?? "2026-10-01").slice(0, 7),
@@ -39,11 +45,21 @@ export function reportHeading(report: ReportDefinition, params: ReportParams, ex
 
 export function ReportsHub() {
   const data = useReportData();
+  const available = useAvailableReports();
+  const groups = [...new Set(available.map((r) => r.group))];
   const { report, params, exams, setReportId, setMonth, setExam } = useReportSelection(data);
   const result = data ? report.build(data, params) : null;
   const examTitle = exams.find((e) => e.id === params.examId)?.title;
   const heading = reportHeading(report, params, examTitle);
   const query = `report=${report.id}${report.params.includes("month") ? `&month=${params.month}` : ""}${report.params.includes("exam") ? `&exam=${params.examId}` : ""}`;
+
+  if (available.length === 0) {
+    return (
+      <Card className="py-0">
+        <EmptyState icon={BarChart3} title="No reports for your modules" description="Reports cover fees, attendance, students, payroll and exams. Add one of those modules to see reports here." />
+      </Card>
+    );
+  }
 
   const exportCsv = () => {
     if (!result) return;
@@ -61,7 +77,7 @@ export function ReportsHub() {
             <div key={g}>
               <p className="px-2 pb-1 text-xs font-medium text-muted-foreground">{g}</p>
               <ul>
-                {REPORTS.filter((r) => r.group === g).map((r) => (
+                {available.filter((r) => r.group === g).map((r) => (
                   <li key={r.id}>
                     <button
                       type="button"
@@ -88,7 +104,7 @@ export function ReportsHub() {
             id="report-pick"
             label="Report"
             className="lg:hidden"
-            options={REPORTS.map((r) => ({ value: r.id, label: `${r.group}: ${r.title}` }))}
+            options={available.map((r) => ({ value: r.id, label: `${r.group}: ${r.title}` }))}
             value={report.id}
             onValueChange={setReportId}
           />

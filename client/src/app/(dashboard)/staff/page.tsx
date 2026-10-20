@@ -1,6 +1,6 @@
 "use client";
 
-import { useCan } from "@/hooks/use-session";
+import { useCan, useModules } from "@/hooks/use-session";
 import { useUrlTab } from "@/hooks/use-url-state";
 import {
   Tabs,
@@ -28,7 +28,10 @@ const TABS = ["directory", "allocations", "payroll"] as const;
 export default function StaffPage() {
   const canSeePayroll = useCan("fin_manage_payroll");
   const canAddStaff = useCan("adm_onboard_staff");
-  const [activeTab, setActiveTab] = useUrlTab("directory", canSeePayroll ? TABS : ["directory", "allocations"]);
+  // Allocations need classes (Students module); payroll needs the Payroll module (useCan checks it).
+  const hasClasses = useModules().has("students");
+  const tabs = TABS.filter((t) => (t !== "payroll" || canSeePayroll) && (t !== "allocations" || hasClasses));
+  const [activeTab, setActiveTab] = useUrlTab("directory", tabs);
 
   return (
     <div className="space-y-6">
@@ -57,10 +60,12 @@ export default function StaffPage() {
             <Users />
             Directory
           </TabsTrigger>
-          <TabsTrigger value="allocations">
-            <GraduationCap />
-            Teaching allocations
-          </TabsTrigger>
+          {hasClasses ? (
+            <TabsTrigger value="allocations">
+              <GraduationCap />
+              Teaching allocations
+            </TabsTrigger>
+          ) : null}
           {canSeePayroll ? (
             <TabsTrigger value="payroll">
               <Banknote />
@@ -72,9 +77,11 @@ export default function StaffPage() {
         <TabsContent value="directory">
           <StaffDirectory />
         </TabsContent>
-        <TabsContent value="allocations">
-          <TeacherAllocations />
-        </TabsContent>
+        {hasClasses ? (
+          <TabsContent value="allocations">
+            <TeacherAllocations />
+          </TabsContent>
+        ) : null}
         {canSeePayroll ? (
           <TabsContent value="payroll">
             <PayrollList />

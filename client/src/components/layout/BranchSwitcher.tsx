@@ -10,14 +10,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { useCurrentBranch } from "@/hooks/use-session";
-import { useGetBranchesQuery } from "@/store/api";
+import { useCurrentBranch, useTenantBranches } from "@/hooks/use-session";
 import { useAppDispatch } from "@/store/hooks";
 import { branchSelected } from "@/store/sessionSlice";
 
 export function BranchSwitcher() {
   const dispatch = useAppDispatch();
-  const { data: branches = [] } = useGetBranchesQuery();
+  const branches = useTenantBranches();
   const selectedBranch = useCurrentBranch();
   if (!selectedBranch) return null;
 

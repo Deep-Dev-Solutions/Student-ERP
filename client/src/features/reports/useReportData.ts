@@ -2,9 +2,8 @@
 
 import { useToday } from "@/features/attendance/hooks";
 import { useBranchClasses, useGrader, useSelectedSession } from "@/hooks/use-academics";
-import { useCurrentBranch } from "@/hooks/use-session";
+import { useCurrentBranch, useTenantBranches } from "@/hooks/use-session";
 import {
-  useGetBranchesQuery,
   useGetClassSubjectsQuery,
   useGetExamMarksQuery,
   useGetExamPapersQuery,
@@ -29,8 +28,8 @@ export function useReportData(): ReportData | null {
   const { session } = useSelectedSession();
   const classes = useBranchClasses();
   const grade = useGrader();
+  const branches = useTenantBranches();
   const q = {
-    branches: useGetBranchesQuery().data,
     sections: useGetSectionsQuery().data,
     students: useGetStudentsQuery().data,
     vouchers: useGetVouchersQuery().data,
@@ -53,7 +52,7 @@ export function useReportData(): ReportData | null {
     session,
     classes,
     grade,
-    branches: q.branches!,
+    branches,
     sections: q.sections!,
     students: q.students!,
     vouchers: q.vouchers!,

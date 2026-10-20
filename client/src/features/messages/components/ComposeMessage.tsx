@@ -5,6 +5,7 @@ import { MessageSquareText, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { FormStatus, SelectField, TextField } from "@/components/shared/FormFields";
 import { useBranchClasses, useClassSections, useReadOnly } from "@/hooks/use-academics";
 import { useCan, useCurrentBranch } from "@/hooks/use-session";
@@ -12,7 +13,7 @@ import { formatRupees } from "@/lib/format";
 import { deliveryChannel, messageCost, PLACEHOLDERS, renderTemplate, smsSegments } from "@/lib/messaging";
 import { errorMessage, useGetMessageTemplatesQuery, useGetSchoolRulesQuery, useSendMessagesMutation } from "@/store/api";
 import type { AudienceKind, MessageChannel } from "@/types";
-import { audienceOptions, useAudience } from "../useAudience";
+import { useAudience, useAudienceOptions } from "../useAudience";
 
 const channelOptions: { value: MessageChannel; label: string }[] = [
   { value: "whatsapp", label: "WhatsApp" },
@@ -29,7 +30,9 @@ export function ComposeMessage() {
   const { data: templates = [] } = useGetMessageTemplatesQuery();
   const smsFallback = useGetSchoolRulesQuery().data?.notifications.smsFallback ?? true;
   const [send, { isLoading }] = useSendMessagesMutation();
-  const [kind, setKind] = useState<AudienceKind>("all_parents");
+  const options = useAudienceOptions();
+  const [pickedKind, setKind] = useState<AudienceKind>("all_parents");
+  const kind = options.some((o) => o.value === pickedKind) ? pickedKind : (options[0]?.value ?? "all_parents");
   const [classId, setClassId] = useState(classes.at(-1)?.id ?? "");
   const sections = useClassSections(classId);
   const [sectionId, setSectionId] = useState(ALL);
@@ -68,6 +71,14 @@ export function ComposeMessage() {
     setTemplateId(CUSTOM);
   };
 
+  if (options.length === 0) {
+    return (
+      <Card className="py-0">
+        <EmptyState icon={MessageSquareText} title="No one to message yet" description="Messages go to parents (Students and admissions) or staff (Staff and HR). Add one of those modules to send messages." />
+      </Card>
+    );
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-5">
       <Card className="gap-5 px-5 sm:px-6 lg:col-span-3">
@@ -78,7 +89,7 @@ export function ComposeMessage() {
           <CardDescription className="mt-0.5">Send a WhatsApp message or SMS to parents or staff at this campus.</CardDescription>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <SelectField id="msg-audience" label="Send to" options={audienceOptions} value={kind} onValueChange={(v) => setKind(v as AudienceKind)} />
+          <SelectField id="msg-audience" label="Send to" options={options} value={kind} onValueChange={(v) => setKind(v as AudienceKind)} />
           <SelectField id="msg-channel" label="Send by" options={channelOptions} value={channel} onValueChange={(v) => setChannel(v as MessageChannel)} />
           {kind === "class_parents" ? (
             <>

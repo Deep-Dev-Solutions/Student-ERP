@@ -1,5 +1,6 @@
 "use client";
 
+import { useModules } from "@/hooks/use-session";
 import { useState } from "react";
 import { Clock, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ export function SchoolRulesPanel() {
 }
 
 function SchoolRulesForm({ initial }: { initial: SchoolRules }) {
+  const { has } = useModules();
   const [rules, setRules] = useState<SchoolRules>(initial);
   const [saveRules, { isLoading }] = useUpdateSchoolRulesMutation();
   const [notice, setNotice] = useState<{ ok?: string; error?: string }>({});
@@ -88,107 +90,113 @@ function SchoolRulesForm({ initial }: { initial: SchoolRules }) {
           <CardDescription className="mt-0.5">How attendance, fees, grades and messages work at every campus.</CardDescription>
         </div>
 
-        <section className="border-t border-border pt-5" aria-labelledby="rules-attendance">
-          <h3 id="rules-attendance" className="mb-4 text-sm font-semibold">Attendance</h3>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <SelectField
-              id="rules-mode"
-              label="Who marks attendance"
-              options={modeOptions}
-              value={rules.attendance.mode}
-              onValueChange={(v) => update("attendance", { mode: v as AttendanceMode })}
-              hint={mode?.hint}
-            />
-            <SelectField
-              id="rules-lock"
-              label="Registers lock"
-              options={lockOptions}
-              value={String(rules.attendance.lockAfterHours)}
-              onValueChange={(v) => update("attendance", { lockAfterHours: Number(v) })}
-              hint="After that, only a branch admin can change a register, and must give a reason."
-            />
-          </div>
-
-          <div className="mt-5">
-            <p className="mb-2 text-sm font-medium">Holidays</p>
-            <p className="mb-3 text-xs text-muted-foreground">No register is expected on these days.</p>
-            {rules.attendance.holidays.length > 0 ? (
-              <ul className="mb-3 divide-y divide-border rounded-lg border border-border">
-                {rules.attendance.holidays.map((h) => (
-                  <li key={h.id} className="flex items-center justify-between gap-3 px-3 py-2">
-                    <span>
-                      <span className="font-medium">{h.name}</span>{" "}
-                      <span className="text-muted-foreground">{formatDate(h.date)}</span>
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => update("attendance", { holidays: rules.attendance.holidays.filter((x) => x.id !== h.id) })}
-                      aria-label={`Remove ${h.name}`}
-                      className="text-muted-foreground hover:bg-danger-tint hover:text-danger"
-                    >
-                      <Trash2 />
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-              <TextField id="holiday-date" label="Date" type="date" value={holidayDate} onChange={(e) => setHolidayDate(e.target.value)} wrapperClassName="sm:w-44" />
-              <TextField id="holiday-name" label="Holiday" placeholder="e.g. Eid ul Fitr" value={holidayName} onChange={(e) => setHolidayName(e.target.value)} wrapperClassName="flex-1" />
-              <Button type="button" variant="outline" onClick={addHoliday} disabled={!holidayDate || !holidayName.trim()}>
-                <Plus data-icon="inline-start" />
-                Add holiday
-              </Button>
+        {has("attendance") ? (
+          <section className="border-t border-border pt-5" aria-labelledby="rules-attendance">
+            <h3 id="rules-attendance" className="mb-4 text-sm font-semibold">Attendance</h3>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <SelectField
+                id="rules-mode"
+                label="Who marks attendance"
+                options={modeOptions}
+                value={rules.attendance.mode}
+                onValueChange={(v) => update("attendance", { mode: v as AttendanceMode })}
+                hint={mode?.hint}
+              />
+              <SelectField
+                id="rules-lock"
+                label="Registers lock"
+                options={lockOptions}
+                value={String(rules.attendance.lockAfterHours)}
+                onValueChange={(v) => update("attendance", { lockAfterHours: Number(v) })}
+                hint="After that, only a branch admin can change a register, and must give a reason."
+              />
             </div>
-          </div>
-        </section>
-
-        <section className="border-t border-border pt-5" aria-labelledby="rules-fees">
-          <h3 id="rules-fees" className="mb-4 text-sm font-semibold">Fees</h3>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <TextField id="rules-due" label="Vouchers due on day" type="number" inputMode="numeric" min={1} max={28} value={rules.fees.dueDay} onChange={(e) => update("fees", { dueDay: num(e.target.value) })} hint="Of each month." />
-            <TextField id="rules-grace" label="Grace period (days)" type="number" inputMode="numeric" min={0} value={rules.fees.graceDays} onChange={(e) => update("fees", { graceDays: num(e.target.value) })} />
-            <TextField id="rules-fine" label="Late fine per day (Rs)" type="number" inputMode="numeric" min={0} value={rules.fees.lateFinePerDay} onChange={(e) => update("fees", { lateFinePerDay: num(e.target.value) })} hint="After the grace period." />
-            <TextField id="rules-sibling" label="Sibling discount (%)" type="number" inputMode="numeric" min={0} max={100} value={rules.fees.siblingDiscountPercent} onChange={(e) => update("fees", { siblingDiscountPercent: num(e.target.value) })} hint="For the second child onwards." />
-          </div>
-        </section>
-
-        <section className="border-t border-border pt-5" aria-labelledby="rules-grading">
-          <h3 id="rules-grading" className="mb-4 text-sm font-semibold">Grading</h3>
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <TextField id="rules-pass" label="Pass mark (%)" type="number" inputMode="numeric" min={0} max={100} value={rules.grading.passPercent} onChange={(e) => update("grading", { passPercent: num(e.target.value) })} hint="Below this, the grade shows as a fail." />
-            <div className="lg:col-span-2">
-              <p className="mb-1.5 text-sm font-medium">Grades</p>
-              <ul className="space-y-2">
-                {rules.grading.bands.map((band, i) => (
-                  <li key={i} className="flex items-center gap-2">
-                    <Input
-                      aria-label={`Grade ${i + 1} name`}
-                      value={band.label}
-                      maxLength={3}
-                      onChange={(e) => update("grading", { bands: rules.grading.bands.map((b, j) => (j === i ? { ...b, label: e.target.value } : b)) })}
-                      className="h-9 w-20 bg-card"
-                    />
-                    <span className="text-sm text-muted-foreground">from</span>
-                    <Input
-                      aria-label={`Grade ${band.label || i + 1} starts at percent`}
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      max={100}
-                      value={band.min}
-                      onChange={(e) => update("grading", { bands: rules.grading.bands.map((b, j) => (j === i ? { ...b, min: num(e.target.value) } : b)) })}
-                      className="h-9 w-24 bg-card tabular-nums"
-                    />
-                    <span className="text-sm text-muted-foreground">%</span>
-                  </li>
-                ))}
-              </ul>
+  
+            <div className="mt-5">
+              <p className="mb-2 text-sm font-medium">Holidays</p>
+              <p className="mb-3 text-xs text-muted-foreground">No register is expected on these days.</p>
+              {rules.attendance.holidays.length > 0 ? (
+                <ul className="mb-3 divide-y divide-border rounded-lg border border-border">
+                  {rules.attendance.holidays.map((h) => (
+                    <li key={h.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                      <span>
+                        <span className="font-medium">{h.name}</span>{" "}
+                        <span className="text-muted-foreground">{formatDate(h.date)}</span>
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => update("attendance", { holidays: rules.attendance.holidays.filter((x) => x.id !== h.id) })}
+                        aria-label={`Remove ${h.name}`}
+                        className="text-muted-foreground hover:bg-danger-tint hover:text-danger"
+                      >
+                        <Trash2 />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <TextField id="holiday-date" label="Date" type="date" value={holidayDate} onChange={(e) => setHolidayDate(e.target.value)} wrapperClassName="sm:w-44" />
+                <TextField id="holiday-name" label="Holiday" placeholder="e.g. Eid ul Fitr" value={holidayName} onChange={(e) => setHolidayName(e.target.value)} wrapperClassName="flex-1" />
+                <Button type="button" variant="outline" onClick={addHoliday} disabled={!holidayDate || !holidayName.trim()}>
+                  <Plus data-icon="inline-start" />
+                  Add holiday
+                </Button>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        ) : null}
+
+        {has("fees") ? (
+          <section className="border-t border-border pt-5" aria-labelledby="rules-fees">
+            <h3 id="rules-fees" className="mb-4 text-sm font-semibold">Fees</h3>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <TextField id="rules-due" label="Vouchers due on day" type="number" inputMode="numeric" min={1} max={28} value={rules.fees.dueDay} onChange={(e) => update("fees", { dueDay: num(e.target.value) })} hint="Of each month." />
+              <TextField id="rules-grace" label="Grace period (days)" type="number" inputMode="numeric" min={0} value={rules.fees.graceDays} onChange={(e) => update("fees", { graceDays: num(e.target.value) })} />
+              <TextField id="rules-fine" label="Late fine per day (Rs)" type="number" inputMode="numeric" min={0} value={rules.fees.lateFinePerDay} onChange={(e) => update("fees", { lateFinePerDay: num(e.target.value) })} hint="After the grace period." />
+              <TextField id="rules-sibling" label="Sibling discount (%)" type="number" inputMode="numeric" min={0} max={100} value={rules.fees.siblingDiscountPercent} onChange={(e) => update("fees", { siblingDiscountPercent: num(e.target.value) })} hint="For the second child onwards." />
+            </div>
+          </section>
+        ) : null}
+
+        {has("exams") ? (
+          <section className="border-t border-border pt-5" aria-labelledby="rules-grading">
+            <h3 id="rules-grading" className="mb-4 text-sm font-semibold">Grading</h3>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              <TextField id="rules-pass" label="Pass mark (%)" type="number" inputMode="numeric" min={0} max={100} value={rules.grading.passPercent} onChange={(e) => update("grading", { passPercent: num(e.target.value) })} hint="Below this, the grade shows as a fail." />
+              <div className="lg:col-span-2">
+                <p className="mb-1.5 text-sm font-medium">Grades</p>
+                <ul className="space-y-2">
+                  {rules.grading.bands.map((band, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <Input
+                        aria-label={`Grade ${i + 1} name`}
+                        value={band.label}
+                        maxLength={3}
+                        onChange={(e) => update("grading", { bands: rules.grading.bands.map((b, j) => (j === i ? { ...b, label: e.target.value } : b)) })}
+                        className="h-9 w-20 bg-card"
+                      />
+                      <span className="text-sm text-muted-foreground">from</span>
+                      <Input
+                        aria-label={`Grade ${band.label || i + 1} starts at percent`}
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={100}
+                        value={band.min}
+                        onChange={(e) => update("grading", { bands: rules.grading.bands.map((b, j) => (j === i ? { ...b, min: num(e.target.value) } : b)) })}
+                        className="h-9 w-24 bg-card tabular-nums"
+                      />
+                      <span className="text-sm text-muted-foreground">%</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         <section className="border-t border-border pt-5" aria-labelledby="rules-notifications">
           <h3 id="rules-notifications" className="mb-4 text-sm font-semibold">Messages to guardians</h3>

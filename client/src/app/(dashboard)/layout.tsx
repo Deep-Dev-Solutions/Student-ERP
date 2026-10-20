@@ -7,6 +7,7 @@ import { PortalSwitch, Sidebar, SidebarContent } from "@/components/layout/Sideb
 import { Header, HeaderContent } from "@/components/layout/Header";
 import { BranchSwitcher } from "@/components/layout/BranchSwitcher";
 import { ReadOnlyNotice } from "@/components/layout/ReadOnlyNotice";
+import { PlanGate, ViewAsBanner } from "@/components/layout/PlanGate";
 import { SessionSwitcher } from "@/components/layout/SessionSwitcher";
 import { UserProfileNav } from "@/components/layout/UserProfileNav";
 import { adminNavGroups } from "@/components/layout/nav-config";
@@ -65,8 +66,9 @@ export default function DashboardLayout({
 
         <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
+            <ViewAsBanner />
             <ReadOnlyNotice />
-            {children}
+            <PlanGate>{children}</PlanGate>
           </div>
         </main>
       </div>

@@ -1,5 +1,7 @@
 import {
   BarChart3,
+  Building2,
+  Library,
   CalendarCheck,
   ClipboardList,
   FileText,
@@ -77,11 +79,23 @@ export const teacherNavGroups: NavGroup[] = [
   },
 ];
 
+export const consoleNavGroups: NavGroup[] = [
+  {
+    label: "Platform",
+    items: [
+      { href: "/console", label: "Schools", icon: Building2, exact: true },
+      { href: "/console/question-bank", label: "Question bank", icon: Library },
+    ],
+  },
+];
+
 /** Labels for nested routes that are not nav items themselves. */
 const subPageLabels: [RegExp, string][] = [
   [/^\/teacher-portal\/paper-maker\/new$/, "New paper"],
   [/^\/teacher-portal\/paper-maker\/[^/]+$/, "Paper"],
   [/^\/papers\/[^/]+$/, "Paper"],
+  [/^\/console\/new$/, "Add school"],
+  [/^\/console\/(?!question-bank$)[^/]+$/, "School"],
   [/^\/teacher-portal\/classes\/[^/]+$/, "Class list"],
   [/^\/teacher-portal\/profile$/, "My profile"],
   [/^\/students\/new$/, "New admission"],

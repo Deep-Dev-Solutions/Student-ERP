@@ -1,13 +1,18 @@
 import { createApi, fakeBaseQuery } from "@reduxjs/toolkit/query/react";
-import { db, mockActor, mockActorRole, type MockDb } from "@/mocks/db";
+import { db, mockActor, mockActorRole, mockTenantId, type MockDb } from "@/mocks/db";
+import { mockTenantService } from "@/services/tenant/mockTenantService";
+import type { NewTenantInput, PlatformCaller } from "@/services/tenant/contract";
 import { hasPermission } from "@/lib/auth/permissions";
-import { PRINT_PERMISSION, type CallerContext } from "@/services/paper/contract";
+import { PRINT_PERMISSION, type CallerContext, type CatalogItemInput, type CatalogKind } from "@/services/paper/contract";
 import { mockPaperService } from "@/services/paper/mockPaperService";
 import { buildVoucher, feeStanding, settleVoucher, voucherBalance } from "@/lib/fees";
 import { deliveryChannel, messageCost, renderTemplate, smsSegments } from "@/lib/messaging";
 import { computePayslip } from "@/lib/payroll";
 import { periodsOf, teachersFrom } from "@/mocks/staff";
 import type {
+  ModuleKey,
+  Tenant,
+  TenantStatus,
   BankQuestion,
   Paper,
   PaperCatalog,
@@ -62,7 +67,7 @@ import { localISODate } from "@/lib/dates";
 
 type Tag =
   | "Voucher" | "Session" | "Branch" | "User" | "Class" | "Section"
-  | "Subject" | "ClassSubject" | "Permissions" | "Rules" | "Campus" | "Student" | "StudentActivity" | "Register" | "UnlockRequest" | "StaffAttendance" | "Payment" | "FeeStructure" | "DayClosing" | "FeeReminder" | "Staff" | "Allocation" | "Payroll" | "Exam" | "Message" | "Paper";
+  | "Subject" | "ClassSubject" | "Permissions" | "Rules" | "Campus" | "Student" | "StudentActivity" | "Register" | "UnlockRequest" | "StaffAttendance" | "Payment" | "FeeStructure" | "DayClosing" | "FeeReminder" | "Staff" | "Allocation" | "Payroll" | "Exam" | "Message" | "Paper" | "Tenant";
 
 /** A read endpoint that returns one collection from the mock database. */
 const read = <K extends keyof MockDb>(key: K, tag?: Tag) => ({
@@ -77,7 +82,26 @@ const paperCaller = (staffId?: string): CallerContext => ({
   name: mockActor(),
   staffId,
   canPrintPapers: hasPermission(mockActorRole(), PRINT_PERMISSION, db.rolePermissions),
+  isPlatformAdmin: mockActorRole() === "super_admin",
 });
+
+/** The caller as the tenant service sees it. The real API takes this from the sign-in token. */
+const platformCaller = (tenantId = mockTenantId()): PlatformCaller => ({
+  name: mockActor(),
+  isPlatformAdmin: mockActorRole() === "super_admin",
+  tenantId,
+});
+
+/** Admissions need the Students module and a free seat on the school's plan. */
+function seatProblem(adding: number): { error: { status: number; message: string } } | null {
+  const tenant = db.tenants.find((t) => t.id === mockTenantId());
+  if (!tenant) return null;
+  if (!tenant.modules.includes("students")) return fail(403, "Students and admissions isn't part of your plan");
+  const active = db.students.filter((st) => st.enrollment === "active").length;
+  if (active + adding > tenant.studentSeats)
+    return fail(409, `Your plan allows ${tenant.studentSeats.toLocaleString("en-PK")} students and ${active.toLocaleString("en-PK")} are enrolled. Ask DeepDev to add seats.`);
+  return null;
+}
 
 /** Records an automatic message (fee reminder, absence alert) to students' primary guardians in the send log. */
 function logGuardianMessage(branchId: string, studentIds: string[], templateId: string, audience: string, vars: (studentId: string) => Record<string, string>) {
@@ -183,7 +207,7 @@ const putStudent = (student: Student) => {
 export const api = createApi({
   reducerPath: "api",
   baseQuery: fakeBaseQuery<{ status: number; message: string }>(),
-  tagTypes: ["Voucher", "Session", "Branch", "User", "Class", "Section", "Subject", "ClassSubject", "Permissions", "Rules", "Campus", "Student", "StudentActivity", "Register", "UnlockRequest", "StaffAttendance", "Payment", "FeeStructure", "DayClosing", "FeeReminder", "Staff", "Allocation", "Payroll", "Exam", "Message", "Paper"],
+  tagTypes: ["Voucher", "Session", "Branch", "User", "Class", "Section", "Subject", "ClassSubject", "Permissions", "Rules", "Campus", "Student", "StudentActivity", "Register", "UnlockRequest", "StaffAttendance", "Payment", "FeeStructure", "DayClosing", "FeeReminder", "Staff", "Allocation", "Payroll", "Exam", "Message", "Paper", "Tenant"],
   // Demo data never goes stale; keep it for the whole visit.
   keepUnusedDataFor: 60 * 60 * 24,
   endpoints: (build) => ({
@@ -226,6 +250,8 @@ export const api = createApi({
       queryFn: () => mockPaperService.getQuestionBank(paperCaller(), db.paperCatalog.subTopics.map((t) => t.id)),
       providesTags: ["Paper"],
     }),
+    getMyTenant: build.query<Tenant, string>({ queryFn: (tenantId) => mockTenantService.getMyTenant(platformCaller(tenantId)), providesTags: ["Tenant"] }),
+    getTenants: build.query<Tenant[], void>({ queryFn: () => mockTenantService.listTenants(platformCaller()), providesTags: ["Tenant"] }),
     getPapers: build.query<Paper[], void>({ queryFn: () => mockPaperService.listPapers(paperCaller()), providesTags: ["Paper"] }),
     getPrintablePaper: build.query<Paper, { id: string; answerKey: boolean }>({
       queryFn: ({ id, answerKey }) => mockPaperService.getPrintable(paperCaller(), id, answerKey),
@@ -838,9 +864,37 @@ export const api = createApi({
       invalidatesTags: ["Paper"],
     }),
 
+    // Console: schools and the global question bank ----------------------------
+    createTenant: build.mutation<Tenant, NewTenantInput>({ queryFn: (input) => mockTenantService.createTenant(platformCaller(), input), invalidatesTags: ["Tenant", "Branch"] }),
+    setTenantModules: build.mutation<Tenant, { id: string; modules: ModuleKey[] }>({
+      queryFn: ({ id, modules }) => mockTenantService.setModules(platformCaller(), id, modules),
+      invalidatesTags: ["Tenant"],
+    }),
+    setTenantSeats: build.mutation<Tenant, { id: string; studentSeats: number }>({
+      queryFn: ({ id, studentSeats }) => mockTenantService.setSeats(platformCaller(), id, studentSeats),
+      invalidatesTags: ["Tenant"],
+    }),
+    setTenantStatus: build.mutation<Tenant, { id: string; status: TenantStatus; reason: string }>({
+      queryFn: ({ id, status, reason }) => mockTenantService.setStatus(platformCaller(), id, status, reason),
+      invalidatesTags: ["Tenant"],
+    }),
+    logViewAs: build.mutation<Tenant, string>({ queryFn: (id) => mockTenantService.logViewAs(platformCaller(), id), invalidatesTags: ["Tenant"] }),
+    saveCatalogItem: build.mutation<PaperCatalog, CatalogItemInput>({ queryFn: (input) => mockPaperService.saveCatalogItem(paperCaller(), input), invalidatesTags: ["Paper"] }),
+    deleteCatalogItem: build.mutation<PaperCatalog, { kind: CatalogKind; id: string }>({
+      queryFn: ({ kind, id }) => mockPaperService.deleteCatalogItem(paperCaller(), kind, id),
+      invalidatesTags: ["Paper"],
+    }),
+    saveBankQuestion: build.mutation<BankQuestion, Omit<BankQuestion, "id"> & { id?: string }>({
+      queryFn: (input) => mockPaperService.saveBankQuestion(paperCaller(), input),
+      invalidatesTags: ["Paper"],
+    }),
+    deleteBankQuestion: build.mutation<null, string>({ queryFn: (id) => mockPaperService.deleteBankQuestion(paperCaller(), id), invalidatesTags: ["Paper"] }),
+
     // Students ---------------------------------------------------------------
     admitStudent: build.mutation<Student, AdmissionInput>({
       queryFn: (input) => {
+        const seats = seatProblem(1);
+        if (seats) return seats;
         const problem = checkPlacement(input.classId, input.sectionId, input.branchId);
         if (problem) return fail(400, problem);
         if (input.bForm && db.students.some((s) => s.bForm === input.bForm))
@@ -859,6 +913,8 @@ export const api = createApi({
     }),
     importStudents: build.mutation<Student[], AdmissionInput[]>({
       queryFn: (inputs) => {
+        const seats = seatProblem(inputs.length);
+        if (seats) return seats;
         const created = inputs.map((input, i) => createStudent(input, i));
         // Link siblings: students who share a guardian's mobile number, both ways.
         const linked = created.map((s) => {
@@ -1257,6 +1313,17 @@ export const {
   useGetPaperCatalogQuery,
   useGetQuestionBankQuery,
   useGetPapersQuery,
+  useGetMyTenantQuery,
+  useGetTenantsQuery,
+  useCreateTenantMutation,
+  useSetTenantModulesMutation,
+  useSetTenantSeatsMutation,
+  useSetTenantStatusMutation,
+  useLogViewAsMutation,
+  useSaveCatalogItemMutation,
+  useDeleteCatalogItemMutation,
+  useSaveBankQuestionMutation,
+  useDeleteBankQuestionMutation,
   useGetPrintablePaperQuery,
   useSavePaperDraftMutation,
   useSubmitPaperMutation,

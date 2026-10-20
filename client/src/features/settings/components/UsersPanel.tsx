@@ -8,11 +8,10 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { FormStatus, SelectField, TextField } from "@/components/shared/FormFields";
-import { useCurrentUser } from "@/hooks/use-session";
+import { useCurrentUser, useTenantBranches } from "@/hooks/use-session";
 import { ROLE_LABELS, ROLE_SCOPES } from "@/lib/auth/permissions";
 import {
   errorMessage,
-  useGetBranchesQuery,
   useGetStaffQuery,
   useGetUsersQuery,
   useInviteUserMutation,
@@ -37,7 +36,7 @@ export function UsersPanel() {
   const me = useCurrentUser();
   const { data: users = [] } = useGetUsersQuery();
   const { data: staff = [] } = useGetStaffQuery();
-  const { data: branches = [] } = useGetBranchesQuery();
+  const branches = useTenantBranches();
   const [inviteUser, inviteState] = useInviteUserMutation();
   const [setUserStatus] = useSetUserStatusMutation();
 

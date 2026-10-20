@@ -38,7 +38,7 @@ import { FormStatus, SelectField, TextField } from "@/components/shared/FormFiel
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { useGrader, useReadOnly } from "@/hooks/use-academics";
-import { useCan } from "@/hooks/use-session";
+import { useCan, useModules } from "@/hooks/use-session";
 import { useUrlParam, useUrlTab } from "@/hooks/use-url-state";
 import { formatDate, formatPercent, formatRupees } from "@/lib/format";
 import { monthLabel, voucherBalance, voucherState, voucherStateLabels } from "@/lib/fees";
@@ -112,7 +112,9 @@ export function StudentProfile({ studentId }: { studentId: string }) {
   const { data: students = [] } = useGetStudentsQuery();
   const student = students.find((s) => s.id === studentId);
   const placement = usePlacement();
-  const [activeTab, setActiveTab] = useUrlTab("overview", TABS);
+  const { has } = useModules();
+  const tabs = TABS.filter((t) => (t !== "attendance" || has("attendance")) && (t !== "fees" || has("fees")) && (t !== "results" || has("exams")));
+  const [activeTab, setActiveTab] = useUrlTab("overview", tabs);
   const [admitted, setAdmitted] = useUrlParam("admitted", "");
   const [saved, setSaved] = useUrlParam("saved", "");
   const [action, setAction] = useState<StudentAction | null>(null);
@@ -241,18 +243,24 @@ export function StudentProfile({ studentId }: { studentId: string }) {
             <UserRound />
             Overview
           </TabsTrigger>
-          <TabsTrigger value="attendance">
-            <CalendarCheck />
-            Attendance
-          </TabsTrigger>
-          <TabsTrigger value="fees">
-            <Wallet />
-            Fees
-          </TabsTrigger>
-          <TabsTrigger value="results">
-            <BookOpen />
-            Results
-          </TabsTrigger>
+          {has("attendance") ? (
+            <TabsTrigger value="attendance">
+              <CalendarCheck />
+              Attendance
+            </TabsTrigger>
+          ) : null}
+          {has("fees") ? (
+            <TabsTrigger value="fees">
+              <Wallet />
+              Fees
+            </TabsTrigger>
+          ) : null}
+          {has("exams") ? (
+            <TabsTrigger value="results">
+              <BookOpen />
+              Results
+            </TabsTrigger>
+          ) : null}
           <TabsTrigger value="documents">
             <FileText />
             Documents

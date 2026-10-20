@@ -8,11 +8,11 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { FormStatus, TextField } from "@/components/shared/FormFields";
-import { useCurrentBranch } from "@/hooks/use-session";
-import { errorMessage, useAddBranchMutation, useGetBranchesQuery, useGetClassesQuery, useGetSectionsQuery } from "@/store/api";
+import { useCurrentBranch, useTenantBranches } from "@/hooks/use-session";
+import { errorMessage, useAddBranchMutation, useGetClassesQuery, useGetSectionsQuery } from "@/store/api";
 
 export function BranchesPanel() {
-  const { data: branches = [] } = useGetBranchesQuery();
+  const branches = useTenantBranches();
   const { data: classes = [] } = useGetClassesQuery();
   const { data: sections = [] } = useGetSectionsQuery();
   const current = useCurrentBranch();

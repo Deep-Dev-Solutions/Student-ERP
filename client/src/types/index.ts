@@ -11,3 +11,4 @@ export * from "./teacher";
 export * from "./dashboard";
 export * from "./academics";
 export * from "./messages";
+export * from "./tenant";

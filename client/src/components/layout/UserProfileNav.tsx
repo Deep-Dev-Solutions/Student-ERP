@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ChevronDown, CreditCard, LogOut, Monitor, Moon, Settings, Sun } from "lucide-react";
+import { Building2, ChevronDown, CreditCard, LogOut, Monitor, Moon, Settings, Sun } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -38,6 +38,7 @@ export interface ProfileLink {
 }
 
 const defaultLinks: ProfileLink[] = [
+  { href: "/console", label: "Platform console", icon: Building2 },
   { href: "/settings", label: "Account settings", icon: Settings },
   { href: "/fees", label: "Billing & subscriptions", icon: CreditCard },
 ];

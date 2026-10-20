@@ -4,8 +4,8 @@
  * way once the real API replaces it.
  */
 import { db } from "@/mocks/db";
-import type { Paper } from "@/types";
-import { paperProblem, type CallerContext, type PaperService, type ServiceResult } from "./contract";
+import type { Paper, PaperCatalog } from "@/types";
+import { paperProblem, type CallerContext, type CatalogKind, type PaperService, type ServiceResult } from "./contract";
 
 const fail = (status: number, message: string) => ({ error: { status, message } });
 const now = () => new Date().toISOString();
@@ -18,6 +18,10 @@ function replace(paper: Paper): ServiceResult<Paper> {
 }
 
 /** Ownership in the mock: an admin opening the teacher portal acts as the demo teacher, so the paper's teacher is trusted as sent. */
+const catalogKeys: Record<CatalogKind, keyof PaperCatalog> = { board: "boards", class: "classes", book: "books", chapter: "chapters", subTopic: "subTopics" };
+const platformOnly = (ctx: CallerContext) => (ctx.isPlatformAdmin ? null : fail(403, "Only platform admins can change the question bank"));
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24) || "item";
+
 const ownerOf = (ctx: CallerContext, paper: Pick<Paper, "teacherId">) => !ctx.staffId || ctx.staffId === paper.teacherId;
 
 export const mockPaperService: PaperService = {
@@ -75,6 +79,86 @@ export const mockPaperService: PaperService = {
     if (note.trim().length < 5) return fail(400, "Tell the teacher what to change");
     const at = now();
     return replace({ ...paper, status: "returned", returnNote: note.trim(), updatedAt: at, history: [...paper.history, { at, by: ctx.name, action: "returned", note: note.trim() }] });
+  },
+
+  saveCatalogItem: (ctx, input) => {
+    const denied = platformOnly(ctx);
+    if (denied) return denied;
+    const name = input.name.trim();
+    if (name.length < 2) return fail(400, "Enter a name");
+    const c = db.paperCatalog;
+    if (input.id) {
+      const key = catalogKeys[input.kind];
+      if (!(c[key] as { id: string }[]).some((x) => x.id === input.id)) return fail(404, "Not found");
+      const rename = <T extends { id: string }>(list: T[], f: (x: T) => T) => list.map((x) => (x.id === input.id ? f(x) : x));
+      db.paperCatalog = {
+        ...c,
+        boards: input.kind === "board" ? rename(c.boards, (b) => ({ ...b, name, shortName: input.extra?.trim() || b.shortName })) : c.boards,
+        classes: input.kind === "class" ? rename(c.classes, (x) => ({ ...x, name })) : c.classes,
+        books: input.kind === "book" ? rename(c.books, (b) => ({ ...b, title: name, subject: input.extra?.trim() || b.subject })) : c.books,
+        chapters: input.kind === "chapter" ? rename(c.chapters, (x) => ({ ...x, title: name })) : c.chapters,
+        subTopics: input.kind === "subTopic" ? rename(c.subTopics, (x) => ({ ...x, title: name })) : c.subTopics,
+      };
+      return { data: db.paperCatalog };
+    }
+    const id = `${input.parentId ? `${input.parentId}-` : ""}${slug(name)}-${Date.now().toString(36).slice(-4)}`;
+    if (input.kind === "board") {
+      if (!input.extra?.trim()) return fail(400, "Enter the board's short name");
+      db.paperCatalog = { ...c, boards: [...c.boards, { id, name, shortName: input.extra.trim() }] };
+    } else if (input.kind === "class") {
+      if (!c.boards.some((b) => b.id === input.parentId)) return fail(400, "Choose a board");
+      db.paperCatalog = { ...c, classes: [...c.classes, { id, boardId: input.parentId!, name }] };
+    } else if (input.kind === "book") {
+      const cls = c.classes.find((x) => x.id === input.parentId);
+      if (!cls) return fail(400, "Choose a class");
+      if (!input.extra?.trim()) return fail(400, "Enter the subject");
+      db.paperCatalog = { ...c, books: [...c.books, { id, boardId: cls.boardId, classId: cls.id, title: name, subject: input.extra.trim() }] };
+    } else if (input.kind === "chapter") {
+      if (!c.books.some((b) => b.id === input.parentId)) return fail(400, "Choose a book");
+      const number = c.chapters.filter((x) => x.bookId === input.parentId).length + 1;
+      db.paperCatalog = { ...c, chapters: [...c.chapters, { id, bookId: input.parentId!, number, title: name }] };
+    } else {
+      if (!c.chapters.some((x) => x.id === input.parentId)) return fail(400, "Choose a chapter");
+      db.paperCatalog = { ...c, subTopics: [...c.subTopics, { id, chapterId: input.parentId!, title: name }] };
+    }
+    return { data: db.paperCatalog };
+  },
+
+  deleteCatalogItem: (ctx, kind, id) => {
+    const denied = platformOnly(ctx);
+    if (denied) return denied;
+    const c = db.paperCatalog;
+    const hasChildren =
+      (kind === "board" && c.classes.some((x) => x.boardId === id)) ||
+      (kind === "class" && c.books.some((x) => x.classId === id)) ||
+      (kind === "book" && c.chapters.some((x) => x.bookId === id)) ||
+      (kind === "chapter" && c.subTopics.some((x) => x.chapterId === id)) ||
+      (kind === "subTopic" && db.questionBank.some((q) => q.subTopicId === id));
+    if (hasChildren) return fail(409, kind === "subTopic" ? "Delete its questions first" : "Delete what's under it first");
+    const key = catalogKeys[kind];
+    db.paperCatalog = { ...c, [key]: (c[key] as { id: string }[]).filter((x) => x.id !== id) };
+    return { data: db.paperCatalog };
+  },
+
+  saveBankQuestion: (ctx, input) => {
+    const denied = platformOnly(ctx);
+    if (denied) return denied;
+    if (!db.paperCatalog.subTopics.some((t) => t.id === input.subTopicId)) return fail(400, "Choose a sub topic");
+    if (input.text.trim().length < 5) return fail(400, "Write the question");
+    if (input.type === "mcq" && (input.options?.length !== 4 || input.options.some((o) => !o.trim()))) return fail(400, "Fill in all four choices");
+    if (input.type === "mcq" && !["A", "B", "C", "D"].includes(input.answer)) return fail(400, "Choose the correct choice");
+    const q = { ...input, text: input.text.trim(), answer: input.answer.trim(), options: input.type === "mcq" ? input.options?.map((o) => o.trim()) : undefined, id: input.id ?? `bq-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}` };
+    if (input.id && !db.questionBank.some((x) => x.id === input.id)) return fail(404, "Question not found");
+    db.questionBank = input.id ? db.questionBank.map((x) => (x.id === input.id ? q : x)) : [...db.questionBank, q];
+    return { data: q };
+  },
+
+  deleteBankQuestion: (ctx, id) => {
+    const denied = platformOnly(ctx);
+    if (denied) return denied;
+    if (!db.questionBank.some((x) => x.id === id)) return fail(404, "Question not found");
+    db.questionBank = db.questionBank.filter((x) => x.id !== id);
+    return { data: null };
   },
 
   getPrintable: (ctx, paperId) => {

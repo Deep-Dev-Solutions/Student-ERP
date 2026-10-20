@@ -8,12 +8,15 @@ export interface SessionState {
   branchId: string;
   /** Selected academic session. */
   sessionId: string;
+  /** A school a platform admin has opened as its owner from the Console. */
+  viewAsTenantId: string | null;
 }
 
 const initialState: SessionState = {
   userId: DEFAULT_USER_ID,
   branchId: "br-1",
   sessionId: "2026-2027",
+  viewAsTenantId: null,
 };
 
 export const sessionSlice = createSlice({
@@ -25,6 +28,15 @@ export const sessionSlice = createSlice({
     },
     signedOut(state) {
       state.userId = DEFAULT_USER_ID;
+      state.viewAsTenantId = null;
+    },
+    viewingAs(state, action: PayloadAction<{ tenantId: string; branchId: string }>) {
+      state.viewAsTenantId = action.payload.tenantId;
+      state.branchId = action.payload.branchId;
+    },
+    stoppedViewingAs(state) {
+      state.viewAsTenantId = null;
+      state.branchId = "br-1";
     },
     branchSelected(state, action: PayloadAction<string>) {
       state.branchId = action.payload;
@@ -35,4 +47,4 @@ export const sessionSlice = createSlice({
   },
 });
 
-export const { signedIn, signedOut, branchSelected, sessionSelected } = sessionSlice.actions;
+export const { signedIn, signedOut, viewingAs, stoppedViewingAs, branchSelected, sessionSelected } = sessionSlice.actions;

@@ -16,7 +16,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { useToday } from "@/features/attendance/hooks";
 import { useReadOnly } from "@/hooks/use-academics";
-import { useCan } from "@/hooks/use-session";
+import { useCan, useModules } from "@/hooks/use-session";
 import { useUrlParam, useUrlTab } from "@/hooks/use-url-state";
 import { ROLE_LABELS } from "@/lib/auth/permissions";
 import { monthLabel } from "@/lib/fees";
@@ -92,14 +92,16 @@ export function StaffProfile({ staffId }: { staffId: string }) {
   const { data: staff = [] } = useGetStaffQuery();
   const { data: users = [] } = useGetUsersQuery();
   const member = staff.find((m) => m.id === staffId || m.staffId === staffId);
-  const [activeTab, setActiveTab] = useUrlTab("overview", TABS);
+  const { has } = useModules();
+  const canSeePay = useCan("fin_manage_payroll");
+  const tabs = TABS.filter((t) => (t !== "teaching" || has("students")) && (t !== "attendance" || has("attendance")) && (t !== "payslips" || canSeePay));
+  const [activeTab, setActiveTab] = useUrlTab("overview", tabs);
   const [saved, setSaved] = useUrlParam("saved", "");
   const [notice, setNotice] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [setStatus] = useSetStaffStatusMutation();
   const readOnly = useReadOnly();
   const canEdit = useCan("adm_onboard_staff") && !readOnly;
-  const canSeePay = useCan("fin_manage_payroll");
 
   if (!member) {
     return (
@@ -172,16 +174,18 @@ export function StaffProfile({ staffId }: { staffId: string }) {
             <IdCard />
             Overview
           </TabsTrigger>
-          {member.teaches ? (
+          {member.teaches && has("students") ? (
             <TabsTrigger value="teaching">
               <BookOpen />
               Teaching
             </TabsTrigger>
           ) : null}
-          <TabsTrigger value="attendance">
-            <CalendarCheck />
-            Attendance
-          </TabsTrigger>
+          {has("attendance") ? (
+            <TabsTrigger value="attendance">
+              <CalendarCheck />
+              Attendance
+            </TabsTrigger>
+          ) : null}
           {canSeePay ? (
             <TabsTrigger value="payslips">
               <Wallet />

@@ -5,6 +5,7 @@
 import { voucherBalance, voucherState, monthLabel } from "@/lib/fees";
 import { computeResults, sectionRoster } from "@/lib/results";
 import type {
+  ModuleKey,
   AcademicSession,
   AttendanceRegister,
   Branch,
@@ -70,6 +71,8 @@ export interface ReportParams {
 
 export interface ReportDefinition {
   id: string;
+  /** The module the report reads; it's listed only when the school has it. */
+  module: ModuleKey;
   group: "Fees" | "Attendance" | "Students" | "Staff and payroll" | "Exams" | "Branches";
   title: string;
   description: string;
@@ -105,6 +108,7 @@ const sectionName = (d: ReportData, id: string) => {
 export const REPORTS: ReportDefinition[] = [
   {
     id: "fee-collection",
+    module: "fees",
     group: "Fees",
     title: "Collection by month",
     description: "Fees billed and collected each month of the session.",
@@ -135,6 +139,7 @@ export const REPORTS: ReportDefinition[] = [
   },
   {
     id: "fee-outstanding",
+    module: "fees",
     group: "Fees",
     title: "Outstanding by class",
     description: "What each class owes, how much is overdue, and how many families are behind.",
@@ -180,6 +185,7 @@ export const REPORTS: ReportDefinition[] = [
   },
   {
     id: "fee-daily",
+    module: "fees",
     group: "Fees",
     title: "Collections by day",
     description: "Receipts for each day of a month by payment method. Reversed payments are left out.",
@@ -220,6 +226,7 @@ export const REPORTS: ReportDefinition[] = [
   },
   {
     id: "attendance-class",
+    module: "attendance",
     group: "Attendance",
     title: "Attendance by section",
     description: "Days marked and the share of students present in each section for a month.",
@@ -261,6 +268,7 @@ export const REPORTS: ReportDefinition[] = [
   },
   {
     id: "attendance-low",
+    module: "attendance",
     group: "Attendance",
     title: "Students below 80%",
     description: "Students present on fewer than 80% of the days marked in a month, lowest first.",
@@ -300,6 +308,7 @@ export const REPORTS: ReportDefinition[] = [
   },
   {
     id: "enrolment",
+    module: "students",
     group: "Students",
     title: "Enrolment by class",
     description: "Active students by class and gender against the seats available.",
@@ -330,6 +339,7 @@ export const REPORTS: ReportDefinition[] = [
   },
   {
     id: "admissions",
+    module: "students",
     group: "Students",
     title: "Admissions and withdrawals",
     description: "Students admitted and withdrawn each month of the session.",
@@ -355,6 +365,7 @@ export const REPORTS: ReportDefinition[] = [
   },
   {
     id: "payroll-summary",
+    module: "payroll",
     group: "Staff and payroll",
     title: "Payroll by month",
     description: "Salaries, deductions and tax for each payroll run.",
@@ -391,6 +402,7 @@ export const REPORTS: ReportDefinition[] = [
   },
   {
     id: "staff-attendance",
+    module: "attendance",
     group: "Staff and payroll",
     title: "Staff attendance",
     description: "Days present, late, absent and on leave for each staff member in a month.",
@@ -420,6 +432,7 @@ export const REPORTS: ReportDefinition[] = [
   },
   {
     id: "exam-classes",
+    module: "exams",
     group: "Exams",
     title: "Exam results by class",
     description: "Pass rate, average and top student in each class for an exam.",
@@ -461,6 +474,7 @@ export const REPORTS: ReportDefinition[] = [
   },
   {
     id: "exam-subjects",
+    module: "exams",
     group: "Exams",
     title: "Subject averages",
     description: "How each class did in each paper of an exam.",
@@ -503,6 +517,7 @@ export const REPORTS: ReportDefinition[] = [
   },
   {
     id: "branches",
+    module: "students",
     group: "Branches",
     title: "Branch comparison",
     description: "Students, staff, attendance and fees side by side for every campus.",

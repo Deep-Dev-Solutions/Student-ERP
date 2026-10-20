@@ -1,5 +1,6 @@
 "use client";
 
+import { useModules } from "@/hooks/use-session";
 import { useState } from "react";
 import Link from "next/link";
 import { KeyRound, Save, UserRound } from "lucide-react";
@@ -30,6 +31,7 @@ function Detail({ label, children, className }: { label: string; children: React
 /** The signed-in teacher's own record, with the contact details they can keep up to date. */
 export function TeacherProfile() {
   const { user, member, viewingAs } = usePortalTeacher();
+  const { has } = useModules();
   if (!member || !user) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
@@ -61,8 +63,8 @@ export function TeacherProfile() {
             <Detail label="Email">{member.email}</Detail>
           </dl>
         </Card>
-        <TeachingCard />
-        <AttendanceCard member={member} />
+        {has("students") ? <TeachingCard /> : null}
+        {has("attendance") ? <AttendanceCard member={member} /> : null}
       </div>
       <Card className="gap-3 px-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p className="flex items-center gap-2 text-sm">

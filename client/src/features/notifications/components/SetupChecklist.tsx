@@ -6,7 +6,8 @@ import { CheckCircle2, Circle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { useBranchClasses, useCurrentSession } from "@/hooks/use-academics";
-import { useCurrentBranch } from "@/hooks/use-session";
+import { useCurrentBranch, useModules } from "@/hooks/use-session";
+import type { ModuleKey } from "@/types";
 import {
   useGetAllocationsQuery,
   useGetCampusProfileQuery,
@@ -45,6 +46,7 @@ export function SetupChecklist() {
   const { data: plans = [] } = useGetFeePlansQuery();
   const { data: students = [] } = useGetStudentsQuery();
   const { data: allocations = [] } = useGetAllocationsQuery();
+  const { has } = useModules();
   const dismissed = useSyncExternalStore(subscribe, () => readDismissed(branch?.id ?? ""), () => true);
   if (!branch || dismissed) return null;
 
@@ -53,18 +55,20 @@ export function SetupChecklist() {
   const branchStudents = students.filter((s) => s.branchId === branch.id && s.enrollment === "active");
   const occupied = branchSections.filter((s) => branchStudents.some((st) => st.sectionId === s.id));
   const teachers = branchStaff.filter((m) => m.teaches);
-  const steps = [
+  const allSteps: { module?: ModuleKey; label: string; done: boolean; href: string }[] = [
     { label: "School profile and contact details", done: Boolean(profile?.schoolName && profile.contactPhone), href: "/settings?tab=profile" },
     { label: "Current academic session", done: Boolean(session), href: "/academics?tab=sessions" },
-    { label: "Classes and sections", done: classes.length > 0 && classes.every((c) => branchSections.some((s) => s.classId === c.id)), href: "/academics" },
-    { label: "Subjects for every class", done: classes.length > 0 && classes.every((c) => classSubjects.some((cs) => cs.classId === c.id)), href: "/academics?tab=subjects" },
-    { label: "Staff records", done: branchStaff.length > 0, href: "/staff/new" },
-    { label: "A class incharge for every section with students", done: occupied.length > 0 && occupied.every((s) => s.inchargeId), href: "/academics" },
-    { label: "Teachers for every subject", done: allocations.length > 0 && classes.filter((c) => allocations.some((a) => a.classId === c.id)).every((c) => classSubjects.filter((cs) => cs.classId === c.id).every((cs) => branchSections.filter((s) => s.classId === c.id).every((s) => allocations.some((a) => a.sectionId === s.id && a.subjectId === cs.subjectId)))), href: "/staff?tab=allocations" },
-    { label: "Fee plan for every class", done: classes.length > 0 && classes.every((c) => plans.some((p) => p.branchId === branch.id && p.classId === c.id)), href: "/fees?tab=structure" },
-    { label: "Students admitted", done: branchStudents.length > 0, href: "/students/new" },
+    { module: "students", label: "Classes and sections", done: classes.length > 0 && classes.every((c) => branchSections.some((s) => s.classId === c.id)), href: "/academics" },
+    { module: "students", label: "Subjects for every class", done: classes.length > 0 && classes.every((c) => classSubjects.some((cs) => cs.classId === c.id)), href: "/academics?tab=subjects" },
+    { module: "staff", label: "Staff records", done: branchStaff.length > 0, href: "/staff/new" },
+    { module: "students", label: "A class incharge for every section with students", done: occupied.length > 0 && occupied.every((s) => s.inchargeId), href: "/academics" },
+    { module: "staff", label: "Teachers for every subject", done: allocations.length > 0 && classes.filter((c) => allocations.some((a) => a.classId === c.id)).every((c) => classSubjects.filter((cs) => cs.classId === c.id).every((cs) => branchSections.filter((s) => s.classId === c.id).every((s) => allocations.some((a) => a.sectionId === s.id && a.subjectId === cs.subjectId)))), href: "/staff?tab=allocations" },
+    { module: "fees", label: "Fee plan for every class", done: classes.length > 0 && classes.every((c) => plans.some((p) => p.branchId === branch.id && p.classId === c.id)), href: "/fees?tab=structure" },
+    { module: "students", label: "Students admitted", done: branchStudents.length > 0, href: "/students/new" },
     { label: "Logins for teachers", done: teachers.length > 0 && teachers.every((t) => users.some((u) => u.staffId === t.staffId)), href: "/settings?tab=users" },
   ];
+  // Steps for modules the school has; "Teachers for every subject" also needs classes.
+  const steps = allSteps.filter((s) => has(s.module) && (s.label !== "Teachers for every subject" || has("students")));
   const done = steps.filter((s) => s.done).length;
   if (done === steps.length) return null;
 

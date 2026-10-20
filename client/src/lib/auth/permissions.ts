@@ -38,6 +38,7 @@ const ROUTE_ACCESS: { prefix: string | RegExp; roles: Role[] }[] = [
   { prefix: "/reports", roles: [...ADMIN_ROLES, "accountant"] },
   { prefix: "/messages", roles: [...ADMIN_ROLES, "accountant", "front_desk"] },
   { prefix: "/settings", roles: ["owner", "super_admin"] },
+  { prefix: "/console", roles: ["super_admin"] },
   { prefix: "/teacher-portal", roles: [...ADMIN_ROLES, "teacher"] },
 ];
 
@@ -50,6 +51,7 @@ export function canAccessPath(role: Role, pathname: string) {
 
 /** Where each role lands after signing in. */
 export function landingPath(role: Role) {
+  if (role === "super_admin") return "/console";
   return role === "teacher" ? "/teacher-portal" : "/dashboard";
 }
 

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { Provider } from "react-redux";
 import { readSessionCookie } from "@/lib/auth/session-cookie";
-import { setMockActor } from "@/mocks/db";
+import { setMockActor, setMockTenant } from "@/mocks/db";
+import { DEMO_TENANT_ID } from "@/mocks/tenants";
 import { ROLE_LABELS } from "@/lib/auth/permissions";
 import { findUser } from "@/mocks/users";
 import { makeStore } from "./index";
@@ -32,6 +33,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return store.subscribe(() => {
       const user = findUser(store.getState().session.userId);
       if (user) setMockActor(`${user.name} (${ROLE_LABELS[user.role]})`, user.role);
+      setMockTenant(store.getState().session.viewAsTenantId ?? DEMO_TENANT_ID);
       try {
         localStorage.setItem(BRANCH_KEY, store.getState().session.branchId);
       } catch {
