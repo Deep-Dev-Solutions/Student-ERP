@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { canAccessPath, landingPath } from "@/lib/auth/permissions";
 import { SESSION_COOKIE } from "@/lib/auth/session-cookie";
 import { findUser, users } from "@/mocks/users";
+import { API_MODE, API_SESSION_COOKIE } from "@/lib/api-mode";
+import type { Role } from "@/types";
 
 /** Pages anyone can open without signing in. */
 const PUBLIC_PATHS = ["/login", "/reset-password", "/forbidden"];
@@ -11,11 +13,25 @@ const PUBLIC_PATHS = ["/login", "/reset-password", "/forbidden"];
  * In development, add ?as=<role> to any URL to view the app as that role
  * (owner, branch_admin, accountant, front_desk, teacher, super_admin).
  */
-export function proxy(request: NextRequest) {
+/** In API mode: who the better-auth session cookie belongs to, asked of the API (null if signed out). */
+async function apiUser(request: NextRequest): Promise<{ role: Role } | null> {
+  const cookie = request.headers.get("cookie");
+  if (!cookie?.includes(API_SESSION_COOKIE)) return null;
+  try {
+    const res = await fetch(`${process.env.API_INTERNAL_URL ?? "http://localhost:4000"}/api/me`, { headers: { cookie }, cache: "no-store" });
+    if (!res.ok) return null;
+    const me = (await res.json()) as { user: { role: Role } | null };
+    return me.user;
+  } catch {
+    return null;
+  }
+}
+
+export async function proxy(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
 
   const viewAs = searchParams.get("as");
-  if (viewAs && process.env.NODE_ENV !== "production") {
+  if (viewAs && process.env.NODE_ENV !== "production" && !API_MODE) {
     const user = users.find((u) => u.role === viewAs || u.id === viewAs);
     if (user) {
       const url = request.nextUrl.clone();
@@ -28,7 +44,7 @@ export function proxy(request: NextRequest) {
 
   if (PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
 
-  const user = findUser(request.cookies.get(SESSION_COOKIE)?.value);
+  const user = API_MODE ? await apiUser(request) : findUser(request.cookies.get(SESSION_COOKIE)?.value);
   if (!user) {
     const url = new URL("/login", request.url);
     url.searchParams.set("next", pathname + request.nextUrl.search);

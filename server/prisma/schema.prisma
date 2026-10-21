@@ -1,0 +1,276 @@
+// DeepDev ERP database. Shapes follow client/src/types; see BACKEND-PLAN.md.
+// Every school-owned table carries tenant_id and is protected by row-level security
+// (prisma/migrations/*_rls). The platform and auth tables are managed by the auth layer.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TenantStatus {
+  active
+  trial
+  suspended
+}
+
+/// Mirrors ModuleKey in client/src/types/tenant.ts.
+enum ModuleKey {
+  students
+  fees
+  attendance
+  staff
+  payroll
+  exams
+  paper_maker
+  messages
+  reports
+}
+
+enum MemberStatus {
+  active
+  invited
+  disabled
+}
+
+// ---------------------------------------------------------------------------
+// Auth (better-auth core + organization + admin plugins)
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String       @id
+  name          String
+  email         String       @unique
+  emailVerified Boolean      @default(false) @map("email_verified")
+  image         String?
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  /// Platform role from the admin plugin: "admin" is a DeepDev platform admin (super_admin in the app).
+  role          String?
+  banned        Boolean?     @default(false)
+  banReason     String?      @map("ban_reason")
+  banExpires    DateTime?    @map("ban_expires")
+  /// Mobile number (owner contact in the Console, staff contact).
+  phone         String?
+  sessions      Session[]
+  accounts      Account[]
+  members       Member[]
+  invitations   Invitation[]
+
+  @@map("user")
+}
+
+model Session {
+  id                   String   @id
+  expiresAt            DateTime @map("expires_at")
+  token                String   @unique
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+  ipAddress            String?  @map("ip_address")
+  userAgent            String?  @map("user_agent")
+  userId               String   @map("user_id")
+  activeOrganizationId String?  @map("active_organization_id")
+  impersonatedBy       String?  @map("impersonated_by")
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+/// A school (tenant). better-auth's organization, plus the plan fields the Console manages.
+model Organization {
+  id           String         @id
+  name         String
+  slug         String         @unique
+  logo         String?
+  createdAt    DateTime       @default(now()) @map("created_at")
+  metadata     String?
+  city         String         @default("")
+  status       TenantStatus   @default(trial)
+  modules      ModuleKey[]
+  /// Most active students allowed; 0 when the Students module is off.
+  studentSeats Int            @default(0) @map("student_seats")
+  members      Member[]
+  invitations  Invitation[]
+  events       TenantEvent[]
+  branches     Branch[]
+  sessions     AcademicSession[]
+
+  @@map("organization")
+}
+
+/// A person's place in a school: their school role, campuses and staff record.
+model Member {
+  id             String       @id
+  organizationId String       @map("organization_id")
+  userId         String       @map("user_id")
+  /// owner | branch_admin | accountant | front_desk | teacher (client/src/types/user.ts)
+  role           String
+  createdAt      DateTime     @default(now()) @map("created_at")
+  /// Campuses this person works in; empty means every campus.
+  branchIds      String[]     @map("branch_ids")
+  staffId        String?      @map("staff_id")
+  title          String       @default("")
+  status         MemberStatus @default(active)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@map("member")
+}
+
+model Invitation {
+  id             String       @id
+  organizationId String       @map("organization_id")
+  email          String
+  role           String?
+  status         String
+  expiresAt      DateTime     @map("expires_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  inviterId      String       @map("inviter_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@map("invitation")
+}
+
+// ---------------------------------------------------------------------------
+// School setup (row-level security on tenant_id)
+// ---------------------------------------------------------------------------
+
+model TenantEvent {
+  id           String       @id @default(cuid())
+  tenantId     String       @map("tenant_id")
+  at           DateTime     @default(now())
+  by           String
+  text         String
+  organization Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("tenant_event")
+}
+
+model Branch {
+  id           String       @id @default(cuid())
+  tenantId     String       @map("tenant_id")
+  name         String
+  code         String
+  location     String
+  organization Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@map("branch")
+}
+
+model AcademicSession {
+  id           String       @id @default(cuid())
+  tenantId     String       @map("tenant_id")
+  label        String
+  startDate    DateTime     @map("start_date") @db.Date
+  endDate      DateTime     @map("end_date") @db.Date
+  current      Boolean      @default(false)
+  organization Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, label])
+  @@map("academic_session")
+}
+
+/// Institute profile (Settings → Institute); one per school.
+model CampusProfile {
+  tenantId           String  @id @map("tenant_id")
+  schoolName         String  @map("school_name")
+  tagline            String  @default("")
+  registrationNumber String  @default("") @map("registration_number")
+  contactEmail       String  @default("") @map("contact_email")
+  contactPhone       String  @default("") @map("contact_phone")
+  website            String  @default("")
+  streetAddress      String  @default("") @map("street_address")
+  city               String  @default("")
+  province           String  @default("")
+  postalCode         String  @default("") @map("postal_code")
+  country            String  @default("Pakistan")
+  logoUrl            String? @map("logo_url")
+  principalName      String  @default("") @map("principal_name")
+
+  @@map("campus_profile")
+}
+
+/// School rules (Settings → School rules); shapes match SchoolRules in client/src/types/settings.ts.
+model SchoolRules {
+  tenantId      String @id @map("tenant_id")
+  attendance    Json
+  fees          Json
+  grading       Json
+  notifications Json
+
+  @@map("school_rules")
+}
+
+/// The role × permission matrix (Settings → Roles), as RolePermissionsState.
+model TenantPermissions {
+  tenantId String @id @map("tenant_id")
+  matrix   Json
+
+  @@map("tenant_permissions")
+}
+
+/// Per-school running numbers (STD-1042, STF-201, voucher and receipt numbers).
+model Counter {
+  tenantId String @map("tenant_id")
+  key      String
+  value    Int
+
+  @@id([tenantId, key])
+  @@map("counter")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String?  @map("tenant_id")
+  actorId    String?  @map("actor_id")
+  actorName  String   @map("actor_name")
+  action     String
+  entity     String
+  entityId   String?  @map("entity_id")
+  data       Json?
+  at         DateTime @default(now())
+
+  @@index([tenantId, entity, entityId])
+  @@map("audit_log")
+}

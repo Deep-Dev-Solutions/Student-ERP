@@ -1,4 +1,5 @@
-import { createApi, fakeBaseQuery } from "@reduxjs/toolkit/query/react";
+import { createApi, fakeBaseQuery, type BaseQueryApi } from "@reduxjs/toolkit/query/react";
+import { usesApi } from "@/lib/api-mode";
 import { db, mockActor, mockActorRole, mockTenantId, type MockDb } from "@/mocks/db";
 import { mockTenantService } from "@/services/tenant/mockTenantService";
 import type { NewTenantInput, PlatformCaller } from "@/services/tenant/contract";
@@ -73,6 +74,42 @@ type Tag =
 const read = <K extends keyof MockDb>(key: K, tag?: Tag) => ({
   queryFn: () => ({ data: db[key] }),
   ...(tag ? { providesTags: [tag] } : {}),
+});
+
+type ApiError = { status: number; message: string };
+type ApiRequest = { url: string; method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown };
+
+/**
+ * Calls the NestJS API (same origin through the /api rewrite). The session cookie goes
+ * with it, and x-branch-id tells the server which campus is selected.
+ */
+async function callApi<T>(req: ApiRequest, api: BaseQueryApi): Promise<{ data: T } | { error: ApiError }> {
+  const state = api.getState() as { session?: { branchId?: string } };
+  try {
+    const res = await fetch(`/api${req.url}`, {
+      method: req.method ?? "GET",
+      credentials: "include",
+      headers: { "content-type": "application/json", ...(state.session?.branchId ? { "x-branch-id": state.session.branchId } : {}) },
+      body: req.body === undefined ? undefined : JSON.stringify(req.body),
+    });
+    const text = await res.text();
+    const json = text ? JSON.parse(text) : null;
+    if (!res.ok) return { error: { status: res.status, message: typeof json?.message === "string" ? json.message : "Something went wrong. Try again." } };
+    return { data: json as T };
+  } catch {
+    return { error: { status: 0, message: "Can't reach the server. Check your connection." } };
+  }
+}
+
+/** An endpoint that runs on the real API once migrated (see lib/api-mode.ts), and on the mock until then. */
+function apiOr<A, R>(endpoint: string, mock: (arg: A) => { data: R } | { error: ApiError }, toRequest: (arg: A) => ApiRequest) {
+  return (arg: A, api: BaseQueryApi) => (usesApi(endpoint) ? callApi<R>(toRequest(arg), api) : mock(arg));
+}
+
+/** A read of the whole collection: GET url on the API, the mock collection otherwise. */
+const readOr = <K extends keyof MockDb>(endpoint: string, key: K, tag: Tag, url: string) => ({
+  queryFn: apiOr<void, MockDb[K]>(endpoint, () => ({ data: db[key] }), () => ({ url })),
+  providesTags: [tag],
 });
 
 const fail = (status: number, message: string) => ({ error: { status, message } });
@@ -211,9 +248,9 @@ export const api = createApi({
   // Demo data never goes stale; keep it for the whole visit.
   keepUnusedDataFor: 60 * 60 * 24,
   endpoints: (build) => ({
-    getUsers: build.query<MockDb["users"], void>(read("users", "User")),
-    getBranches: build.query<MockDb["branches"], void>(read("branches", "Branch")),
-    getSessions: build.query<MockDb["sessions"], void>(read("sessions", "Session")),
+    getUsers: build.query<MockDb["users"], void>(readOr("getUsers", "users", "User", "/users")),
+    getBranches: build.query<MockDb["branches"], void>(readOr("getBranches", "branches", "Branch", "/branches")),
+    getSessions: build.query<MockDb["sessions"], void>(readOr("getSessions", "sessions", "Session", "/sessions")),
     getStudents: build.query<MockDb["students"], void>(read("students", "Student")),
     getStudentActivity: build.query<MockDb["studentActivity"], void>(read("studentActivity", "StudentActivity")),
     getRegisters: build.query<MockDb["registers"], void>(read("registers", "Register")),
@@ -237,9 +274,9 @@ export const api = createApi({
     getExamMarks: build.query<MockDb["examMarks"], void>(read("examMarks", "Exam")),
     getMessages: build.query<MockDb["messages"], void>(read("messages", "Message")),
     getMessageTemplates: build.query<MockDb["messageTemplates"], void>(read("messageTemplates", "Message")),
-    getCampusProfile: build.query<MockDb["campusProfile"], void>(read("campusProfile", "Campus")),
-    getRolePermissions: build.query<MockDb["rolePermissions"], void>(read("rolePermissions", "Permissions")),
-    getSchoolRules: build.query<MockDb["schoolRules"], void>(read("schoolRules", "Rules")),
+    getCampusProfile: build.query<MockDb["campusProfile"], void>(readOr("getCampusProfile", "campusProfile", "Campus", "/settings/campus-profile")),
+    getRolePermissions: build.query<MockDb["rolePermissions"], void>(readOr("getRolePermissions", "rolePermissions", "Permissions", "/settings/permissions")),
+    getSchoolRules: build.query<MockDb["schoolRules"], void>(readOr("getSchoolRules", "schoolRules", "Rules", "/settings/rules")),
     getClasses: build.query<MockDb["classes"], void>(read("classes", "Class")),
     getSections: build.query<MockDb["sections"], void>(read("sections", "Section")),
     getSubjects: build.query<MockDb["subjects"], void>(read("subjects", "Subject")),
@@ -250,7 +287,11 @@ export const api = createApi({
       queryFn: () => mockPaperService.getQuestionBank(paperCaller(), db.paperCatalog.subTopics.map((t) => t.id)),
       providesTags: ["Paper"],
     }),
-    getMyTenant: build.query<Tenant, string>({ queryFn: (tenantId) => mockTenantService.getMyTenant(platformCaller(tenantId)), providesTags: ["Tenant"] }),
+    getMyTenant: build.query<Tenant, string>({
+      // The real API returns the caller's own school; the mock follows the tenant the Console is viewing as.
+      queryFn: apiOr<string, Tenant>("getMyTenant", (tenantId) => mockTenantService.getMyTenant(platformCaller(tenantId)), () => ({ url: "/tenant" })),
+      providesTags: ["Tenant"],
+    }),
     getTenants: build.query<Tenant[], void>({ queryFn: () => mockTenantService.listTenants(platformCaller()), providesTags: ["Tenant"] }),
     getPapers: build.query<Paper[], void>({ queryFn: () => mockPaperService.listPapers(paperCaller()), providesTags: ["Paper"] }),
     getPrintablePaper: build.query<Paper, { id: string; answerKey: boolean }>({
@@ -1062,21 +1103,21 @@ export const api = createApi({
 
     // Sessions ---------------------------------------------------------------
     addSession: build.mutation<AcademicSession, Omit<AcademicSession, "id" | "current">>({
-      queryFn: (input) => {
+      queryFn: apiOr("addSession", (input: Omit<AcademicSession, "id" | "current">) => {
         if (db.sessions.some((s) => s.label === input.label)) return fail(409, `Session ${input.label} already exists`);
         if (input.endDate <= input.startDate) return fail(400, "The session must end after it starts");
         const session: AcademicSession = { ...input, id: input.label, current: false };
         db.sessions = [session, ...db.sessions].sort((a, b) => b.startDate.localeCompare(a.startDate));
         return { data: session };
-      },
+      }, (input) => ({ url: "/sessions", method: "POST", body: input })),
       invalidatesTags: ["Session"],
     }),
     setCurrentSession: build.mutation<null, string>({
-      queryFn: (sessionId) => {
+      queryFn: apiOr("setCurrentSession", (sessionId: string) => {
         if (!db.sessions.some((s) => s.id === sessionId)) return fail(404, "Session not found");
         db.sessions = db.sessions.map((s) => ({ ...s, current: s.id === sessionId }));
         return { data: null };
-      },
+      }, (sessionId) => ({ url: "/sessions/current", method: "PUT", body: { sessionId } })),
       invalidatesTags: ["Session"],
     }),
 
@@ -1160,56 +1201,56 @@ export const api = createApi({
 
     // Branches and users -----------------------------------------------------
     addBranch: build.mutation<Branch, Omit<Branch, "id">>({
-      queryFn: (input) => {
+      queryFn: apiOr("addBranch", (input: Omit<Branch, "id">) => {
         if (db.branches.some((b) => b.code.toLowerCase() === input.code.toLowerCase()))
           return fail(409, `Branch code ${input.code} is already in use`);
         const created: Branch = { ...input, id: newId("br") };
         db.branches = [...db.branches, created];
         return { data: created };
-      },
+      }, (input) => ({ url: "/branches", method: "POST", body: input })),
       invalidatesTags: ["Branch"],
     }),
     inviteUser: build.mutation<User, Omit<User, "id" | "status" | "initials">>({
-      queryFn: (input) => {
+      queryFn: apiOr("inviteUser", (input: Omit<User, "id" | "status" | "initials">) => {
         if (db.users.some((u) => u.email.toLowerCase() === input.email.toLowerCase()))
           return fail(409, `${input.email} already has an account`);
         const created: User = { ...input, id: newId("u"), initials: initialsOf(input.name), status: "invited" };
         db.users = [...db.users, created];
         return { data: created };
-      },
+      }, (input) => ({ url: "/users", method: "POST", body: input })),
       invalidatesTags: ["User"],
     }),
     setUserStatus: build.mutation<null, { id: string; status: User["status"] }>({
-      queryFn: ({ id, status }) => {
+      queryFn: apiOr("setUserStatus", ({ id, status }: { id: string; status: User["status"] }) => {
         const user = db.users.find((u) => u.id === id);
         if (!user) return fail(404, "User not found");
         if (user.role === "owner" && status === "disabled") return fail(400, "The owner's access can't be turned off");
         db.users = db.users.map((u) => (u.id === id ? { ...u, status } : u));
         return { data: null };
-      },
+      }, ({ id, status }) => ({ url: `/users/${id}/status`, method: "PATCH", body: { status } })),
       invalidatesTags: ["User"],
     }),
 
     // Settings ---------------------------------------------------------------
     updateRolePermissions: build.mutation<RolePermissionsState, RolePermissionsState>({
-      queryFn: (matrix) => {
+      queryFn: apiOr("updateRolePermissions", (matrix: RolePermissionsState) => {
         db.rolePermissions = matrix;
         return { data: matrix };
-      },
+      }, (matrix) => ({ url: "/settings/permissions", method: "PUT", body: matrix })),
       invalidatesTags: ["Permissions"],
     }),
     updateSchoolRules: build.mutation<SchoolRules, SchoolRules>({
-      queryFn: (rules) => {
+      queryFn: apiOr("updateSchoolRules", (rules: SchoolRules) => {
         db.schoolRules = rules;
         return { data: rules };
-      },
+      }, (rules) => ({ url: "/settings/rules", method: "PUT", body: rules })),
       invalidatesTags: ["Rules"],
     }),
     updateCampusProfile: build.mutation<CampusProfileData, CampusProfileData>({
-      queryFn: (profile) => {
+      queryFn: apiOr("updateCampusProfile", (profile: CampusProfileData) => {
         db.campusProfile = profile;
         return { data: profile };
-      },
+      }, (profile) => ({ url: "/settings/campus-profile", method: "PUT", body: profile })),
       invalidatesTags: ["Campus"],
     }),
   }),
