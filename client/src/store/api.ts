@@ -251,8 +251,8 @@ export const api = createApi({
     getUsers: build.query<MockDb["users"], void>(readOr("getUsers", "users", "User", "/users")),
     getBranches: build.query<MockDb["branches"], void>(readOr("getBranches", "branches", "Branch", "/branches")),
     getSessions: build.query<MockDb["sessions"], void>(readOr("getSessions", "sessions", "Session", "/sessions")),
-    getStudents: build.query<MockDb["students"], void>(read("students", "Student")),
-    getStudentActivity: build.query<MockDb["studentActivity"], void>(read("studentActivity", "StudentActivity")),
+    getStudents: build.query<MockDb["students"], void>(readOr("getStudents", "students", "Student", "/students")),
+    getStudentActivity: build.query<MockDb["studentActivity"], void>(readOr("getStudentActivity", "studentActivity", "StudentActivity", "/students/activity")),
     getRegisters: build.query<MockDb["registers"], void>(read("registers", "Register")),
     getUnlockRequests: build.query<MockDb["unlockRequests"], void>(read("unlockRequests", "UnlockRequest")),
     getStaffAttendance: build.query<MockDb["staffAttendance"], void>(read("staffAttendance", "StaffAttendance")),
@@ -277,10 +277,10 @@ export const api = createApi({
     getCampusProfile: build.query<MockDb["campusProfile"], void>(readOr("getCampusProfile", "campusProfile", "Campus", "/settings/campus-profile")),
     getRolePermissions: build.query<MockDb["rolePermissions"], void>(readOr("getRolePermissions", "rolePermissions", "Permissions", "/settings/permissions")),
     getSchoolRules: build.query<MockDb["schoolRules"], void>(readOr("getSchoolRules", "schoolRules", "Rules", "/settings/rules")),
-    getClasses: build.query<MockDb["classes"], void>(read("classes", "Class")),
-    getSections: build.query<MockDb["sections"], void>(read("sections", "Section")),
-    getSubjects: build.query<MockDb["subjects"], void>(read("subjects", "Subject")),
-    getClassSubjects: build.query<MockDb["classSubjects"], void>(read("classSubjects", "ClassSubject")),
+    getClasses: build.query<MockDb["classes"], void>(readOr("getClasses", "classes", "Class", "/classes")),
+    getSections: build.query<MockDb["sections"], void>(readOr("getSections", "sections", "Section", "/sections")),
+    getSubjects: build.query<MockDb["subjects"], void>(readOr("getSubjects", "subjects", "Subject", "/subjects")),
+    getClassSubjects: build.query<MockDb["classSubjects"], void>(readOr("getClassSubjects", "classSubjects", "ClassSubject", "/class-subjects")),
     // Paper maker: every call goes through the paper service contract (services/paper).
     getPaperCatalog: build.query<PaperCatalog, void>({ queryFn: () => mockPaperService.getCatalog(paperCaller()), providesTags: ["Paper"] }),
     getQuestionBank: build.query<BankQuestion[], void>({
@@ -933,7 +933,7 @@ export const api = createApi({
 
     // Students ---------------------------------------------------------------
     admitStudent: build.mutation<Student, AdmissionInput>({
-      queryFn: (input) => {
+      queryFn: apiOr("admitStudent", (input: AdmissionInput) => {
         const seats = seatProblem(1);
         if (seats) return seats;
         const problem = checkPlacement(input.classId, input.sectionId, input.branchId);
@@ -949,11 +949,11 @@ export const api = createApi({
         }
         logActivity(student.id, `Admitted to ${placement(student.classId, student.sectionId)}.`);
         return { data: student };
-      },
+      }, (input) => ({ url: "/students", method: "POST", body: input })),
       invalidatesTags: ["Student", "StudentActivity"],
     }),
     importStudents: build.mutation<Student[], AdmissionInput[]>({
-      queryFn: (inputs) => {
+      queryFn: apiOr("importStudents", (inputs: AdmissionInput[]) => {
         const seats = seatProblem(inputs.length);
         if (seats) return seats;
         const created = inputs.map((input, i) => createStudent(input, i));
@@ -972,11 +972,11 @@ export const api = createApi({
         ];
         for (const s of linked) logActivity(s.id, `Admitted to ${placement(s.classId, s.sectionId)} by spreadsheet import.`);
         return { data: linked };
-      },
+      }, (inputs) => ({ url: "/students/import", method: "POST", body: inputs })),
       invalidatesTags: ["Student", "StudentActivity"],
     }),
     updateStudent: build.mutation<Student, Pick<Student, "id"> & Partial<Omit<Student, "id" | "admissionNo">>>({
-      queryFn: ({ id, ...changes }) => {
+      queryFn: apiOr("updateStudent", ({ id, ...changes }: Pick<Student, "id"> & Partial<Omit<Student, "id" | "admissionNo">>) => {
         const student = db.students.find((s) => s.id === id);
         if (!student) return fail(404, "Student not found");
         if (changes.bForm && db.students.some((s) => s.id !== id && s.bForm === changes.bForm))
@@ -984,12 +984,12 @@ export const api = createApi({
         const updated = putStudent({ ...student, ...changes, avatar: initialsOf(changes.name ?? student.name) });
         logActivity(id, "Details updated.");
         return { data: updated };
-      },
+      }, ({ id, ...changes }) => ({ url: `/students/${id}`, method: "PATCH", body: changes })),
       invalidatesTags: ["Student", "StudentActivity"],
     }),
     /** Moves one or more students to another section (and class) at the same campus. */
     changeSection: build.mutation<null, { ids: string[]; classId: string; sectionId: string }>({
-      queryFn: ({ ids, classId, sectionId }) => {
+      queryFn: apiOr("changeSection", ({ ids, classId, sectionId }: { ids: string[]; classId: string; sectionId: string }) => {
         const problem = checkPlacement(classId, sectionId);
         if (problem) return fail(400, problem);
         const where = placement(classId, sectionId);
@@ -1001,11 +1001,11 @@ export const api = createApi({
           logActivity(id, `Moved to ${where}.`);
         }
         return { data: null };
-      },
+      }, (body) => ({ url: "/students/change-section", method: "POST", body })),
       invalidatesTags: ["Student", "StudentActivity"],
     }),
     transferStudent: build.mutation<Student, { id: string; branchId: string; classId: string; sectionId: string }>({
-      queryFn: ({ id, branchId, classId, sectionId }) => {
+      queryFn: apiOr("transferStudent", ({ id, branchId, classId, sectionId }: { id: string; branchId: string; classId: string; sectionId: string }) => {
         const student = db.students.find((s) => s.id === id);
         if (!student) return fail(404, "Student not found");
         if (branchId === student.branchId) return fail(400, "Choose a different campus");
@@ -1015,33 +1015,33 @@ export const api = createApi({
         const updated = putStudent({ ...student, branchId, classId, sectionId, electiveSubjectIds: [] });
         logActivity(id, `Transferred to ${branch?.name ?? "another campus"}, ${placement(classId, sectionId)}.`);
         return { data: updated };
-      },
+      }, ({ id, ...body }) => ({ url: `/students/${id}/transfer`, method: "POST", body })),
       invalidatesTags: ["Student", "StudentActivity"],
     }),
     setElectives: build.mutation<Student, { id: string; subjectIds: string[] }>({
-      queryFn: ({ id, subjectIds }) => {
+      queryFn: apiOr("setElectives", ({ id, subjectIds }: { id: string; subjectIds: string[] }) => {
         const student = db.students.find((s) => s.id === id);
         if (!student) return fail(404, "Student not found");
         const updated = putStudent({ ...student, electiveSubjectIds: subjectIds });
         const names = db.subjects.filter((s) => subjectIds.includes(s.id)).map((s) => s.name);
         logActivity(id, names.length ? `Electives set to ${names.join(", ")}.` : "Electives cleared.");
         return { data: updated };
-      },
+      }, ({ id, subjectIds }) => ({ url: `/students/${id}/electives`, method: "PUT", body: { subjectIds } })),
       invalidatesTags: ["Student", "StudentActivity"],
     }),
     withdrawStudent: build.mutation<Student, { id: string } & Withdrawal>({
-      queryFn: ({ id, ...withdrawal }) => {
+      queryFn: apiOr("withdrawStudent", ({ id, ...withdrawal }: { id: string } & Withdrawal) => {
         const student = db.students.find((s) => s.id === id);
         if (!student) return fail(404, "Student not found");
         if (student.enrollment === "withdrawn") return fail(409, "This student has already left");
         const updated = putStudent({ ...student, enrollment: "withdrawn", withdrawal });
         logActivity(id, `Marked as left${withdrawal.note ? `: ${withdrawal.note}` : "."}`);
         return { data: updated };
-      },
+      }, ({ id, ...body }) => ({ url: `/students/${id}/withdraw`, method: "POST", body })),
       invalidatesTags: ["Student", "StudentActivity"],
     }),
     readmitStudent: build.mutation<Student, { id: string; classId: string; sectionId: string; date: string }>({
-      queryFn: ({ id, classId, sectionId, date }) => {
+      queryFn: apiOr("readmitStudent", ({ id, classId, sectionId, date }: { id: string; classId: string; sectionId: string; date: string }) => {
         const student = db.students.find((s) => s.id === id);
         if (!student) return fail(404, "Student not found");
         if (student.enrollment === "active") return fail(409, "This student is already enrolled");
@@ -1052,11 +1052,11 @@ export const api = createApi({
         const updated = putStudent({ ...rest, enrollment: "active", classId, sectionId, electiveSubjectIds: [] });
         logActivity(id, `Re-admitted on ${date} to ${placement(classId, sectionId)}.`);
         return { data: updated };
-      },
+      }, ({ id, ...body }) => ({ url: `/students/${id}/readmit`, method: "POST", body })),
       invalidatesTags: ["Student", "StudentActivity"],
     }),
     updateGuardians: build.mutation<Student, { id: string; guardians: Guardian[] }>({
-      queryFn: ({ id, guardians }) => {
+      queryFn: apiOr("updateGuardians", ({ id, guardians }: { id: string; guardians: Guardian[] }) => {
         const student = db.students.find((s) => s.id === id);
         if (!student) return fail(404, "Student not found");
         if (guardians.length === 0) return fail(400, "A student needs at least one guardian");
@@ -1064,40 +1064,40 @@ export const api = createApi({
         const updated = putStudent({ ...student, guardians });
         logActivity(id, "Guardians updated.");
         return { data: updated };
-      },
+      }, ({ id, guardians }) => ({ url: `/students/${id}/guardians`, method: "PUT", body: { guardians } })),
       invalidatesTags: ["Student", "StudentActivity"],
     }),
     addStudentDocument: build.mutation<Student, { id: string; document: Omit<StudentDocument, "id" | "uploadedAt"> }>({
-      queryFn: ({ id, document }) => {
+      queryFn: apiOr("addStudentDocument", ({ id, document }: { id: string; document: Omit<StudentDocument, "id" | "uploadedAt"> }) => {
         const student = db.students.find((s) => s.id === id);
         if (!student) return fail(404, "Student not found");
         const updated = putStudent({ ...student, documents: [...student.documents, { ...document, id: newId("doc"), uploadedAt: today() }] });
         logActivity(id, `Document added: ${document.name}.`);
         return { data: updated };
-      },
+      }, ({ id, document }) => ({ url: `/students/${id}/documents`, method: "POST", body: document })),
       invalidatesTags: ["Student", "StudentActivity"],
     }),
     removeStudentDocument: build.mutation<Student, { id: string; documentId: string }>({
-      queryFn: ({ id, documentId }) => {
+      queryFn: apiOr("removeStudentDocument", ({ id, documentId }: { id: string; documentId: string }) => {
         const student = db.students.find((s) => s.id === id);
         if (!student) return fail(404, "Student not found");
         const doc = student.documents.find((d) => d.id === documentId);
         const updated = putStudent({ ...student, documents: student.documents.filter((d) => d.id !== documentId) });
         if (doc) logActivity(id, `Document removed: ${doc.name}.`);
         return { data: updated };
-      },
+      }, ({ id, documentId }) => ({ url: `/students/${id}/documents/${documentId}`, method: "DELETE" })),
       invalidatesTags: ["Student", "StudentActivity"],
     }),
     /** Removes a student record entirely. Meant for records entered by mistake; use withdraw otherwise. */
     deleteStudent: build.mutation<null, string>({
-      queryFn: (id) => {
+      queryFn: apiOr("deleteStudent", (id: string) => {
         if (!db.students.some((s) => s.id === id)) return fail(404, "Student not found");
         db.students = db.students
           .filter((s) => s.id !== id)
           .map((s) => (s.siblingIds.includes(id) ? { ...s, siblingIds: s.siblingIds.filter((x) => x !== id) } : s));
         db.studentActivity = db.studentActivity.filter((a) => a.studentId !== id);
         return { data: null };
-      },
+      }, (id) => ({ url: `/students/${id}`, method: "DELETE" })),
       invalidatesTags: ["Student", "StudentActivity"],
     }),
 
@@ -1123,79 +1123,79 @@ export const api = createApi({
 
     // Classes and sections ---------------------------------------------------
     addClass: build.mutation<SchoolClass, Omit<SchoolClass, "id">>({
-      queryFn: (input) => {
+      queryFn: apiOr("addClass", (input: Omit<SchoolClass, "id">) => {
         if (db.classes.some((c) => c.branchId === input.branchId && c.name.toLowerCase() === input.name.toLowerCase()))
           return fail(409, `${input.name} already exists at this campus`);
         const created: SchoolClass = { ...input, id: newId("cls") };
         db.classes = [...db.classes, created];
         return { data: created };
-      },
+      }, (input) => ({ url: "/classes", method: "POST", body: input })),
       invalidatesTags: ["Class"],
     }),
     removeClass: build.mutation<null, string>({
-      queryFn: (classId) => {
+      queryFn: apiOr("removeClass", (classId: string) => {
         if (db.sections.some((s) => s.classId === classId)) return fail(409, "Remove this class's sections first");
         db.classes = db.classes.filter((c) => c.id !== classId);
         db.classSubjects = db.classSubjects.filter((cs) => cs.classId !== classId);
         return { data: null };
-      },
+      }, (classId) => ({ url: `/classes/${classId}`, method: "DELETE" })),
       invalidatesTags: ["Class", "ClassSubject"],
     }),
     addSection: build.mutation<Section, Omit<Section, "id">>({
-      queryFn: (input) => {
+      queryFn: apiOr("addSection", (input: Omit<Section, "id">) => {
         if (db.sections.some((s) => s.classId === input.classId && s.name.toLowerCase() === input.name.toLowerCase()))
           return fail(409, `Section ${input.name} already exists in this class`);
         const created: Section = { ...input, id: newId("sec") };
         db.sections = [...db.sections, created];
         return { data: created };
-      },
+      }, (input) => ({ url: "/sections", method: "POST", body: input })),
       invalidatesTags: ["Section"],
     }),
     updateSection: build.mutation<Section, Pick<Section, "id"> & Partial<Omit<Section, "id" | "classId">>>({
-      queryFn: ({ id, ...changes }) => {
+      queryFn: apiOr("updateSection", ({ id, ...changes }: Pick<Section, "id"> & Partial<Omit<Section, "id" | "classId">>) => {
         const section = db.sections.find((s) => s.id === id);
         if (!section) return fail(404, "Section not found");
         const updated: Section = { ...section, ...changes };
         db.sections = db.sections.map((s) => (s.id === id ? updated : s));
         return { data: updated };
-      },
+      }, ({ id, ...changes }) => ({ url: `/sections/${id}`, method: "PATCH", body: changes })),
       invalidatesTags: ["Section"],
     }),
     removeSection: build.mutation<null, string>({
-      queryFn: (sectionId) => {
+      queryFn: apiOr("removeSection", (sectionId: string) => {
         db.sections = db.sections.filter((s) => s.id !== sectionId);
         return { data: null };
-      },
+      }, (sectionId) => ({ url: `/sections/${sectionId}`, method: "DELETE" })),
       invalidatesTags: ["Section"],
     }),
 
     // Subjects ---------------------------------------------------------------
     addSubject: build.mutation<Subject, Omit<Subject, "id">>({
-      queryFn: (input) => {
+      queryFn: apiOr("addSubject", (input: Omit<Subject, "id">) => {
         if (db.subjects.some((s) => s.name.toLowerCase() === input.name.toLowerCase() || s.code === input.code))
           return fail(409, "A subject with this name or code already exists");
         const created: Subject = { ...input, id: newId("sub") };
         db.subjects = [...db.subjects, created];
         return { data: created };
-      },
+      }, (input) => ({ url: "/subjects", method: "POST", body: input })),
       invalidatesTags: ["Subject"],
     }),
     removeSubject: build.mutation<null, string>({
-      queryFn: (subjectId) => {
+      queryFn: apiOr("removeSubject", (subjectId: string) => {
         db.subjects = db.subjects.filter((s) => s.id !== subjectId);
         db.classSubjects = db.classSubjects.filter((cs) => cs.subjectId !== subjectId);
         return { data: null };
-      },
+      }, (subjectId) => ({ url: `/subjects/${subjectId}`, method: "DELETE" })),
       invalidatesTags: ["Subject", "ClassSubject"],
     }),
     /** Offers a subject in a class (as core or elective), or stops offering it. */
     setClassSubject: build.mutation<null, { classId: string; subjectId: string; offered: boolean; elective: boolean }>({
-      queryFn: ({ classId, subjectId, offered, elective }) => {
+      queryFn: apiOr("setClassSubject", ({ classId, subjectId, offered, elective }: { classId: string; subjectId: string; offered: boolean; elective: boolean }) => {
         const rest = db.classSubjects.filter((cs) => !(cs.classId === classId && cs.subjectId === subjectId));
         const entry: ClassSubject = { id: `${classId}-${subjectId}`, classId, subjectId, elective };
         db.classSubjects = offered ? [...rest, entry] : rest;
         return { data: null };
-      },
+      }, (body) => ({ url: "/class-subjects", method: "PUT", body })),
       invalidatesTags: ["ClassSubject"],
     }),
 

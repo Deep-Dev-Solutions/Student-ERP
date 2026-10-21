@@ -187,12 +187,13 @@ model TenantEvent {
 }
 
 model Branch {
-  id           String       @id @default(cuid())
-  tenantId     String       @map("tenant_id")
+  id           String        @id @default(cuid())
+  tenantId     String        @map("tenant_id")
   name         String
   code         String
   location     String
-  organization Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  organization Organization  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  classes      SchoolClass[]
 
   @@unique([tenantId, code])
   @@map("branch")
@@ -258,6 +259,142 @@ model Counter {
 
   @@id([tenantId, key])
   @@map("counter")
+}
+
+// ---------------------------------------------------------------------------
+// Academics and students (row-level security on tenant_id)
+// ---------------------------------------------------------------------------
+
+model SchoolClass {
+  id            String         @id @default(cuid())
+  tenantId      String         @map("tenant_id")
+  branchId      String         @map("branch_id")
+  name          String
+  order         Int
+  stage         String?
+  branch        Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  sections      Section[]
+  classSubjects ClassSubject[]
+
+  @@unique([branchId, name])
+  @@map("school_class")
+}
+
+model Section {
+  id         String      @id @default(cuid())
+  tenantId   String      @map("tenant_id")
+  classId    String      @map("class_id")
+  name       String
+  shift      String
+  capacity   Int
+  inchargeId String?     @map("incharge_id")
+  class      SchoolClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, name])
+  @@map("section")
+}
+
+model Subject {
+  id            String         @id @default(cuid())
+  tenantId      String         @map("tenant_id")
+  name          String
+  code          String
+  classSubjects ClassSubject[]
+
+  @@unique([tenantId, name])
+  @@unique([tenantId, code])
+  @@map("subject")
+}
+
+model ClassSubject {
+  id        String      @id @default(cuid())
+  tenantId  String      @map("tenant_id")
+  classId   String      @map("class_id")
+  subjectId String      @map("subject_id")
+  elective  Boolean
+  class     SchoolClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject   Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, subjectId])
+  @@map("class_subject")
+}
+
+model Student {
+  id                 String            @id
+  tenantId           String            @map("tenant_id")
+  admissionNo        String            @map("admission_no")
+  admissionDate      DateTime          @map("admission_date") @db.Date
+  name               String
+  email              String
+  avatar             String
+  photoUrl           String?           @map("photo_url")
+  bForm              String?           @map("b_form")
+  dateOfBirth        DateTime          @map("date_of_birth") @db.Date
+  gender             String
+  bloodGroup         String?           @map("blood_group")
+  religion           String?
+  address            String
+  previousSchool     String?           @map("previous_school")
+  branchId           String            @map("branch_id")
+  classId            String            @map("class_id")
+  sectionId          String            @map("section_id")
+  electiveSubjectIds String[]          @map("elective_subject_ids")
+  siblingIds         String[]          @map("sibling_ids")
+  monthlyFee         Int               @map("monthly_fee")
+  discountPercent    Int               @map("discount_percent")
+  enrollment         String
+  withdrawal         Json?
+  feeStatus          String            @default("clear") @map("fee_status")
+  attendance         Int               @default(100)
+  balance            Int               @default(0)
+  guardians          Guardian[]
+  documents          StudentDocument[]
+  activity           StudentActivity[]
+
+  @@unique([tenantId, bForm])
+  @@map("student")
+}
+
+model Guardian {
+  id         String  @id @default(cuid())
+  tenantId   String  @map("tenant_id")
+  studentId  String  @map("student_id")
+  name       String
+  relation   String
+  cnic       String?
+  phone      String
+  whatsapp   Boolean
+  primary    Boolean
+  occupation String?
+  student    Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("guardian")
+}
+
+model StudentDocument {
+  id         String   @id @default(cuid())
+  tenantId   String   @map("tenant_id")
+  studentId  String   @map("student_id")
+  name       String
+  kind       String
+  fileName   String   @map("file_name")
+  sizeKb     Int      @map("size_kb")
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("student_document")
+}
+
+model StudentActivity {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  studentId String   @map("student_id")
+  at        DateTime @default(now())
+  actor     String
+  text      String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("student_activity")
 }
 
 model AuditLog {

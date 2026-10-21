@@ -5,13 +5,15 @@
  */
 import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { classSubjects, classes, sections, subjects } from "../../client/src/mocks/academics";
 import { branches, sessions } from "../../client/src/mocks/branches";
 import { campusProfile, rolePermissions, schoolRules } from "../../client/src/mocks/settings";
+import { studentActivity, students } from "../../client/src/mocks/students";
 import { DEMO_TENANT_ID, tenantBranches, tenants } from "../../client/src/mocks/tenants";
 import { users } from "../../client/src/mocks/users";
 import { createAuth } from "../src/auth/auth";
 import { env } from "../src/config/env";
-import { PrismaClient } from "../src/generated/prisma/client";
+import { Prisma, PrismaClient } from "../src/generated/prisma/client";
 import type { ModuleKey } from "../src/generated/prisma/enums";
 
 export const DEMO_PASSWORD = "deepdev123";
@@ -27,7 +29,7 @@ async function main() {
   const hash = await ctx.password.hash(DEMO_PASSWORD);
 
   // Start clean (child tables first).
-  for (const table of ["audit_log", "counter", "tenant_permissions", "school_rules", "campus_profile", "academic_session", "branch", "tenant_event", "invitation", "member", "organization", "session", "account", "verification", "user"]) {
+  for (const table of ["audit_log", "counter", "student", "subject", "tenant_permissions", "school_rules", "campus_profile", "academic_session", "branch", "tenant_event", "invitation", "member", "organization", "session", "account", "verification", "user"]) {
     await prisma.$executeRawUnsafe(`DELETE FROM "${table}"`);
   }
 
@@ -71,6 +73,61 @@ async function main() {
       await prisma.member.create({ data: { id: randomUUID(), organizationId: t.id, userId, role: p.role, title: p.title, branchIds: p.branchIds, staffId: p.staffId } });
     }
   }
+
+  // Academics and students (Phase 1), for the demo school only.
+  for (const c of classes) await prisma.schoolClass.create({ data: { id: c.id, tenantId: DEMO_TENANT_ID, branchId: c.branchId, name: c.name, order: c.order, stage: c.stage } });
+  for (const s of sections) await prisma.section.create({ data: { id: s.id, tenantId: DEMO_TENANT_ID, classId: s.classId, name: s.name, shift: s.shift, capacity: s.capacity, inchargeId: s.inchargeId } });
+  for (const s of subjects) await prisma.subject.create({ data: { id: s.id, tenantId: DEMO_TENANT_ID, name: s.name, code: s.code } });
+  for (const cs of classSubjects) await prisma.classSubject.create({ data: { id: cs.id, tenantId: DEMO_TENANT_ID, classId: cs.classId, subjectId: cs.subjectId, elective: cs.elective } });
+
+  for (const s of students) {
+    await prisma.student.create({
+      data: {
+        id: s.id,
+        tenantId: DEMO_TENANT_ID,
+        admissionNo: s.admissionNo,
+        admissionDate: day(s.admissionDate),
+        name: s.name,
+        email: s.email,
+        avatar: s.avatar,
+        photoUrl: s.photoUrl,
+        bForm: s.bForm,
+        dateOfBirth: day(s.dateOfBirth),
+        gender: s.gender,
+        bloodGroup: s.bloodGroup,
+        religion: s.religion,
+        address: s.address,
+        previousSchool: s.previousSchool,
+        branchId: s.branchId,
+        classId: s.classId,
+        sectionId: s.sectionId,
+        electiveSubjectIds: s.electiveSubjectIds,
+        siblingIds: s.siblingIds,
+        monthlyFee: s.monthlyFee,
+        discountPercent: s.discountPercent,
+        enrollment: s.enrollment,
+        withdrawal: s.withdrawal ? (s.withdrawal as Prisma.InputJsonValue) : Prisma.JsonNull,
+        feeStatus: s.feeStatus,
+        attendance: s.attendance,
+        balance: s.balance,
+        guardians: {
+          create: s.guardians.map((g) => ({ tenantId: DEMO_TENANT_ID, name: g.name, relation: g.relation, cnic: g.cnic, phone: g.phone, whatsapp: g.whatsapp, primary: g.primary, occupation: g.occupation })),
+        },
+        documents: { create: s.documents.map((d) => ({ tenantId: DEMO_TENANT_ID, name: d.name, kind: d.kind, fileName: d.fileName, sizeKb: d.sizeKb, uploadedAt: day(d.uploadedAt) })) },
+      },
+    });
+  }
+  for (const a of studentActivity) await prisma.studentActivity.create({ data: { tenantId: DEMO_TENANT_ID, studentId: a.studentId, at: new Date(a.at), actor: a.actor, text: a.text } });
+
+  // Counters continue on from the seeded demo numbers, same as the mock's Math.max-based numbering.
+  const maxRoll = Math.max(...students.map((s) => Number(s.id.replace(/\D/g, "")) || 0));
+  await prisma.counter.create({ data: { tenantId: DEMO_TENANT_ID, key: "student_roll", value: maxRoll } });
+  const admissionYears = new Map<string, number>();
+  for (const s of students) {
+    const year = s.admissionNo.split("-")[1]!;
+    admissionYears.set(year, (admissionYears.get(year) ?? 0) + 1);
+  }
+  for (const [year, count] of admissionYears) await prisma.counter.create({ data: { tenantId: DEMO_TENANT_ID, key: `admission_${year}`, value: count } });
 
   const count = await prisma.user.count();
   console.log(`Seeded ${tenants.length} schools and ${count} logins. Password for every demo login: ${DEMO_PASSWORD}`);

@@ -1,5 +1,5 @@
 /* Response shapes matching client/src/types, so the frontend can switch from mocks without changes. */
-import type { AcademicSession, Member, Organization, TenantEvent, User } from "../generated/prisma/client";
+import type { AcademicSession, Guardian, Member, Organization, Student, StudentActivity, StudentDocument, TenantEvent, User } from "../generated/prisma/client";
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
 export const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
@@ -40,3 +40,58 @@ export function toTenant(org: Organization, owner: Pick<User, "name" | "email" |
 
 /** Parses "YYYY-MM-DD" as a calendar date (stored in a date column, no time zone). */
 export const parseDay = (s: string) => new Date(`${s}T00:00:00.000Z`);
+
+/** Today's calendar date in Asia/Karachi, "YYYY-MM-DD" (client/src/lib/dates.ts's localISODate, server-side). */
+export const todayInSchool = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Karachi" });
+
+/** client/src/types/student.ts → Guardian */
+export const toGuardian = (g: Guardian) => ({
+  id: g.id,
+  name: g.name,
+  relation: g.relation,
+  cnic: g.cnic ?? undefined,
+  phone: g.phone,
+  whatsapp: g.whatsapp,
+  primary: g.primary,
+  occupation: g.occupation ?? undefined,
+});
+
+/** client/src/types/student.ts → StudentDocument */
+export const toStudentDocument = (d: StudentDocument) => ({ id: d.id, name: d.name, kind: d.kind, fileName: d.fileName, sizeKb: d.sizeKb, uploadedAt: day(d.uploadedAt) });
+
+/** client/src/types/student.ts → StudentActivity */
+export const toStudentActivity = (a: StudentActivity) => ({ id: a.id, studentId: a.studentId, at: a.at.toISOString(), actor: a.actor, text: a.text });
+
+/** client/src/types/student.ts → Student */
+export function toStudent(s: Student, guardians: Guardian[], documents: StudentDocument[]) {
+  return {
+    id: s.id,
+    admissionNo: s.admissionNo,
+    admissionDate: day(s.admissionDate),
+    name: s.name,
+    email: s.email,
+    avatar: s.avatar,
+    photoUrl: s.photoUrl ?? undefined,
+    bForm: s.bForm ?? undefined,
+    dateOfBirth: day(s.dateOfBirth),
+    gender: s.gender,
+    bloodGroup: s.bloodGroup ?? undefined,
+    religion: s.religion ?? undefined,
+    address: s.address,
+    previousSchool: s.previousSchool ?? undefined,
+    branchId: s.branchId,
+    classId: s.classId,
+    sectionId: s.sectionId,
+    electiveSubjectIds: s.electiveSubjectIds,
+    guardians: guardians.map(toGuardian),
+    siblingIds: s.siblingIds,
+    monthlyFee: s.monthlyFee,
+    discountPercent: s.discountPercent,
+    enrollment: s.enrollment,
+    withdrawal: (s.withdrawal as { date: string; reason: string; note?: string } | null) ?? undefined,
+    feeStatus: s.feeStatus,
+    attendance: s.attendance,
+    balance: s.balance,
+    documents: documents.map(toStudentDocument),
+  };
+}
