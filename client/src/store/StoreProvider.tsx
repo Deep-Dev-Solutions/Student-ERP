@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Provider } from "react-redux";
 import { readSessionCookie } from "@/lib/auth/session-cookie";
+import { API_MODE } from "@/lib/api-mode";
 import { setMockActor, setMockTenant } from "@/mocks/db";
 import { DEMO_TENANT_ID } from "@/mocks/tenants";
 import { ROLE_LABELS } from "@/lib/auth/permissions";
@@ -22,8 +23,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // The server always renders the default session. After hydration, load the
   // signed-in user from the cookie and the last campus from this browser.
   useEffect(() => {
-    const userId = readSessionCookie();
-    if (userId && findUser(userId)) store.dispatch(signedIn(userId));
+    if (API_MODE) {
+      // The API knows who the better-auth session belongs to.
+      void fetch("/api/me", { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((me) => {
+          if (!me?.user) return;
+          store.dispatch(signedIn(me.user.id));
+          setMockActor(`${me.user.name} (${ROLE_LABELS[me.user.role as keyof typeof ROLE_LABELS] ?? me.user.role})`, me.user.role);
+        })
+        .catch(() => undefined);
+    } else {
+      const userId = readSessionCookie();
+      if (userId && findUser(userId)) store.dispatch(signedIn(userId));
+    }
     try {
       const branchId = localStorage.getItem(BRANCH_KEY);
       if (branchId) store.dispatch(branchSelected(branchId));
@@ -32,7 +45,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
     return store.subscribe(() => {
       const user = findUser(store.getState().session.userId);
-      if (user) setMockActor(`${user.name} (${ROLE_LABELS[user.role]})`, user.role);
+      if (user && !API_MODE) setMockActor(`${user.name} (${ROLE_LABELS[user.role]})`, user.role);
       setMockTenant(store.getState().session.viewAsTenantId ?? DEMO_TENANT_ID);
       try {
         localStorage.setItem(BRANCH_KEY, store.getState().session.branchId);

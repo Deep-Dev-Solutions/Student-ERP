@@ -1,0 +1,48 @@
+{
+  "name": "deepdev-erp-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DeepDev ERP API (NestJS + PostgreSQL + Prisma + better-auth)",
+  "scripts": {
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "dev": "nest start --watch",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "test": "nest build && node --test --test-reporter=spec test/unit/*.test.mjs",
+    "test:e2e": "nest build && npm run test:db && node --env-file=.env.test --test --test-concurrency=1 --test-reporter=spec test/e2e/*.test.mjs",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "prisma db seed",
+    "db:reset": "prisma migrate reset --force",
+    "openapi": "nest build && node -e \"require('reflect-metadata');const {createApp,openApiDocument}=require('./dist/bootstrap');createApp().then(async a=>{await a.init();require('fs').writeFileSync('openapi.json',JSON.stringify(openApiDocument(a),null,2));await a.close();console.log('openapi.json written')})\"",
+    "test:db": "node --env-file=.env.test node_modules/prisma/build/index.js migrate deploy && node --env-file=.env.test --import tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@nestjs/common": "^12.2.0",
+    "@nestjs/core": "^12.2.0",
+    "@nestjs/platform-express": "^12.2.0",
+    "@nestjs/swagger": "^12.0.2",
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "better-auth": "^1.7.12",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "dotenv": "^18.0.8",
+    "express": "^5.3.0",
+    "pg": "^8.23.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^12.0.10",
+    "@nestjs/testing": "^12.2.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "@types/supertest": "^7.2.1",
+    "prisma": "^7.10.1",
+    "supertest": "^7.3.1",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
+  }
+}

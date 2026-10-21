@@ -1,6 +1,7 @@
 import { combineReducers, configureStore } from "@reduxjs/toolkit";
 import { defaultSerializeQueryArgs } from "@reduxjs/toolkit/query";
 import { db } from "@/mocks/db";
+import { usesApi } from "@/lib/api-mode";
 import { api, prefilledReads } from "./api";
 import { sessionSlice } from "./sessionSlice";
 
@@ -22,7 +23,10 @@ export function makeStore() {
   // Date.now(), which Next.js doesn't allow while prerendering.
   store.dispatch({
     type: api.internalActions.cacheEntriesUpserted.type,
-    payload: Object.entries(prefilledReads).map(([endpointName, key]) => ({
+    // Endpoints served by the real API (API mode) aren't seeded: they load from the server.
+    payload: Object.entries(prefilledReads)
+      .filter(([endpointName]) => !usesApi(endpointName))
+      .map(([endpointName, key]) => ({
       queryDescription: {
         type: "query",
         endpointName,

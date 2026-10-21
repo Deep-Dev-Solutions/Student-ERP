@@ -19,6 +19,7 @@ import { useCurrentUser } from "@/hooks/use-session";
 import { canAccessPath } from "@/lib/auth/permissions";
 import { type ThemeChoice, useTheme } from "@/lib/theme";
 import { clearSessionCookie } from "@/lib/auth/session-cookie";
+import { API_MODE } from "@/lib/api-mode";
 import { useAppDispatch } from "@/store/hooks";
 import { signedOut } from "@/store/sessionSlice";
 import type { User } from "@/types";
@@ -71,6 +72,8 @@ export function UserProfileNav({ user: userProp, links = defaultLinks }: UserPro
   const visibleLinks = currentUser ? links.filter((l) => canAccessPath(currentUser.role, l.href)) : links;
 
   const signOut = () => {
+    // In API mode the better-auth session is ended on the server too.
+    if (API_MODE) void fetch("/api/auth/sign-out", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: "{}" });
     clearSessionCookie();
     dispatch(signedOut());
   };

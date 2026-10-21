@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { landingPath } from "@/lib/auth/permissions";
+import { API_MODE } from "@/lib/api-mode";
 import { writeSessionCookie } from "@/lib/auth/session-cookie";
 import { DEFAULT_USER_ID } from "@/mocks/users";
 import { useGetUsersQuery } from "@/store/api";
@@ -23,8 +24,47 @@ export default function LoginPage() {
   const dispatch = useAppDispatch();
   const { data: users = [] } = useGetUsersQuery();
 
+  const goOn = (role: Parameters<typeof landingPath>[0]) => {
+    // Return to the page that sent the user here, if it's a path on this site.
+    const next = new URLSearchParams(window.location.search).get("next");
+    router.push(next?.startsWith("/") && !next.startsWith("//") ? next : landingPath(role));
+  };
+
+  /** API mode: sign in with better-auth, then ask the API who this is. */
+  const signInWithApi = async (form: FormData) => {
+    setError(null);
+    setSubmitting(true);
+    const res = await fetch("/api/auth/sign-in/email", {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: String(form.get("email")).trim().toLowerCase(), password: String(form.get("password")) }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setSubmitting(false);
+      return setError(res ? "That email and password don't match. Check them and try again." : "Can't reach the server. Check your connection.");
+    }
+    const me = await fetch("/api/me", { credentials: "include" }).then((r) => r.json()).catch(() => null);
+    if (!me?.user) {
+      setSubmitting(false);
+      return setError(
+        me?.memberships?.some((m: { status: string }) => m.status === "disabled")
+          ? "This account's access has been turned off. Ask your school's owner to turn it back on."
+          : "This account isn't linked to a school yet.",
+      );
+    }
+    if (me.activeTenant?.status === "suspended") {
+      await fetch("/api/auth/sign-out", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: "{}" }).catch(() => null);
+      setSubmitting(false);
+      return setError(`${me.activeTenant.name}'s access is suspended. Contact DeepDev support to restore it.`);
+    }
+    dispatch(signedIn(me.user.id));
+    goOn(me.user.role);
+  };
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (API_MODE) return void signInWithApi(new FormData(e.currentTarget));
     // Mock sign-in until the API exists: a demo account's email signs in as
     // that role, and any other email signs in as the owner.
     const email = String(new FormData(e.currentTarget).get("email")).trim().toLowerCase();
@@ -38,9 +78,7 @@ export default function LoginPage() {
     setSubmitting(true);
     writeSessionCookie(user.id);
     dispatch(signedIn(user.id));
-    // Return to the page that sent the user here, if it's a path on this site.
-    const next = new URLSearchParams(window.location.search).get("next");
-    router.push(next?.startsWith("/") && !next.startsWith("//") ? next : landingPath(user.role));
+    goOn(user.role);
   };
 
   return (

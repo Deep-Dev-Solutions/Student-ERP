@@ -1,0 +1,17 @@
+# Repo-wide safety net; client/ and server/ have their own .gitignore files too.
+node_modules/
+.next/
+dist/
+coverage/
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+!server/.env.test
+server/src/generated/
+server/openapi.json
+# Share the project's Claude Code settings (cloud session hook); keep personal ones out.
+!.claude/
+.claude/*
+!.claude/settings.json
+.DS_Store
