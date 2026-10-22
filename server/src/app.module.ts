@@ -9,25 +9,29 @@ import { PermissionGuard } from "./common/guards/permission.guard";
 import { TenantGuard } from "./common/guards/tenant.guard";
 import { PrismaModule } from "./common/prisma/prisma.module";
 import { AcademicsModule } from "./modules/academics/academics.module";
-import { BranchesController } from "./modules/branches/branches.controller";
-import { HealthController } from "./modules/health/health.controller";
-import { MeController } from "./modules/me/me.controller";
-import { SessionsController } from "./modules/sessions/sessions.controller";
-import { SettingsController } from "./modules/settings/settings.controller";
+import { BranchesModule } from "./modules/branches/branches.module";
+import { HealthModule } from "./modules/health/health.module";
+import { MeModule } from "./modules/me/me.module";
+import { SessionsModule } from "./modules/sessions/sessions.module";
+import { SettingsModule } from "./modules/settings/settings.module";
 import { StudentsModule } from "./modules/students/students.module";
-import { TenantController } from "./modules/tenant/tenant.controller";
-import { UsersController } from "./modules/users/users.controller";
+import { TenantModule } from "./modules/tenant/tenant.module";
+import { UsersModule } from "./modules/users/users.module";
 
 @Module({
-  imports: [PrismaModule, AuthModule, AuditModule, AcademicsModule, StudentsModule],
-  controllers: [
-    HealthController,
-    MeController,
-    TenantController,
-    BranchesController,
-    SessionsController,
-    UsersController,
-    SettingsController,
+  imports: [
+    PrismaModule,
+    AuthModule,
+    AuditModule,
+    HealthModule,
+    MeModule,
+    TenantModule,
+    BranchesModule,
+    SessionsModule,
+    UsersModule,
+    SettingsModule,
+    AcademicsModule,
+    StudentsModule,
   ],
   providers: [
     // Every route passes these in order: signed in → school → module on the plan → permission.
