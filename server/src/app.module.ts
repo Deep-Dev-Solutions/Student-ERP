@@ -8,18 +8,18 @@ import { ModuleGuard } from "./common/guards/module.guard";
 import { PermissionGuard } from "./common/guards/permission.guard";
 import { TenantGuard } from "./common/guards/tenant.guard";
 import { PrismaModule } from "./common/prisma/prisma.module";
-import { AcademicsController } from "./modules/academics/academics.controller";
+import { AcademicsModule } from "./modules/academics/academics.module";
 import { BranchesController } from "./modules/branches/branches.controller";
 import { HealthController } from "./modules/health/health.controller";
 import { MeController } from "./modules/me/me.controller";
 import { SessionsController } from "./modules/sessions/sessions.controller";
 import { SettingsController } from "./modules/settings/settings.controller";
-import { StudentsController } from "./modules/students/students.controller";
+import { StudentsModule } from "./modules/students/students.module";
 import { TenantController } from "./modules/tenant/tenant.controller";
 import { UsersController } from "./modules/users/users.controller";
 
 @Module({
-  imports: [PrismaModule, AuthModule, AuditModule],
+  imports: [PrismaModule, AuthModule, AuditModule, AcademicsModule, StudentsModule],
   controllers: [
     HealthController,
     MeController,
@@ -28,8 +28,6 @@ import { UsersController } from "./modules/users/users.controller";
     SessionsController,
     UsersController,
     SettingsController,
-    AcademicsController,
-    StudentsController,
   ],
   providers: [
     // Every route passes these in order: signed in → school → module on the plan → permission.
