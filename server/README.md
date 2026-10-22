@@ -1,17 +1,36 @@
 # DeepDev ERP API
 
 NestJS 12, PostgreSQL 16 (row-level security per school), Prisma 7 and better-auth 1.7.
-The full design, phases and the map of every frontend endpoint are in [`../BACKEND-PLAN.md`](../BACKEND-PLAN.md).
+The full design, phases and the map of every frontend endpoint are in [`BACKEND-PLAN.md`](BACKEND-PLAN.md).
 
 ## Start
 
 ```bash
-docker compose up -d                 # Postgres on 5433, Redis on 6380
 cp .env.example .env                 # first time
+npm install                           # first time
 npx prisma migrate deploy && npx prisma generate
 npx prisma db seed                   # demo schools; every demo login's password is deepdev123
 npm run dev                          # http://localhost:4000/api, Swagger at /api/docs
 ```
+
+The API runs directly on Node.js. PostgreSQL must be installed and running
+locally on port 5432. Create the databases and application role once as a
+PostgreSQL administrator:
+
+```bash
+sudo -u postgres psql <<'SQL'
+CREATE ROLE deepdev LOGIN PASSWORD 'deepdev';
+CREATE ROLE app_user LOGIN PASSWORD 'app_user';
+CREATE DATABASE deepdev OWNER deepdev;
+CREATE DATABASE deepdev_test OWNER deepdev;
+GRANT CONNECT ON DATABASE deepdev TO app_user;
+GRANT CONNECT ON DATABASE deepdev_test TO app_user;
+SQL
+```
+
+If the `deepdev` or `app_user` roles or either database already exists, skip
+those duplicate create statements. The PostgreSQL administrator must be able
+to create roles and databases.
 
 ## Layout
 
@@ -22,7 +41,7 @@ npm run dev                          # http://localhost:4000/api, Swagger at /ap
   - `prisma/`: the owner client, plus the school-scoped client that sets `app.tenant_id`.
   - `modules.ts`: kept identical to `client/src/lib/modules.ts`; a unit test checks it.
 - `src/modules/`: one folder per area (me, tenant, branches, sessions, users, settings, …).
-- `test/unit`, `test/e2e`: Node's test runner against `dist/` (`npm test`, `npm run test:e2e`).
+- `test/unit`, `test/e2e`: Node's test runner against `dist/` (`npm test`, `npm run test:e2e`). The e2e suite uses the local `deepdev_test` database.
 
 ## Rules for new endpoints
 

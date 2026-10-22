@@ -1,4 +1,4 @@
-// DeepDev ERP database. Shapes follow client/src/types; see BACKEND-PLAN.md.
+// DeepDev ERP database. Shapes follow client/src/types; see ../BACKEND-PLAN.md.
 // Every school-owned table carries tenant_id and is protected by row-level security
 // (prisma/migrations/*_rls). The platform and auth tables are managed by the auth layer.
 

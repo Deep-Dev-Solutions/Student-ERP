@@ -1,6 +1,6 @@
 #!/bin/bash
 # Prepares a Claude Code cloud session to match local development (see server/README.md):
-# PostgreSQL on 5433 (roles deepdev + app_user, databases deepdev + deepdev_test), Redis on 6380,
+# PostgreSQL on 5432 (roles deepdev + app_user, databases deepdev + deepdev_test), Redis on 6379,
 # dependencies installed, Prisma client generated, migrations applied, demo data seeded.
 # Runs from .claude/settings.json on every session start; does nothing on your own machine.
 set -u
@@ -8,25 +8,27 @@ set -u
 cd "$CLAUDE_PROJECT_DIR" || exit 1
 log() { echo "[cloud-setup] $*"; }
 
-# --- PostgreSQL 16 (pre-installed) on port 5433, like docker-compose.yml ---
-PGCONF=$(ls /etc/postgresql/*/main/postgresql.conf 2>/dev/null | head -1)
-if [ -n "$PGCONF" ] && ! grep -q "^port = 5433" "$PGCONF"; then
-  sed -i "s/^#\?port = [0-9]*/port = 5433/" "$PGCONF"
-fi
+# --- PostgreSQL 16 (pre-installed) on the standard port 5432 ---
 service postgresql start >/dev/null 2>&1 || service postgresql restart >/dev/null 2>&1
-for _ in $(seq 1 20); do su postgres -c "pg_isready -p 5433" >/dev/null 2>&1 && break; sleep 1; done
-if ! su postgres -c "psql -p 5433 -tAc \"SELECT 1 FROM pg_roles WHERE rolname='deepdev'\"" | grep -q 1; then
-  log "creating database roles and databases"
-  su postgres -c "psql -p 5433 -v ON_ERROR_STOP=1" <<'SQL'
-CREATE ROLE deepdev LOGIN PASSWORD 'deepdev' CREATEDB;
-CREATE DATABASE deepdev OWNER deepdev;
+for _ in $(seq 1 20); do su postgres -c "pg_isready -p 5432" >/dev/null 2>&1 && break; sleep 1; done
+log "ensuring database roles and databases exist"
+su postgres -c "psql -p 5432 -v ON_ERROR_STOP=1" <<'SQL'
+SELECT format('CREATE ROLE deepdev LOGIN PASSWORD %L CREATEDB', 'deepdev')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'deepdev') \gexec
+SELECT format('CREATE ROLE app_user LOGIN PASSWORD %L', 'app_user')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_user') \gexec
+SELECT format('CREATE DATABASE deepdev OWNER deepdev')
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'deepdev') \gexec
+SELECT format('CREATE DATABASE deepdev_test OWNER deepdev')
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'deepdev_test') \gexec
 SQL
-  # Same as server/docker/postgres-init.sql (app_user, test database).
-  su postgres -c "psql -p 5433 -d deepdev -v ON_ERROR_STOP=1" < server/docker/postgres-init.sql
-fi
+su postgres -c "psql -p 5432 -d deepdev -v ON_ERROR_STOP=1" <<'SQL'
+GRANT CONNECT ON DATABASE deepdev TO app_user;
+GRANT CONNECT ON DATABASE deepdev_test TO app_user;
+SQL
 
-# --- Redis 7 (pre-installed) on port 6380 ---
-redis-cli -p 6380 ping >/dev/null 2>&1 || redis-server --port 6380 --daemonize yes >/dev/null
+# --- Redis 7 (pre-installed) on the standard port 6379 ---
+redis-cli -p 6379 ping >/dev/null 2>&1 || redis-server --port 6379 --daemonize yes >/dev/null
 
 # --- Dependencies (skipped while package files are unchanged) ---
 install_if_changed() {
@@ -45,7 +47,7 @@ cd server
 [ -f .env ] || cp .env.example .env
 npx prisma generate >/dev/null 2>&1
 npx prisma migrate deploy >/dev/null 2>&1 && log "migrations applied"
-if [ "$(PGPASSWORD=deepdev psql -h localhost -p 5433 -U deepdev -d deepdev -tAc 'SELECT count(*) FROM organization' 2>/dev/null)" = "0" ]; then
+if [ "$(PGPASSWORD=deepdev psql -h localhost -p 5432 -U deepdev -d deepdev -tAc 'SELECT count(*) FROM organization' 2>/dev/null)" = "0" ]; then
   npx prisma db seed >/dev/null 2>&1 && log "demo data seeded (password deepdev123)"
 fi
 log "ready: run 'npm run dev' in server/ (API :4000) and 'NEXT_PUBLIC_API_MODE=api npm run dev' in client/"

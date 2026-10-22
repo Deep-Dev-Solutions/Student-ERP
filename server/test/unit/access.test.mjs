@@ -6,8 +6,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 
-process.env.DATABASE_URL ??= "postgresql://x:x@localhost:5433/x";
-process.env.APP_DATABASE_URL ??= "postgresql://x:x@localhost:5433/x";
+process.env.DATABASE_URL ??= "postgresql://x:x@localhost:5432/x";
+process.env.APP_DATABASE_URL ??= "postgresql://x:x@localhost:5432/x";
 process.env.WEB_ORIGIN ??= "http://localhost:3000";
 process.env.BETTER_AUTH_SECRET ??= "unit-test-secret-unit-test-secret";
 process.env.BETTER_AUTH_URL ??= "http://localhost:3000";

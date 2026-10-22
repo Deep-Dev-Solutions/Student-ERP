@@ -1,0 +1,64 @@
+# DeepDev ERP Change Log
+
+Date: 2026-10-22
+
+## Branch organization
+
+- `feat/ui-redesign` contains the finalized frontend work.
+- `feat/backend-foundation` is the backend development branch. The repository branch uses `backend`, not `backened`.
+- `main` contains the Phase 0 backend merge and the finalized frontend history.
+- Backend work from separate Claude branches should be cherry-picked into `feat/backend-foundation` after the commits are available.
+
+## Phase 0 backend
+
+- Added the NestJS, Prisma, better-auth and PostgreSQL RLS foundation under `server/`.
+- Added server modules for authentication, tenant access, branches, sessions, users and settings.
+- Added Prisma schema, migrations, seed data, guards, permissions and unit/e2e tests.
+- Added `server/BACKEND-PLAN.md` as the backend plan and phase reference.
+- Updated client API wiring for the gradual mock-to-real API migration.
+
+## Documentation organization
+
+- Moved the backend plan from the repository root to `server/BACKEND-PLAN.md`.
+- Updated links in `server/README.md` and `server/prisma/schema.prisma`.
+- Kept the root `.gitignore` for repository-wide rules and `server/.gitignore` for backend-specific rules.
+
+## Docker removal
+
+- Removed `server/docker-compose.yml`.
+- Removed `server/docker/postgres-init.sql`.
+- Removed Docker and Compose instructions from the backend README and plan.
+- Removed the Docker-specific local storage note.
+- The backend now runs directly with Node.js using `npm run dev`.
+- Local PostgreSQL is expected on port `5432`.
+- Local Redis, when needed, is expected on port `6379`.
+- The backend README now documents the one-time PostgreSQL role and database setup with `psql`.
+- Updated `.env.example` and `.env.test` to use local PostgreSQL ports.
+- The e2e test database is `deepdev_test` and must exist before running `npm run test:e2e`.
+
+## Local backend commands
+
+From `server/`:
+
+```bash
+cp .env.example .env
+npm install
+npx prisma migrate deploy
+npx prisma generate
+npx prisma db seed
+npm run dev
+```
+
+The API is available at `http://localhost:4000/api` and Swagger at
+`http://localhost:4000/api/docs`.
+
+## Important local prerequisites
+
+- Node.js 22 or newer.
+- PostgreSQL 16 or compatible, running locally.
+- A local `deepdev` database owned by the `deepdev` role.
+- A local `deepdev_test` database owned by the `deepdev` role.
+- A local `deepdev` PostgreSQL role with password `deepdev` for migrations and the owner connection.
+- An `app_user` PostgreSQL role with connection access to both databases.
+- Redis is not required by the current Phase 0 request path, but is configured for later BullMQ/cache work.
+- Keep real secrets in `server/.env`; do not commit that file.

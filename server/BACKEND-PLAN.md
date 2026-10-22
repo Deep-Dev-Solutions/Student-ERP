@@ -14,7 +14,7 @@
 - A shared database: every school row carries `tenantId`, enforced by Postgres row-level security (RLS).
 - Redis + BullMQ for background jobs.
 - Google Cloud Storage for files, through its S3-compatible API.
-- Docker everywhere; hosting decided later.
+- Local PostgreSQL and Redis during development; hosting decided later.
 
 **Defaults (change if needed):**
 - PDFs: keep the browser print layouts that already exist.
@@ -108,7 +108,7 @@ The full field list goes in `BACKEND-PLAN.md`.
   - `payroll` (start payroll for large staff lists)
 - **Redis** also caches each tenant's plan and permission matrix (invalidated on change).
 - **Files:**
-  - `@aws-sdk/client-s3` pointed at `https://storage.googleapis.com` with GCS HMAC keys; MinIO in local Docker.
+  - `@aws-sdk/client-s3` pointed at `https://storage.googleapis.com` with GCS HMAC keys; local file storage is deferred.
   - Uploads use presigned PUT URLs, and the API stores only the object key.
   - Used for documents, school logos and (later) PDFs.
 - **Messaging:** a `MessageProvider` interface (`send(channel, phone, text)`) with a `LogProvider` now; WhatsApp Cloud API and SMS gateway adapters later.
@@ -126,7 +126,7 @@ The full field list goes in `BACKEND-PLAN.md`.
 
 ## Phases (each ends with tests passing and stops for approval)
 - **Phase 0, Foundation (built on approval):**
-  - `/server` scaffold, Docker Compose (Postgres 16, Redis 7; local file storage deferred, see notes), config validated with zod.
+  - `/server` scaffold, local service configuration (Postgres and Redis; local file storage deferred, see notes), config validated with zod.
   - Prisma core models: platform, school setup, auth, audit.
   - RLS migration, better-auth with the organization and admin plugins.
   - The four guards and the Prisma tenant extension.
@@ -142,7 +142,7 @@ The full field list goes in `BACKEND-PLAN.md`.
 - **Phase 7:** Messages (templates, audiences, cost, provider fan-out job, send log) and notifications.
 - **Phase 8:** Reports (SQL views or queries behind the 12 report definitions in `client/src/features/reports/definitions.ts`) and dashboard data (replacing `client/src/services/dashboard`).
 - **Phase 9:** Console (tenants list and create, modules, seats, status, view-as through admin impersonation).
-- **Phase 10:** Hardening (rate limits, security headers, backups, observability, production Dockerfiles, CI, deploy guide for whichever host is chosen).
+- **Phase 10:** Hardening (rate limits, security headers, backups, observability, CI, deploy guide for whichever host is chosen).
 
 ## Phase 0 files (as built)
 - **New, server:**
@@ -150,7 +150,7 @@ The full field list goes in `BACKEND-PLAN.md`.
   - App: `server/src/main.ts`, `server/src/app.module.ts`, `server/src/auth/auth.ts` (better-auth config), `server/src/auth/auth.module.ts`.
   - Common: `server/src/common/{guards,decorators,prisma,modules.ts,errors}`.
   - Modules: `server/src/modules/{me,tenant,branches,sessions,users,settings}/*`.
-  - Infra and config: `server/docker-compose.yml`, `server/.env.example`, `server/test/{unit,e2e}/*.test.mjs` (Node's built-in test runner: Jest can't load better-auth's ES modules).
+  - Infra and config: `server/.env.example`, `server/test/{unit,e2e}/*.test.mjs` (Node's built-in test runner: Jest can't load better-auth's ES modules).
 - **Edited, client:**
   - `client/next.config.ts` (the `/api` rewrite)
   - `client/src/store/api.ts` (mixed base query plus the `MIGRATED` set)
@@ -161,7 +161,7 @@ The full field list goes in `BACKEND-PLAN.md`.
 - **Reused, not rewritten:** the business-rule functions listed above; `ROUTE_ACCESS`/`canAccessPath` and `MODULES` stay as the frontend's source, mirrored on the server.
 
 ## Verification
-1. `docker compose up -d`, then `npx prisma migrate dev` and `npx prisma db seed` in `/server`.
+1. Start local PostgreSQL and Redis, then run `npx prisma migrate dev` and `npx prisma db seed` in `/server`.
 2. `npm run test` (unit tests: guards, permission matrix, module map, ported rules) and `npm run test:e2e` (supertest against a test database). The e2e tests include:
    - RLS leak tests: tenant A can't read tenant B even with a raw query.
    - A suspended school gets 403.
@@ -176,9 +176,10 @@ The full field list goes in `BACKEND-PLAN.md`.
 ## Running it (local development)
 
 ```bash
-# Services: Postgres 16 (port 5433) and Redis 7 (port 6380)
-cd server && docker compose up -d
+# Services: local Postgres 16 (port 5432) and Redis 7 (port 6379)
+cd server
 cp .env.example .env            # first time only
+npm install                      # first time only
 npx prisma migrate deploy && npx prisma generate
 npx prisma db seed              # demo schools and logins; password for every demo login: deepdev123
 npm run dev                     # API on http://localhost:4000/api, Swagger at /api/docs
@@ -202,11 +203,11 @@ cd ../client && NEXT_PUBLIC_API_MODE=api npm run dev
 - **Two database roles:**
   - `deepdev` owns the schema. It's used for migrations, the seed, the auth layer and (later) the Console.
   - `app_user` serves every school request, under row-level security.
-  - Both are created by `server/docker/postgres-init.sql`.
+  - Create both roles/databases with the SQL in `server/README.md`.
 
 ## Notes from Phase 0
 
-- **Local file storage:** MinIO couldn't be pulled (Docker Hub denied it and quay.io was unreachable from this network). Pick a local S3-compatible option in Phase 1, or use a Google Cloud Storage dev bucket.
+- **Local file storage:** deferred. Pick a local S3-compatible option in Phase 1, or use a Google Cloud Storage dev bucket.
 - **Email:** password-reset and invite links are recorded in `authOutbox` and logged until an email provider is chosen.
 - **Sign-in:**
   - Public self sign-up is off. Schools and staff come from the Console and invites.
