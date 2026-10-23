@@ -456,6 +456,120 @@ model StaffAttendanceDay {
   @@map("staff_attendance_day")
 }
 
+// ---------------------------------------------------------------------------
+// Fees (row-level security on tenant_id)
+// ---------------------------------------------------------------------------
+
+/// Client-supplied id (e.g. "tuition"); saveFeeHead upserts by id, matching the mock's contract.
+model FeeHead {
+  id           String   @id
+  tenantId     String   @map("tenant_id")
+  name         String
+  /// "monthly" | "term" | "one_time"
+  frequency    String
+  /// Months a term head is charged, as "MM".
+  termMonths   String[] @map("term_months")
+  discountable Boolean
+
+  @@map("fee_head")
+}
+
+/// Client-supplied id; saveFeePlan upserts by id.
+model FeePlan {
+  id       String @id
+  tenantId String @map("tenant_id")
+  branchId String @map("branch_id")
+  classId  String @map("class_id")
+  /// Record<feeHeadId, amount>
+  amounts  Json
+
+  @@map("fee_plan")
+}
+
+/// Client-supplied id; saveConcession upserts by id.
+model Concession {
+  id       String @id
+  tenantId String @map("tenant_id")
+  name     String
+  percent  Int
+
+  @@map("concession")
+}
+
+model FeeVoucher {
+  id            String    @id @default(cuid())
+  tenantId      String    @map("tenant_id")
+  voucherNumber String    @map("voucher_number")
+  studentId     String    @map("student_id")
+  branchId      String    @map("branch_id")
+  classId       String    @map("class_id")
+  sectionId     String    @map("section_id")
+  /// "YYYY-MM"
+  month         String
+  issueDate     DateTime  @map("issue_date") @db.Date
+  dueDate       DateTime  @map("due_date") @db.Date
+  /// VoucherLine[]
+  lines         Json
+  discount      Int
+  totalAmount   Int       @map("total_amount")
+  paidAmount    Int       @default(0) @map("paid_amount")
+  /// "unpaid" | "partial" | "paid" | "cancelled"
+  status        String    @default("unpaid")
+  /// { at, by, reason }
+  cancelled     Json?
+  payments      Payment[]
+
+  @@map("fee_voucher")
+}
+
+model Payment {
+  id             String     @id @default(cuid())
+  tenantId       String     @map("tenant_id")
+  receiptNo      String     @map("receipt_no")
+  voucherId      String     @map("voucher_id")
+  studentId      String     @map("student_id")
+  branchId       String     @map("branch_id")
+  amount         Int
+  lateFine       Int        @default(0) @map("late_fine")
+  method         String
+  at             DateTime
+  by             String
+  /// { at, by, reason }
+  reversed       Json?
+  /// Client-generated key so a retried request doesn't record the payment twice.
+  idempotencyKey String?    @map("idempotency_key")
+  voucher        FeeVoucher @relation(fields: [voucherId], references: [id])
+
+  @@unique([tenantId, idempotencyKey])
+  @@map("payment")
+}
+
+model DayClosing {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  branchId    String   @map("branch_id")
+  date        DateTime @db.Date
+  /// Record<PaymentMethod, number>
+  totals      Json
+  cashCounted Int      @map("cash_counted")
+  note        String?
+  closedAt    DateTime @map("closed_at")
+  closedBy    String   @map("closed_by")
+
+  @@unique([tenantId, branchId, date])
+  @@map("day_closing")
+}
+
+model FeeReminder {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  studentId String   @map("student_id")
+  at        DateTime
+  by        String
+
+  @@map("fee_reminder")
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   tenantId   String?  @map("tenant_id")

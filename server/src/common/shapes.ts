@@ -1,5 +1,5 @@
 /* Response shapes matching client/src/types, so the frontend can switch from mocks without changes. */
-import type { AcademicSession, AttendanceRegister, Guardian, Member, Organization, StaffAttendanceDay, Student, StudentActivity, StudentDocument, TenantEvent, UnlockRequest, User } from "../generated/prisma/client";
+import type { AcademicSession, AttendanceRegister, DayClosing, FeeReminder, FeeVoucher, Guardian, Member, Organization, Payment, StaffAttendanceDay, Student, StudentActivity, StudentDocument, TenantEvent, UnlockRequest, User } from "../generated/prisma/client";
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
 export const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
@@ -135,3 +135,52 @@ export const toStaffAttendanceDay = (d: StaffAttendanceDay) => ({
   savedAt: d.savedAt.toISOString(),
   savedBy: d.savedBy,
 });
+
+/** client/src/types/fees.ts → FeeVoucher */
+export const toVoucher = (v: FeeVoucher) => ({
+  id: v.id,
+  voucherNumber: v.voucherNumber,
+  studentId: v.studentId,
+  branchId: v.branchId,
+  classId: v.classId,
+  sectionId: v.sectionId,
+  month: v.month,
+  issueDate: day(v.issueDate),
+  dueDate: day(v.dueDate),
+  lines: v.lines as { headId: string; label: string; amount: number }[],
+  discount: v.discount,
+  totalAmount: v.totalAmount,
+  paidAmount: v.paidAmount,
+  status: v.status,
+  cancelled: (v.cancelled as { at: string; by: string; reason: string } | null) ?? undefined,
+});
+
+/** client/src/types/fees.ts → Payment */
+export const toPayment = (p: Payment) => ({
+  id: p.id,
+  receiptNo: p.receiptNo,
+  voucherId: p.voucherId,
+  studentId: p.studentId,
+  branchId: p.branchId,
+  amount: p.amount,
+  lateFine: p.lateFine,
+  method: p.method,
+  at: p.at.toISOString(),
+  by: p.by,
+  reversed: (p.reversed as { at: string; by: string; reason: string } | null) ?? undefined,
+});
+
+/** client/src/types/fees.ts → DayClosing */
+export const toDayClosing = (d: DayClosing) => ({
+  id: d.id,
+  branchId: d.branchId,
+  date: day(d.date),
+  totals: d.totals as Record<string, number>,
+  cashCounted: d.cashCounted,
+  note: d.note ?? undefined,
+  closedAt: d.closedAt.toISOString(),
+  closedBy: d.closedBy,
+});
+
+/** client/src/types/fees.ts → FeeReminder */
+export const toFeeReminder = (r: FeeReminder) => ({ id: r.id, studentId: r.studentId, at: r.at.toISOString(), by: r.by });

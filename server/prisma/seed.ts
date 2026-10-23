@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { classSubjects, classes, sections, subjects } from "../../client/src/mocks/academics";
 import { branches, sessions } from "../../client/src/mocks/branches";
+import { concessions, feeHeads, feePlans, payments, vouchers } from "../../client/src/mocks/fees";
 import { registers, staffAttendance, unlockRequests } from "../../client/src/mocks/registers";
 import { campusProfile, rolePermissions, schoolRules } from "../../client/src/mocks/settings";
 import { studentActivity, students } from "../../client/src/mocks/students";
@@ -30,7 +31,7 @@ async function main() {
   const hash = await ctx.password.hash(DEMO_PASSWORD);
 
   // Start clean (child tables first).
-  for (const table of ["audit_log", "counter", "attendance_register", "staff_attendance_day", "student", "subject", "tenant_permissions", "school_rules", "campus_profile", "academic_session", "branch", "tenant_event", "invitation", "member", "organization", "session", "account", "verification", "user"]) {
+  for (const table of ["audit_log", "counter", "payment", "fee_voucher", "fee_plan", "fee_head", "concession", "day_closing", "fee_reminder", "attendance_register", "staff_attendance_day", "student", "subject", "tenant_permissions", "school_rules", "campus_profile", "academic_session", "branch", "tenant_event", "invitation", "member", "organization", "session", "account", "verification", "user"]) {
     await prisma.$executeRawUnsafe(`DELETE FROM "${table}"`);
   }
 
@@ -172,6 +173,52 @@ async function main() {
       data: { id: d.id, tenantId: DEMO_TENANT_ID, branchId: d.branchId, date: day(d.date), marks: d.marks as Prisma.InputJsonValue, savedAt: new Date(d.savedAt), savedBy: d.savedBy },
     });
   }
+
+  // Fees (Phase 3), for the demo school only.
+  for (const h of feeHeads) await prisma.feeHead.create({ data: { id: h.id, tenantId: DEMO_TENANT_ID, name: h.name, frequency: h.frequency, termMonths: h.termMonths ?? [], discountable: h.discountable } });
+  for (const p of feePlans) await prisma.feePlan.create({ data: { id: p.id, tenantId: DEMO_TENANT_ID, branchId: p.branchId, classId: p.classId, amounts: p.amounts as Prisma.InputJsonValue } });
+  for (const c of concessions) await prisma.concession.create({ data: { id: c.id, tenantId: DEMO_TENANT_ID, name: c.name, percent: c.percent } });
+  for (const v of vouchers) {
+    await prisma.feeVoucher.create({
+      data: {
+        id: v.id,
+        tenantId: DEMO_TENANT_ID,
+        voucherNumber: v.voucherNumber,
+        studentId: v.studentId,
+        branchId: v.branchId,
+        classId: v.classId,
+        sectionId: v.sectionId,
+        month: v.month,
+        issueDate: day(v.issueDate),
+        dueDate: day(v.dueDate),
+        lines: v.lines as unknown as Prisma.InputJsonValue,
+        discount: v.discount,
+        totalAmount: v.totalAmount,
+        paidAmount: v.paidAmount,
+        status: v.status,
+        cancelled: v.cancelled ? (v.cancelled as Prisma.InputJsonValue) : Prisma.JsonNull,
+      },
+    });
+  }
+  for (const p of payments) {
+    await prisma.payment.create({
+      data: {
+        id: p.id,
+        tenantId: DEMO_TENANT_ID,
+        receiptNo: p.receiptNo,
+        voucherId: p.voucherId,
+        studentId: p.studentId,
+        branchId: p.branchId,
+        amount: p.amount,
+        lateFine: p.lateFine,
+        method: p.method,
+        at: new Date(p.at),
+        by: p.by,
+        reversed: p.reversed ? (p.reversed as Prisma.InputJsonValue) : Prisma.JsonNull,
+      },
+    });
+  }
+  await prisma.counter.create({ data: { tenantId: DEMO_TENANT_ID, key: "receipt", value: payments.length } });
 
   const count = await prisma.user.count();
   console.log(`Seeded ${tenants.length} schools and ${count} logins. Password for every demo login: ${DEMO_PASSWORD}`);

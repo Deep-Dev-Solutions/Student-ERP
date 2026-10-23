@@ -100,4 +100,6 @@ export interface PaymentInput {
   method: PaymentMethod;
   amount: number;
   lateFine: number;
+  /** A client-generated id for this attempt, so a retried request (flaky network, a double tap) doesn't charge twice. */
+  idempotencyKey?: string;
 }
