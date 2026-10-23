@@ -16,6 +16,8 @@ export interface RequestContext {
   role?: string;
   branchIds?: string[];
   modules?: ModuleKey[];
+  /** This member's staff record, if they have one (teachers marking their own sections). */
+  staffId?: string;
 }
 
 export const requestContext = new AsyncLocalStorage<RequestContext>();

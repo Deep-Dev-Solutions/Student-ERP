@@ -253,9 +253,9 @@ export const api = createApi({
     getSessions: build.query<MockDb["sessions"], void>(readOr("getSessions", "sessions", "Session", "/sessions")),
     getStudents: build.query<MockDb["students"], void>(readOr("getStudents", "students", "Student", "/students")),
     getStudentActivity: build.query<MockDb["studentActivity"], void>(readOr("getStudentActivity", "studentActivity", "StudentActivity", "/students/activity")),
-    getRegisters: build.query<MockDb["registers"], void>(read("registers", "Register")),
-    getUnlockRequests: build.query<MockDb["unlockRequests"], void>(read("unlockRequests", "UnlockRequest")),
-    getStaffAttendance: build.query<MockDb["staffAttendance"], void>(read("staffAttendance", "StaffAttendance")),
+    getRegisters: build.query<MockDb["registers"], void>(readOr("getRegisters", "registers", "Register", "/registers")),
+    getUnlockRequests: build.query<MockDb["unlockRequests"], void>(readOr("getUnlockRequests", "unlockRequests", "UnlockRequest", "/unlock-requests")),
+    getStaffAttendance: build.query<MockDb["staffAttendance"], void>(readOr("getStaffAttendance", "staffAttendance", "StaffAttendance", "/staff-attendance")),
     getVouchers: build.query<MockDb["vouchers"], void>(read("vouchers", "Voucher")),
     getPayments: build.query<MockDb["payments"], void>(read("payments", "Payment")),
     getFeeHeads: build.query<MockDb["feeHeads"], void>(read("feeHeads", "FeeStructure")),
@@ -465,7 +465,7 @@ export const api = createApi({
       AttendanceRegister,
       Pick<AttendanceRegister, "branchId" | "classId" | "sectionId" | "date" | "subjectId" | "marks">
     >({
-      queryFn: (input) => {
+      queryFn: apiOr("submitRegister", (input: Pick<AttendanceRegister, "branchId" | "classId" | "sectionId" | "date" | "subjectId" | "marks">) => {
         const id = input.subjectId ? `${input.sectionId}:${input.date}:${input.subjectId}` : `${input.sectionId}:${input.date}`;
         const existing = db.registers.find((r) => r.id === id);
         const now = new Date().toISOString();
@@ -495,22 +495,22 @@ export const api = createApi({
         };
         db.registers = db.registers.map((r) => (r.id === id ? updated : r));
         return { data: updated };
-      },
+      }, (input) => ({ url: "/registers", method: "PUT", body: input })),
       invalidatesTags: ["Register"],
     }),
     lockRegisters: build.mutation<null, string[]>({
-      queryFn: (ids) => {
+      queryFn: apiOr("lockRegisters", (ids: string[]) => {
         const now = new Date().toISOString();
         db.registers = db.registers.map((r) =>
           ids.includes(r.id) && !r.lockedAt ? { ...r, lockedAt: now, lockedBy: mockActor(), reopened: undefined } : r
         );
         return { data: null };
-      },
+      }, (ids) => ({ url: "/registers/lock", method: "POST", body: ids })),
       invalidatesTags: ["Register"],
     }),
     /** Reopens a locked register so it can be corrected. Only branch admins; a reason is required. */
     unlockRegister: build.mutation<null, { id: string; reason: string }>({
-      queryFn: ({ id, reason }) => {
+      queryFn: apiOr("unlockRegister", ({ id, reason }: { id: string; reason: string }) => {
         if (reason.trim().length < 10) return fail(400, "Explain why the register needs changing (at least a short sentence).");
         const register = db.registers.find((r) => r.id === id);
         if (!register) return fail(404, "Register not found");
@@ -522,11 +522,11 @@ export const api = createApi({
           u.registerId === id && u.status === "pending" ? { ...u, status: "approved", decidedBy: mockActor(), decidedAt: now } : u
         );
         return { data: null };
-      },
+      }, ({ id, reason }) => ({ url: `/registers/${id}/unlock`, method: "POST", body: { reason } })),
       invalidatesTags: ["Register", "UnlockRequest"],
     }),
     requestUnlock: build.mutation<UnlockRequest, { registerId: string; reason: string }>({
-      queryFn: ({ registerId, reason }) => {
+      queryFn: apiOr("requestUnlock", ({ registerId, reason }: { registerId: string; reason: string }) => {
         if (reason.trim().length < 10) return fail(400, "Explain what needs changing (at least a short sentence).");
         if (db.unlockRequests.some((u) => u.registerId === registerId && u.status === "pending"))
           return fail(409, "A request to reopen this register is already waiting.");
@@ -540,11 +540,11 @@ export const api = createApi({
         };
         db.unlockRequests = [request, ...db.unlockRequests];
         return { data: request };
-      },
+      }, (body) => ({ url: "/unlock-requests", method: "POST", body })),
       invalidatesTags: ["UnlockRequest"],
     }),
     decideUnlock: build.mutation<null, { id: string; approve: boolean }>({
-      queryFn: ({ id, approve }) => {
+      queryFn: apiOr("decideUnlock", ({ id, approve }: { id: string; approve: boolean }) => {
         const request = db.unlockRequests.find((u) => u.id === id);
         if (!request || request.status !== "pending") return fail(404, "This request was already handled");
         const now = new Date().toISOString();
@@ -559,11 +559,11 @@ export const api = createApi({
           );
         }
         return { data: null };
-      },
+      }, ({ id, approve }) => ({ url: `/unlock-requests/${id}/decision`, method: "POST", body: { approve } })),
       invalidatesTags: ["Register", "UnlockRequest"],
     }),
     markAlertsSent: build.mutation<null, string[]>({
-      queryFn: (ids) => {
+      queryFn: apiOr("markAlertsSent", (ids: string[]) => {
         const now = new Date().toISOString();
         db.registers = db.registers.map((r) => (ids.includes(r.id) ? { ...r, alertsSentAt: now } : r));
         for (const r of db.registers.filter((x) => ids.includes(x.id))) {
@@ -574,15 +574,15 @@ export const api = createApi({
           logGuardianMessage(r.branchId, absent, "tpl-absent", `Absence alerts, ${cls} ${section}`, () => ({ class: `${cls} ${section}`, date }));
         }
         return { data: null };
-      },
+      }, (ids) => ({ url: "/registers/alerts", method: "POST", body: ids })),
       invalidatesTags: ["Register", "Message"],
     }),
     saveStaffAttendance: build.mutation<StaffAttendanceDay, Pick<StaffAttendanceDay, "branchId" | "date" | "marks">>({
-      queryFn: (input) => {
+      queryFn: apiOr("saveStaffAttendance", (input: Pick<StaffAttendanceDay, "branchId" | "date" | "marks">) => {
         const day: StaffAttendanceDay = { ...input, id: `${input.branchId}:${input.date}`, savedAt: new Date().toISOString(), savedBy: mockActor() };
         db.staffAttendance = [...db.staffAttendance.filter((d) => d.id !== day.id), day];
         return { data: day };
-      },
+      }, ({ date, ...body }) => ({ url: `/staff-attendance/${date}`, method: "PUT", body })),
       invalidatesTags: ["StaffAttendance"],
     }),
 

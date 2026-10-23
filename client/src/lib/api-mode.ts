@@ -49,6 +49,16 @@ export const MIGRATED = new Set<string>([
   "addStudentDocument",
   "removeStudentDocument",
   "deleteStudent",
+  "getRegisters",
+  "submitRegister",
+  "lockRegisters",
+  "unlockRegister",
+  "getUnlockRequests",
+  "requestUnlock",
+  "decideUnlock",
+  "markAlertsSent",
+  "getStaffAttendance",
+  "saveStaffAttendance",
 ]);
 
 export const usesApi = (endpoint: string) => API_MODE && MIGRATED.has(endpoint);

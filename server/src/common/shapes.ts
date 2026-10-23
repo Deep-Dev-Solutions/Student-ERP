@@ -1,5 +1,5 @@
 /* Response shapes matching client/src/types, so the frontend can switch from mocks without changes. */
-import type { AcademicSession, Guardian, Member, Organization, Student, StudentActivity, StudentDocument, TenantEvent, User } from "../generated/prisma/client";
+import type { AcademicSession, AttendanceRegister, Guardian, Member, Organization, StaffAttendanceDay, Student, StudentActivity, StudentDocument, TenantEvent, UnlockRequest, User } from "../generated/prisma/client";
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
 export const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
@@ -95,3 +95,43 @@ export function toStudent(s: Student, guardians: Guardian[], documents: StudentD
     documents: documents.map(toStudentDocument),
   };
 }
+
+/** client/src/types/attendance.ts → AttendanceRegister */
+export const toRegister = (r: AttendanceRegister) => ({
+  id: r.id,
+  branchId: r.branchId,
+  classId: r.classId,
+  sectionId: r.sectionId,
+  date: day(r.date),
+  subjectId: r.subjectId ?? undefined,
+  marks: r.marks as Record<string, { status: string; remark?: string }>,
+  submittedAt: r.submittedAt.toISOString(),
+  submittedBy: r.submittedBy,
+  lockedAt: r.lockedAt?.toISOString() ?? undefined,
+  lockedBy: r.lockedBy ?? undefined,
+  reopened: (r.reopened as { at: string; by: string; reason: string } | null) ?? undefined,
+  alertsSentAt: r.alertsSentAt?.toISOString() ?? undefined,
+  changes: r.changes as unknown[],
+});
+
+/** client/src/types/attendance.ts → UnlockRequest */
+export const toUnlockRequest = (u: UnlockRequest) => ({
+  id: u.id,
+  registerId: u.registerId,
+  reason: u.reason,
+  requestedBy: u.requestedBy,
+  requestedAt: u.requestedAt.toISOString(),
+  status: u.status,
+  decidedBy: u.decidedBy ?? undefined,
+  decidedAt: u.decidedAt?.toISOString() ?? undefined,
+});
+
+/** client/src/types/attendance.ts → StaffAttendanceDay */
+export const toStaffAttendanceDay = (d: StaffAttendanceDay) => ({
+  id: d.id,
+  branchId: d.branchId,
+  date: day(d.date),
+  marks: d.marks as Record<string, string>,
+  savedAt: d.savedAt.toISOString(),
+  savedBy: d.savedBy,
+});

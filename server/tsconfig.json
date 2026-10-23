@@ -13,6 +13,11 @@
     "sourceMap": true,
     "outDir": "./dist",
     "rootDir": "./src",
+    "paths": {
+      // So tsx can resolve "@/..." imports when the seed script pulls in client/src/mocks files
+      // that import from other client modules this way (e.g. mocks/staff.ts -> @/lib/payroll).
+      "@/*": ["../client/src/*"]
+    },
     "incremental": true,
     "skipLibCheck": true,
     "strict": true,

@@ -397,6 +397,65 @@ model StudentActivity {
   @@map("student_activity")
 }
 
+// ---------------------------------------------------------------------------
+// Attendance (row-level security on tenant_id)
+// ---------------------------------------------------------------------------
+
+/// One class register: a section on a date (and a subject, in subject-wise mode). marks and changes
+/// are kept as JSON, matching client/src/types/attendance.ts 1:1 (no per-mark table; see BACKEND-PLAN.md Phase 2 notes).
+model AttendanceRegister {
+  id             String          @id // "${sectionId}:${date}" or "${sectionId}:${date}:${subjectId}"
+  tenantId       String          @map("tenant_id")
+  branchId       String          @map("branch_id")
+  classId        String          @map("class_id")
+  sectionId      String          @map("section_id")
+  date           DateTime        @db.Date
+  subjectId      String?         @map("subject_id")
+  /// Record<studentId, { status: "present"|"absent"|"leave", remark?: string }>
+  marks          Json
+  submittedAt    DateTime        @map("submitted_at")
+  submittedBy    String          @map("submitted_by")
+  lockedAt       DateTime?       @map("locked_at")
+  lockedBy       String?         @map("locked_by")
+  /// { at, by, reason } while a locked register is reopened for correction.
+  reopened       Json?
+  alertsSentAt   DateTime?       @map("alerts_sent_at")
+  /// RegisterChange[]: marks changed after first submission.
+  changes        Json            @default("[]")
+  unlockRequests UnlockRequest[]
+
+  @@map("attendance_register")
+}
+
+model UnlockRequest {
+  id          String             @id @default(cuid())
+  tenantId    String             @map("tenant_id")
+  registerId  String             @map("register_id")
+  reason      String
+  requestedBy String             @map("requested_by")
+  requestedAt DateTime           @map("requested_at")
+  /// "pending" | "approved" | "declined"
+  status      String
+  decidedBy   String?            @map("decided_by")
+  decidedAt   DateTime?          @map("decided_at")
+  register    AttendanceRegister @relation(fields: [registerId], references: [id], onDelete: Cascade)
+
+  @@map("unlock_request")
+}
+
+model StaffAttendanceDay {
+  id       String   @id // "${branchId}:${date}"
+  tenantId String   @map("tenant_id")
+  branchId String   @map("branch_id")
+  date     DateTime @db.Date
+  /// Record<staffId, "present"|"absent"|"leave"|"late">
+  marks    Json
+  savedAt  DateTime @map("saved_at")
+  savedBy  String   @map("saved_by")
+
+  @@map("staff_attendance_day")
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   tenantId   String?  @map("tenant_id")

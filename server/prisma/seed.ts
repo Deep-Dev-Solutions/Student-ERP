@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { classSubjects, classes, sections, subjects } from "../../client/src/mocks/academics";
 import { branches, sessions } from "../../client/src/mocks/branches";
+import { registers, staffAttendance, unlockRequests } from "../../client/src/mocks/registers";
 import { campusProfile, rolePermissions, schoolRules } from "../../client/src/mocks/settings";
 import { studentActivity, students } from "../../client/src/mocks/students";
 import { DEMO_TENANT_ID, tenantBranches, tenants } from "../../client/src/mocks/tenants";
@@ -29,7 +30,7 @@ async function main() {
   const hash = await ctx.password.hash(DEMO_PASSWORD);
 
   // Start clean (child tables first).
-  for (const table of ["audit_log", "counter", "student", "subject", "tenant_permissions", "school_rules", "campus_profile", "academic_session", "branch", "tenant_event", "invitation", "member", "organization", "session", "account", "verification", "user"]) {
+  for (const table of ["audit_log", "counter", "attendance_register", "staff_attendance_day", "student", "subject", "tenant_permissions", "school_rules", "campus_profile", "academic_session", "branch", "tenant_event", "invitation", "member", "organization", "session", "account", "verification", "user"]) {
     await prisma.$executeRawUnsafe(`DELETE FROM "${table}"`);
   }
 
@@ -128,6 +129,49 @@ async function main() {
     admissionYears.set(year, (admissionYears.get(year) ?? 0) + 1);
   }
   for (const [year, count] of admissionYears) await prisma.counter.create({ data: { tenantId: DEMO_TENANT_ID, key: `admission_${year}`, value: count } });
+
+  // Attendance (Phase 2), for the demo school only.
+  for (const r of registers) {
+    await prisma.attendanceRegister.create({
+      data: {
+        id: r.id,
+        tenantId: DEMO_TENANT_ID,
+        branchId: r.branchId,
+        classId: r.classId,
+        sectionId: r.sectionId,
+        date: day(r.date),
+        subjectId: r.subjectId,
+        marks: r.marks as Prisma.InputJsonValue,
+        submittedAt: new Date(r.submittedAt),
+        submittedBy: r.submittedBy,
+        lockedAt: r.lockedAt ? new Date(r.lockedAt) : null,
+        lockedBy: r.lockedBy,
+        reopened: r.reopened ? (r.reopened as Prisma.InputJsonValue) : Prisma.JsonNull,
+        alertsSentAt: r.alertsSentAt ? new Date(r.alertsSentAt) : null,
+        changes: r.changes as Prisma.InputJsonValue,
+      },
+    });
+  }
+  for (const u of unlockRequests) {
+    await prisma.unlockRequest.create({
+      data: {
+        id: u.id,
+        tenantId: DEMO_TENANT_ID,
+        registerId: u.registerId,
+        reason: u.reason,
+        requestedBy: u.requestedBy,
+        requestedAt: new Date(u.requestedAt),
+        status: u.status,
+        decidedBy: u.decidedBy,
+        decidedAt: u.decidedAt ? new Date(u.decidedAt) : null,
+      },
+    });
+  }
+  for (const d of staffAttendance) {
+    await prisma.staffAttendanceDay.create({
+      data: { id: d.id, tenantId: DEMO_TENANT_ID, branchId: d.branchId, date: day(d.date), marks: d.marks as Prisma.InputJsonValue, savedAt: new Date(d.savedAt), savedBy: d.savedBy },
+    });
+  }
 
   const count = await prisma.user.count();
   console.log(`Seeded ${tenants.length} schools and ${count} logins. Password for every demo login: ${DEMO_PASSWORD}`);
