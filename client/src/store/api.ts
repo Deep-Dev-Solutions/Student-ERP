@@ -269,9 +269,9 @@ export const api = createApi({
     getPayrollRuns: build.query<MockDb["payrollRuns"], void>(readOr("getPayrollRuns", "payrollRuns", "Payroll", "/payroll-runs")),
     getPayslips: build.query<MockDb["payslips"], void>(readOr("getPayslips", "payslips", "Payroll", "/payslips")),
     getAdvances: build.query<MockDb["advances"], void>(readOr("getAdvances", "advances", "Payroll", "/advances")),
-    getExams: build.query<MockDb["exams"], void>(read("exams", "Exam")),
-    getExamPapers: build.query<MockDb["examPapers"], void>(read("examPapers", "Exam")),
-    getExamMarks: build.query<MockDb["examMarks"], void>(read("examMarks", "Exam")),
+    getExams: build.query<MockDb["exams"], void>(readOr("getExams", "exams", "Exam", "/exams")),
+    getExamPapers: build.query<MockDb["examPapers"], void>(readOr("getExamPapers", "examPapers", "Exam", "/exam-papers")),
+    getExamMarks: build.query<MockDb["examMarks"], void>(readOr("getExamMarks", "examMarks", "Exam", "/exam-marks")),
     getMessages: build.query<MockDb["messages"], void>(read("messages", "Message")),
     getMessageTemplates: build.query<MockDb["messageTemplates"], void>(read("messageTemplates", "Message")),
     getCampusProfile: build.query<MockDb["campusProfile"], void>(readOr("getCampusProfile", "campusProfile", "Campus", "/settings/campus-profile")),
@@ -737,7 +737,7 @@ export const api = createApi({
 
     // Exams ------------------------------------------------------------------
     saveExam: build.mutation<Exam, Omit<Exam, "id" | "createdBy" | "publishedAt"> & { id?: string }>({
-      queryFn: (input) => {
+      queryFn: apiOr("saveExam", (input: Omit<Exam, "id" | "createdBy" | "publishedAt"> & { id?: string }) => {
         const title = input.title.trim();
         if (title.length < 3) return fail(400, "Enter the exam name");
         if (!input.startDate || !input.endDate) return fail(400, "Enter the start and end dates");
@@ -761,12 +761,12 @@ export const api = createApi({
           : { ...input, title, id: newId("ex"), createdBy: mockActor() };
         db.exams = existing ? db.exams.map((e) => (e.id === saved.id ? saved : e)) : [saved, ...db.exams];
         return { data: saved };
-      },
+      }, (input) => ({ url: "/exams", method: "PUT", body: input })),
       invalidatesTags: ["Exam"],
     }),
     /** Deletes an exam with its date sheet and marks. */
     deleteExam: build.mutation<null, string>({
-      queryFn: (id) => {
+      queryFn: apiOr("deleteExam", (id: string) => {
         const exam = db.exams.find((e) => e.id === id);
         if (!exam) return fail(404, "Exam not found");
         if (exam.publishedAt) return fail(409, "Results are published; unpublish them before deleting");
@@ -774,12 +774,12 @@ export const api = createApi({
         db.examPapers = db.examPapers.filter((p) => p.examId !== id);
         db.examMarks = db.examMarks.filter((m) => m.examId !== id);
         return { data: null };
-      },
+      }, (id) => ({ url: `/exams/${id}`, method: "DELETE" })),
       invalidatesTags: ["Exam"],
     }),
     /** Replaces one class's date sheet for an exam. */
     saveDateSheet: build.mutation<ExamPaper[], { examId: string; classId: string; papers: Pick<ExamPaper, "subjectId" | "date" | "totalMarks" | "passMarks">[] }>({
-      queryFn: ({ examId, classId, papers }) => {
+      queryFn: apiOr("saveDateSheet", ({ examId, classId, papers }: { examId: string; classId: string; papers: Pick<ExamPaper, "subjectId" | "date" | "totalMarks" | "passMarks">[] }) => {
         const exam = db.exams.find((e) => e.id === examId);
         if (!exam) return fail(404, "Exam not found");
         if (exam.publishedAt) return fail(409, "Results are published; the date sheet can't change");
@@ -800,12 +800,12 @@ export const api = createApi({
         });
         db.examPapers = [...db.examPapers.filter((x) => !(x.examId === examId && x.classId === classId)), ...saved];
         return { data: saved };
-      },
+      }, ({ examId, classId, papers }) => ({ url: `/exams/${examId}/date-sheet`, method: "PUT", body: { classId, papers } })),
       invalidatesTags: ["Exam"],
     }),
     /** Saves marks for one paper; entries not sent are left alone. */
     saveMarks: build.mutation<ExamMark[], { examId: string; subjectId: string; entries: { studentId: string; obtained: number | null; absent: boolean; remark?: string }[] }>({
-      queryFn: ({ examId, subjectId, entries }) => {
+      queryFn: apiOr("saveMarks", ({ examId, subjectId, entries }: { examId: string; subjectId: string; entries: { studentId: string; obtained: number | null; absent: boolean; remark?: string }[] }) => {
         const exam = db.exams.find((e) => e.id === examId);
         if (!exam) return fail(404, "Exam not found");
         if (exam.publishedAt) return fail(409, "Results are published; marks are locked");
@@ -833,16 +833,16 @@ export const api = createApi({
           saved.push(mark);
         }
         return { data: saved };
-      },
+      }, ({ examId, subjectId, entries }) => ({ url: "/exam-marks", method: "PUT", body: { examId, subjectId, entries } })),
       invalidatesTags: ["Exam"],
     }),
     setResultsPublished: build.mutation<null, { examId: string; published: boolean }>({
-      queryFn: ({ examId, published }) => {
+      queryFn: apiOr("setResultsPublished", ({ examId, published }: { examId: string; published: boolean }) => {
         const exam = db.exams.find((e) => e.id === examId);
         if (!exam) return fail(404, "Exam not found");
         db.exams = db.exams.map((e) => (e.id === examId ? { ...e, publishedAt: published ? new Date().toISOString() : undefined } : e));
         return { data: null };
-      },
+      }, ({ examId, published }) => ({ url: `/exams/${examId}/publish`, method: "POST", body: { published } })),
       invalidatesTags: ["Exam"],
     }),
 

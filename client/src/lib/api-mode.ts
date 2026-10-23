@@ -91,6 +91,14 @@ export const MIGRATED = new Set<string>([
   "markPayslipsPaid",
   "getAdvances",
   "addAdvance",
+  "getExams",
+  "getExamPapers",
+  "getExamMarks",
+  "saveExam",
+  "deleteExam",
+  "saveDateSheet",
+  "saveMarks",
+  "setResultsPublished",
 ]);
 
 export const usesApi = (endpoint: string) => API_MODE && MIGRATED.has(endpoint);

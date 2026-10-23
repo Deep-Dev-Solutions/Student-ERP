@@ -1,5 +1,5 @@
 /* Response shapes matching client/src/types, so the frontend can switch from mocks without changes. */
-import type { AcademicSession, Advance, AttendanceRegister, DayClosing, FeeReminder, FeeVoucher, Guardian, Member, Organization, Payment, PayrollRun, Payslip, StaffAttendanceDay, StaffMember, Student, StudentActivity, StudentDocument, TeacherAllocation, TenantEvent, UnlockRequest, User } from "../generated/prisma/client";
+import type { AcademicSession, Advance, AttendanceRegister, DayClosing, Exam, ExamMark, ExamPaper, FeeReminder, FeeVoucher, Guardian, Member, Organization, Payment, PayrollRun, Payslip, StaffAttendanceDay, StaffMember, Student, StudentActivity, StudentDocument, TeacherAllocation, TenantEvent, UnlockRequest, User } from "../generated/prisma/client";
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
 export const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
@@ -248,4 +248,34 @@ export const toPayslip = (p: Payslip) => ({
   status: p.status,
   paidAt: p.paidAt?.toISOString() ?? undefined,
   method: p.method ?? undefined,
+});
+
+/** client/src/types/exams.ts → Exam */
+export const toExam = (e: Exam) => ({
+  id: e.id,
+  branchId: e.branchId,
+  sessionId: e.sessionId,
+  title: e.title,
+  termType: e.termType,
+  startDate: day(e.startDate),
+  endDate: day(e.endDate),
+  classIds: e.classIds,
+  publishedAt: e.publishedAt?.toISOString() ?? undefined,
+  createdBy: e.createdBy,
+});
+
+/** client/src/types/exams.ts → ExamPaper */
+export const toExamPaper = (p: ExamPaper) => ({ id: p.id, examId: p.examId, classId: p.classId, subjectId: p.subjectId, date: day(p.date), totalMarks: p.totalMarks, passMarks: p.passMarks });
+
+/** client/src/types/exams.ts → ExamMark */
+export const toExamMark = (m: ExamMark) => ({
+  id: m.id,
+  examId: m.examId,
+  subjectId: m.subjectId,
+  studentId: m.studentId,
+  obtained: m.obtained,
+  absent: m.absent,
+  remark: m.remark ?? undefined,
+  updatedAt: m.updatedAt.toISOString(),
+  updatedBy: m.updatedBy,
 });

@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { classSubjects, classes, sections, subjects } from "../../client/src/mocks/academics";
 import { branches, sessions } from "../../client/src/mocks/branches";
+import { examMarks, examPapers, exams } from "../../client/src/mocks/exams";
 import { concessions, feeHeads, feePlans, payments, vouchers } from "../../client/src/mocks/fees";
 import { registers, staffAttendance, unlockRequests } from "../../client/src/mocks/registers";
 import { campusProfile, rolePermissions, schoolRules } from "../../client/src/mocks/settings";
@@ -32,7 +33,7 @@ async function main() {
   const hash = await ctx.password.hash(DEMO_PASSWORD);
 
   // Start clean (child tables first).
-  for (const table of ["audit_log", "counter", "payslip", "payroll_run", "advance", "teacher_allocation", "staff_member", "payment", "fee_voucher", "fee_plan", "fee_head", "concession", "day_closing", "fee_reminder", "attendance_register", "staff_attendance_day", "student", "subject", "tenant_permissions", "school_rules", "campus_profile", "academic_session", "branch", "tenant_event", "invitation", "member", "organization", "session", "account", "verification", "user"]) {
+  for (const table of ["audit_log", "counter", "exam_mark", "exam_paper", "exam", "payslip", "payroll_run", "advance", "teacher_allocation", "staff_member", "payment", "fee_voucher", "fee_plan", "fee_head", "concession", "day_closing", "fee_reminder", "attendance_register", "staff_attendance_day", "student", "subject", "tenant_permissions", "school_rules", "campus_profile", "academic_session", "branch", "tenant_event", "invitation", "member", "organization", "session", "account", "verification", "user"]) {
     await prisma.$executeRawUnsafe(`DELETE FROM "${table}"`);
   }
 
@@ -281,6 +282,26 @@ async function main() {
   }
   const maxStaffNo = Math.max(...staff.map((m) => Number(m.staffId.replace(/\D/g, "")) || 0));
   await prisma.counter.create({ data: { tenantId: DEMO_TENANT_ID, key: "staff_no", value: maxStaffNo } });
+
+  // Exams and results (Phase 5), for the demo school only.
+  for (const e of exams) {
+    await prisma.exam.create({
+      data: {
+        id: e.id, tenantId: DEMO_TENANT_ID, branchId: e.branchId, sessionId: e.sessionId, title: e.title, termType: e.termType,
+        startDate: day(e.startDate), endDate: day(e.endDate), classIds: e.classIds,
+        publishedAt: e.publishedAt ? new Date(e.publishedAt) : null, createdBy: e.createdBy,
+      },
+    });
+  }
+  for (const p of examPapers) await prisma.examPaper.create({ data: { id: p.id, tenantId: DEMO_TENANT_ID, examId: p.examId, classId: p.classId, subjectId: p.subjectId, date: day(p.date), totalMarks: p.totalMarks, passMarks: p.passMarks } });
+  for (const m of examMarks) {
+    await prisma.examMark.create({
+      data: {
+        id: m.id, tenantId: DEMO_TENANT_ID, examId: m.examId, subjectId: m.subjectId, studentId: m.studentId,
+        obtained: m.obtained, absent: m.absent, remark: m.remark, updatedAt: new Date(m.updatedAt), updatedBy: m.updatedBy,
+      },
+    });
+  }
 
   const count = await prisma.user.count();
   console.log(`Seeded ${tenants.length} schools and ${count} logins. Password for every demo login: ${DEMO_PASSWORD}`);

@@ -685,6 +685,62 @@ model Payslip {
   @@map("payslip")
 }
 
+// Exams and results --------------------------------------------------------
+
+model Exam {
+  id          String      @id @default(cuid())
+  tenantId    String      @map("tenant_id")
+  branchId    String      @map("branch_id")
+  sessionId   String      @map("session_id")
+  title       String
+  /// "midterm" | "final" | "monthly" | "quiz"
+  termType    String      @map("term_type")
+  startDate   DateTime    @map("start_date") @db.Date
+  endDate     DateTime    @map("end_date") @db.Date
+  classIds    String[]    @map("class_ids")
+  /// Set when results are published; marks are then locked.
+  publishedAt DateTime?   @map("published_at")
+  createdBy   String      @map("created_by")
+  papers      ExamPaper[]
+  marks       ExamMark[]
+
+  @@unique([tenantId, branchId, title])
+  @@map("exam")
+}
+
+model ExamPaper {
+  id         String @id @default(cuid())
+  tenantId   String @map("tenant_id")
+  examId     String @map("exam_id")
+  classId    String @map("class_id")
+  subjectId  String @map("subject_id")
+  date       DateTime @db.Date
+  totalMarks Int    @map("total_marks")
+  passMarks  Int    @map("pass_marks")
+  exam       Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, examId, classId, subjectId])
+  @@map("exam_paper")
+}
+
+model ExamMark {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  examId    String   @map("exam_id")
+  subjectId String   @map("subject_id")
+  studentId String   @map("student_id")
+  /// Null while absent or not marked yet; half marks allowed.
+  obtained  Float?
+  absent    Boolean  @default(false)
+  remark    String?
+  updatedAt DateTime @map("updated_at")
+  updatedBy String   @map("updated_by")
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, examId, subjectId, studentId])
+  @@map("exam_mark")
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   tenantId   String?  @map("tenant_id")
