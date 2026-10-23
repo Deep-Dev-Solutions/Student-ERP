@@ -107,6 +107,11 @@ export const MIGRATED = new Set<string>([
   "submitPaper",
   "markPaperPrinted",
   "returnPaper",
+  "getMessages",
+  "getMessageTemplates",
+  "sendMessages",
+  "saveMessageTemplate",
+  "deleteMessageTemplate",
 ]);
 
 export const usesApi = (endpoint: string) => API_MODE && MIGRATED.has(endpoint);

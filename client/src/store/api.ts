@@ -272,8 +272,8 @@ export const api = createApi({
     getExams: build.query<MockDb["exams"], void>(readOr("getExams", "exams", "Exam", "/exams")),
     getExamPapers: build.query<MockDb["examPapers"], void>(readOr("getExamPapers", "examPapers", "Exam", "/exam-papers")),
     getExamMarks: build.query<MockDb["examMarks"], void>(readOr("getExamMarks", "examMarks", "Exam", "/exam-marks")),
-    getMessages: build.query<MockDb["messages"], void>(read("messages", "Message")),
-    getMessageTemplates: build.query<MockDb["messageTemplates"], void>(read("messageTemplates", "Message")),
+    getMessages: build.query<MockDb["messages"], void>(readOr("getMessages", "messages", "Message", "/messages")),
+    getMessageTemplates: build.query<MockDb["messageTemplates"], void>(readOr("getMessageTemplates", "messageTemplates", "Message", "/message-templates")),
     getCampusProfile: build.query<MockDb["campusProfile"], void>(readOr("getCampusProfile", "campusProfile", "Campus", "/settings/campus-profile")),
     getRolePermissions: build.query<MockDb["rolePermissions"], void>(readOr("getRolePermissions", "rolePermissions", "Permissions", "/settings/permissions")),
     getSchoolRules: build.query<MockDb["schoolRules"], void>(readOr("getSchoolRules", "schoolRules", "Rules", "/settings/rules")),
@@ -858,7 +858,7 @@ export const api = createApi({
 
     // Messages ---------------------------------------------------------------
     sendMessages: build.mutation<MessageBatch, Omit<MessageBatch, "id" | "at" | "by" | "smsSegments" | "cost">>({
-      queryFn: (input) => {
+      queryFn: apiOr("sendMessages", (input: Omit<MessageBatch, "id" | "at" | "by" | "smsSegments" | "cost">) => {
         if (input.recipients.length === 0) return fail(400, "Nobody in this audience has a mobile number");
         if (input.recipients.some((r) => !r.text.trim())) return fail(400, "Write the message first");
         if (input.recipients.some((r) => /\{\w+\}/.test(r.text))) return fail(400, "The message has a placeholder this audience can't fill; remove it");
@@ -872,28 +872,28 @@ export const api = createApi({
         };
         db.messages = [batch, ...db.messages];
         return { data: batch };
-      },
+      }, (input) => ({ url: "/messages", method: "POST", body: input })),
       invalidatesTags: ["Message"],
     }),
     saveMessageTemplate: build.mutation<MessageTemplate, Pick<MessageTemplate, "name" | "body">>({
-      queryFn: ({ name, body }) => {
+      queryFn: apiOr("saveMessageTemplate", ({ name, body }: Pick<MessageTemplate, "name" | "body">) => {
         if (name.trim().length < 3) return fail(400, "Give the template a name");
         if (body.trim().length < 10) return fail(400, "Write the template text");
         if (db.messageTemplates.some((t) => t.name.toLowerCase() === name.trim().toLowerCase())) return fail(409, "A template with this name already exists");
         const template: MessageTemplate = { id: newId("tpl"), name: name.trim(), body: body.trim() };
         db.messageTemplates = [...db.messageTemplates, template];
         return { data: template };
-      },
+      }, (input) => ({ url: "/message-templates", method: "POST", body: input })),
       invalidatesTags: ["Message"],
     }),
     deleteMessageTemplate: build.mutation<null, string>({
-      queryFn: (id) => {
+      queryFn: apiOr("deleteMessageTemplate", (id: string) => {
         const template = db.messageTemplates.find((t) => t.id === id);
         if (!template) return fail(404, "Template not found");
         if (template.builtIn) return fail(409, "Built-in templates can't be deleted");
         db.messageTemplates = db.messageTemplates.filter((t) => t.id !== id);
         return { data: null };
-      },
+      }, (id) => ({ url: `/message-templates/${id}`, method: "DELETE" })),
       invalidatesTags: ["Message"],
     }),
 

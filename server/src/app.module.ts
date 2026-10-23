@@ -15,6 +15,7 @@ import { ExamsModule } from "./modules/exams/exams.module";
 import { FeesModule } from "./modules/fees/fees.module";
 import { HealthModule } from "./modules/health/health.module";
 import { MeModule } from "./modules/me/me.module";
+import { MessagesModule } from "./modules/messages/messages.module";
 import { PaperMakerModule } from "./modules/paper-maker/paper-maker.module";
 import { PayrollModule } from "./modules/payroll/payroll.module";
 import { SessionsModule } from "./modules/sessions/sessions.module";
@@ -44,6 +45,7 @@ import { UsersModule } from "./modules/users/users.module";
     PayrollModule,
     ExamsModule,
     PaperMakerModule,
+    MessagesModule,
   ],
   providers: [
     // Every route passes these in order: signed in → school → module on the plan → permission.

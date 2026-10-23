@@ -1,5 +1,5 @@
 /* Response shapes matching client/src/types, so the frontend can switch from mocks without changes. */
-import type { AcademicSession, Advance, AttendanceRegister, BankQuestion, DayClosing, Exam, ExamMark, ExamPaper, FeeReminder, FeeVoucher, Guardian, Member, Organization, Paper, PaperBoard, PaperBook, PaperChapter, PaperClass, PaperSubTopic, Payment, PayrollRun, Payslip, StaffAttendanceDay, StaffMember, Student, StudentActivity, StudentDocument, TeacherAllocation, TenantEvent, UnlockRequest, User } from "../generated/prisma/client";
+import type { AcademicSession, Advance, AttendanceRegister, BankQuestion, DayClosing, Exam, ExamMark, ExamPaper, FeeReminder, FeeVoucher, Guardian, Member, MessageBatch, MessageTemplate, Organization, Paper, PaperBoard, PaperBook, PaperChapter, PaperClass, PaperSubTopic, Payment, PayrollRun, Payslip, StaffAttendanceDay, StaffMember, Student, StudentActivity, StudentDocument, TeacherAllocation, TenantEvent, UnlockRequest, User } from "../generated/prisma/client";
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
 export const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
@@ -320,4 +320,21 @@ export const toPaper = (p: Paper) => ({
   printedAt: p.printedAt?.toISOString() ?? undefined,
   returnNote: p.returnNote ?? undefined,
   history: p.history as unknown[],
+});
+
+/** client/src/types/messages.ts → MessageTemplate */
+export const toMessageTemplate = (t: MessageTemplate) => ({ id: t.id, name: t.name, body: t.body, builtIn: t.builtIn || undefined });
+
+/** client/src/types/messages.ts → MessageBatch */
+export const toMessageBatch = (b: MessageBatch) => ({
+  id: b.id,
+  branchId: b.branchId,
+  at: b.at.toISOString(),
+  by: b.by,
+  audience: b.audience,
+  channel: b.channel as "whatsapp" | "sms",
+  template: b.template,
+  recipients: b.recipients as { name: string; phone: string; channel: "whatsapp" | "sms"; text: string }[],
+  smsSegments: b.smsSegments,
+  cost: b.cost,
 });

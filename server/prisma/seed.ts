@@ -9,6 +9,7 @@ import { classSubjects, classes, sections, subjects } from "../../client/src/moc
 import { branches, sessions } from "../../client/src/mocks/branches";
 import { examMarks, examPapers, exams } from "../../client/src/mocks/exams";
 import { paperCatalog, papers, questionBank } from "../../client/src/mocks/paper";
+import { messages, messageTemplates } from "../../client/src/mocks/messages";
 import { concessions, feeHeads, feePlans, payments, vouchers } from "../../client/src/mocks/fees";
 import { registers, staffAttendance, unlockRequests } from "../../client/src/mocks/registers";
 import { campusProfile, rolePermissions, schoolRules } from "../../client/src/mocks/settings";
@@ -34,7 +35,7 @@ async function main() {
   const hash = await ctx.password.hash(DEMO_PASSWORD);
 
   // Start clean (child tables first).
-  for (const table of ["audit_log", "counter", "paper", "bank_question", "paper_sub_topic", "paper_chapter", "paper_book", "paper_class", "paper_board", "exam_mark", "exam_paper", "exam", "payslip", "payroll_run", "advance", "teacher_allocation", "staff_member", "payment", "fee_voucher", "fee_plan", "fee_head", "concession", "day_closing", "fee_reminder", "attendance_register", "staff_attendance_day", "student", "subject", "tenant_permissions", "school_rules", "campus_profile", "academic_session", "branch", "tenant_event", "invitation", "member", "organization", "session", "account", "verification", "user"]) {
+  for (const table of ["audit_log", "counter", "message_batch", "message_template", "paper", "bank_question", "paper_sub_topic", "paper_chapter", "paper_book", "paper_class", "paper_board", "exam_mark", "exam_paper", "exam", "payslip", "payroll_run", "advance", "teacher_allocation", "staff_member", "payment", "fee_voucher", "fee_plan", "fee_head", "concession", "day_closing", "fee_reminder", "attendance_register", "staff_attendance_day", "student", "subject", "tenant_permissions", "school_rules", "campus_profile", "academic_session", "branch", "tenant_event", "invitation", "member", "organization", "session", "account", "verification", "user"]) {
     await prisma.$executeRawUnsafe(`DELETE FROM "${table}"`);
   }
 
@@ -320,6 +321,17 @@ async function main() {
         blueprint: p.blueprint as Prisma.InputJsonValue, questions: p.questions as unknown as Prisma.InputJsonValue, details: p.details as Prisma.InputJsonValue,
         createdAt: new Date(p.createdAt), updatedAt: new Date(p.updatedAt), submittedAt: p.submittedAt ? new Date(p.submittedAt) : null,
         printedAt: p.printedAt ? new Date(p.printedAt) : null, returnNote: p.returnNote, history: p.history as unknown as Prisma.InputJsonValue,
+      },
+    });
+  }
+
+  // Messages (Phase 7), for the demo school only.
+  for (const t of messageTemplates) await prisma.messageTemplate.create({ data: { id: t.id, tenantId: DEMO_TENANT_ID, name: t.name, body: t.body, builtIn: t.builtIn ?? false } });
+  for (const m of messages) {
+    await prisma.messageBatch.create({
+      data: {
+        id: m.id, tenantId: DEMO_TENANT_ID, branchId: m.branchId, at: new Date(m.at), by: m.by, audience: m.audience, channel: m.channel,
+        template: m.template, recipients: m.recipients as unknown as Prisma.InputJsonValue, smsSegments: m.smsSegments, cost: m.cost,
       },
     });
   }

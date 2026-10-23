@@ -836,6 +836,37 @@ model Paper {
   @@map("paper")
 }
 
+// Messages ------------------------------------------------------------------
+
+model MessageTemplate {
+  id       String  @id @default(cuid())
+  tenantId String  @map("tenant_id")
+  name     String
+  body     String
+  builtIn  Boolean @default(false) @map("built_in")
+
+  @@unique([tenantId, name])
+  @@map("message_template")
+}
+
+model MessageBatch {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  branchId    String   @map("branch_id")
+  at          DateTime
+  by          String
+  audience    String
+  /// "whatsapp" | "sms"
+  channel     String
+  template    String
+  /// MessageRecipient[]
+  recipients  Json
+  smsSegments Int      @map("sms_segments")
+  cost        Float
+
+  @@map("message_batch")
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   tenantId   String?  @map("tenant_id")
