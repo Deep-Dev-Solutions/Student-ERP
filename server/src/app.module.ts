@@ -11,6 +11,7 @@ import { PrismaModule } from "./common/prisma/prisma.module";
 import { AcademicsModule } from "./modules/academics/academics.module";
 import { AttendanceModule } from "./modules/attendance/attendance.module";
 import { BranchesModule } from "./modules/branches/branches.module";
+import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { ExamsModule } from "./modules/exams/exams.module";
 import { FeesModule } from "./modules/fees/fees.module";
 import { HealthModule } from "./modules/health/health.module";
@@ -22,6 +23,7 @@ import { SessionsModule } from "./modules/sessions/sessions.module";
 import { SettingsModule } from "./modules/settings/settings.module";
 import { StaffModule } from "./modules/staff/staff.module";
 import { StudentsModule } from "./modules/students/students.module";
+import { TeacherModule } from "./modules/teacher/teacher.module";
 import { TenantModule } from "./modules/tenant/tenant.module";
 import { UsersModule } from "./modules/users/users.module";
 
@@ -46,6 +48,8 @@ import { UsersModule } from "./modules/users/users.module";
     ExamsModule,
     PaperMakerModule,
     MessagesModule,
+    DashboardModule,
+    TeacherModule,
   ],
   providers: [
     // Every route passes these in order: signed in → school → module on the plan → permission.

@@ -112,6 +112,7 @@ export const MIGRATED = new Set<string>([
   "sendMessages",
   "saveMessageTemplate",
   "deleteMessageTemplate",
+  "getTeacherDay",
 ]);
 
 export const usesApi = (endpoint: string) => API_MODE && MIGRATED.has(endpoint);

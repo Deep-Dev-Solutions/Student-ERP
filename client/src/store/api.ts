@@ -70,12 +70,6 @@ type Tag =
   | "Voucher" | "Session" | "Branch" | "User" | "Class" | "Section"
   | "Subject" | "ClassSubject" | "Permissions" | "Rules" | "Campus" | "Student" | "StudentActivity" | "Register" | "UnlockRequest" | "StaffAttendance" | "Payment" | "FeeStructure" | "DayClosing" | "FeeReminder" | "Staff" | "Allocation" | "Payroll" | "Exam" | "Message" | "Paper" | "Tenant";
 
-/** A read endpoint that returns one collection from the mock database. */
-const read = <K extends keyof MockDb>(key: K, tag?: Tag) => ({
-  queryFn: () => ({ data: db[key] }),
-  ...(tag ? { providesTags: [tag] } : {}),
-});
-
 type ApiError = { status: number; message: string };
 type ApiRequest = { url: string; method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown };
 
@@ -308,7 +302,7 @@ export const api = createApi({
       ),
       providesTags: ["Paper"],
     }),
-    getTeacherDay: build.query<MockDb["teacherDay"], void>(read("teacherDay")),
+    getTeacherDay: build.query<MockDb["teacherDay"], void>(readOr("getTeacherDay", "teacherDay", "Register", "/teacher/day")),
 
     /** Records a full or partial payment against a voucher, with any late fine on top. */
     recordPayment: build.mutation<Payment, PaymentInput>({
