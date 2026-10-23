@@ -77,6 +77,20 @@ export const MIGRATED = new Set<string>([
   "closeDay",
   "getFeeReminders",
   "sendFeeReminders",
+  "getStaff",
+  "getTeachers",
+  "saveStaff",
+  "setStaffStatus",
+  "getAllocations",
+  "setAllocation",
+  "getPayrollRuns",
+  "startPayroll",
+  "getPayslips",
+  "updatePayslip",
+  "finalisePayroll",
+  "markPayslipsPaid",
+  "getAdvances",
+  "addAdvance",
 ]);
 
 export const usesApi = (endpoint: string) => API_MODE && MIGRATED.has(endpoint);

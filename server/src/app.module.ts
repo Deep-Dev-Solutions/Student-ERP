@@ -14,8 +14,10 @@ import { BranchesModule } from "./modules/branches/branches.module";
 import { FeesModule } from "./modules/fees/fees.module";
 import { HealthModule } from "./modules/health/health.module";
 import { MeModule } from "./modules/me/me.module";
+import { PayrollModule } from "./modules/payroll/payroll.module";
 import { SessionsModule } from "./modules/sessions/sessions.module";
 import { SettingsModule } from "./modules/settings/settings.module";
+import { StaffModule } from "./modules/staff/staff.module";
 import { StudentsModule } from "./modules/students/students.module";
 import { TenantModule } from "./modules/tenant/tenant.module";
 import { UsersModule } from "./modules/users/users.module";
@@ -36,6 +38,8 @@ import { UsersModule } from "./modules/users/users.module";
     StudentsModule,
     AttendanceModule,
     FeesModule,
+    StaffModule,
+    PayrollModule,
   ],
   providers: [
     // Every route passes these in order: signed in → school → module on the plan → permission.

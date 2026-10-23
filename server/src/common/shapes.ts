@@ -1,5 +1,5 @@
 /* Response shapes matching client/src/types, so the frontend can switch from mocks without changes. */
-import type { AcademicSession, AttendanceRegister, DayClosing, FeeReminder, FeeVoucher, Guardian, Member, Organization, Payment, StaffAttendanceDay, Student, StudentActivity, StudentDocument, TenantEvent, UnlockRequest, User } from "../generated/prisma/client";
+import type { AcademicSession, Advance, AttendanceRegister, DayClosing, FeeReminder, FeeVoucher, Guardian, Member, Organization, Payment, PayrollRun, Payslip, StaffAttendanceDay, StaffMember, Student, StudentActivity, StudentDocument, TeacherAllocation, TenantEvent, UnlockRequest, User } from "../generated/prisma/client";
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
 export const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
@@ -184,3 +184,68 @@ export const toDayClosing = (d: DayClosing) => ({
 
 /** client/src/types/fees.ts → FeeReminder */
 export const toFeeReminder = (r: FeeReminder) => ({ id: r.id, studentId: r.studentId, at: r.at.toISOString(), by: r.by });
+
+/** client/src/types/staff.ts → StaffMember */
+export const toStaffMember = (m: StaffMember) => ({
+  id: m.id,
+  staffId: m.staffId,
+  name: m.name,
+  avatar: m.avatar,
+  email: m.email,
+  phone: m.phone,
+  role: m.role,
+  department: m.department,
+  joinDate: day(m.joinDate),
+  status: m.status,
+  branchId: m.branchId,
+  gender: m.gender,
+  cnic: m.cnic ?? undefined,
+  address: m.address ?? undefined,
+  qualification: m.qualification ?? undefined,
+  employment: m.employment,
+  teaches: m.teaches,
+  basicSalary: m.basicSalary,
+  allowances: m.allowances as { label: string; amount: number }[],
+  bankAccount: m.bankAccount ?? undefined,
+  left: (m.left as { date: string; reason: string } | null) ?? undefined,
+});
+
+/** client/src/types/staff.ts → TeacherAllocation */
+export const toAllocation = (a: TeacherAllocation) => ({ id: a.id, teacherId: a.teacherId, subjectId: a.subjectId, classId: a.classId, sectionId: a.sectionId, weeklyPeriods: a.weeklyPeriods });
+
+/** client/src/types/staff.ts → Advance */
+export const toAdvance = (a: Advance) => ({ id: a.id, staffId: a.staffId, amount: a.amount, date: day(a.date), reason: a.reason, monthlyRecovery: a.monthlyRecovery, recovered: a.recovered });
+
+/** client/src/types/staff.ts → PayrollRun */
+export const toPayrollRun = (r: PayrollRun) => ({
+  id: r.id,
+  branchId: r.branchId,
+  month: r.month,
+  status: r.status,
+  createdAt: r.createdAt.toISOString(),
+  createdBy: r.createdBy,
+  finalisedAt: r.finalisedAt?.toISOString() ?? undefined,
+});
+
+/** client/src/types/staff.ts → Payslip */
+export const toPayslip = (p: Payslip) => ({
+  id: p.id,
+  runId: p.runId,
+  staffId: p.staffId,
+  month: p.month,
+  basic: p.basic,
+  allowances: p.allowances as { label: string; amount: number }[],
+  adjustments: p.adjustments as { label: string; amount: number }[],
+  absentDays: p.absentDays,
+  absentDeduction: p.absentDeduction,
+  advanceRecovery: p.advanceRecovery,
+  tax: p.tax,
+  eobi: p.eobi,
+  gross: p.gross,
+  totalDeductions: p.totalDeductions,
+  net: p.net,
+  periodsPerWeek: p.periodsPerWeek,
+  status: p.status,
+  paidAt: p.paidAt?.toISOString() ?? undefined,
+  method: p.method ?? undefined,
+});

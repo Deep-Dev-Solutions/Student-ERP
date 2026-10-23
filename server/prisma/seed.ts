@@ -10,6 +10,7 @@ import { branches, sessions } from "../../client/src/mocks/branches";
 import { concessions, feeHeads, feePlans, payments, vouchers } from "../../client/src/mocks/fees";
 import { registers, staffAttendance, unlockRequests } from "../../client/src/mocks/registers";
 import { campusProfile, rolePermissions, schoolRules } from "../../client/src/mocks/settings";
+import { advances, allocations, payrollRuns, payslips, staff } from "../../client/src/mocks/staff";
 import { studentActivity, students } from "../../client/src/mocks/students";
 import { DEMO_TENANT_ID, tenantBranches, tenants } from "../../client/src/mocks/tenants";
 import { users } from "../../client/src/mocks/users";
@@ -31,7 +32,7 @@ async function main() {
   const hash = await ctx.password.hash(DEMO_PASSWORD);
 
   // Start clean (child tables first).
-  for (const table of ["audit_log", "counter", "payment", "fee_voucher", "fee_plan", "fee_head", "concession", "day_closing", "fee_reminder", "attendance_register", "staff_attendance_day", "student", "subject", "tenant_permissions", "school_rules", "campus_profile", "academic_session", "branch", "tenant_event", "invitation", "member", "organization", "session", "account", "verification", "user"]) {
+  for (const table of ["audit_log", "counter", "payslip", "payroll_run", "advance", "teacher_allocation", "staff_member", "payment", "fee_voucher", "fee_plan", "fee_head", "concession", "day_closing", "fee_reminder", "attendance_register", "staff_attendance_day", "student", "subject", "tenant_permissions", "school_rules", "campus_profile", "academic_session", "branch", "tenant_event", "invitation", "member", "organization", "session", "account", "verification", "user"]) {
     await prisma.$executeRawUnsafe(`DELETE FROM "${table}"`);
   }
 
@@ -219,6 +220,67 @@ async function main() {
     });
   }
   await prisma.counter.create({ data: { tenantId: DEMO_TENANT_ID, key: "receipt", value: payments.length } });
+
+  // Staff and payroll (Phase 4), for the demo school only.
+  for (const m of staff) {
+    await prisma.staffMember.create({
+      data: {
+        id: m.id,
+        tenantId: DEMO_TENANT_ID,
+        staffId: m.staffId,
+        name: m.name,
+        avatar: m.avatar,
+        email: m.email,
+        phone: m.phone,
+        role: m.role,
+        department: m.department,
+        joinDate: day(m.joinDate),
+        status: m.status,
+        branchId: m.branchId,
+        gender: m.gender,
+        cnic: m.cnic,
+        address: m.address,
+        qualification: m.qualification,
+        employment: m.employment,
+        teaches: m.teaches,
+        basicSalary: m.basicSalary,
+        allowances: m.allowances as Prisma.InputJsonValue,
+        bankAccount: m.bankAccount,
+        left: m.left ? (m.left as Prisma.InputJsonValue) : Prisma.JsonNull,
+      },
+    });
+  }
+  for (const a of allocations) await prisma.teacherAllocation.create({ data: { id: a.id, tenantId: DEMO_TENANT_ID, teacherId: a.teacherId, subjectId: a.subjectId, classId: a.classId, sectionId: a.sectionId, weeklyPeriods: a.weeklyPeriods } });
+  for (const a of advances) await prisma.advance.create({ data: { id: a.id, tenantId: DEMO_TENANT_ID, staffId: a.staffId, amount: a.amount, date: day(a.date), reason: a.reason, monthlyRecovery: a.monthlyRecovery, recovered: a.recovered } });
+  for (const r of payrollRuns) await prisma.payrollRun.create({ data: { id: r.id, tenantId: DEMO_TENANT_ID, branchId: r.branchId, month: r.month, status: r.status, createdAt: new Date(r.createdAt), createdBy: r.createdBy, finalisedAt: r.finalisedAt ? new Date(r.finalisedAt) : null } });
+  for (const p of payslips) {
+    await prisma.payslip.create({
+      data: {
+        id: p.id,
+        tenantId: DEMO_TENANT_ID,
+        runId: p.runId,
+        staffId: p.staffId,
+        month: p.month,
+        basic: p.basic,
+        allowances: p.allowances as Prisma.InputJsonValue,
+        adjustments: p.adjustments as Prisma.InputJsonValue,
+        absentDays: p.absentDays,
+        absentDeduction: p.absentDeduction,
+        advanceRecovery: p.advanceRecovery,
+        tax: p.tax,
+        eobi: p.eobi,
+        gross: p.gross,
+        totalDeductions: p.totalDeductions,
+        net: p.net,
+        periodsPerWeek: p.periodsPerWeek,
+        status: p.status,
+        paidAt: p.paidAt ? new Date(p.paidAt) : null,
+        method: p.method,
+      },
+    });
+  }
+  const maxStaffNo = Math.max(...staff.map((m) => Number(m.staffId.replace(/\D/g, "")) || 0));
+  await prisma.counter.create({ data: { tenantId: DEMO_TENANT_ID, key: "staff_no", value: maxStaffNo } });
 
   const count = await prisma.user.count();
   console.log(`Seeded ${tenants.length} schools and ${count} logins. Password for every demo login: ${DEMO_PASSWORD}`);

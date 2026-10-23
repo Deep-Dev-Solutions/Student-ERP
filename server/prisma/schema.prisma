@@ -570,6 +570,121 @@ model FeeReminder {
   @@map("fee_reminder")
 }
 
+// ---------------------------------------------------------------------------
+// Staff and payroll (row-level security on tenant_id)
+// ---------------------------------------------------------------------------
+
+model StaffMember {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  /// Employee number shown to people, e.g. "STF-201", via Counter.
+  staffId       String   @map("staff_id")
+  name          String
+  avatar        String
+  email         String
+  phone         String
+  /// Job title, e.g. "Senior Physics Lecturer".
+  role          String
+  department    String
+  joinDate      DateTime @map("join_date") @db.Date
+  /// "active" | "on_leave" | "terminated"
+  status        String   @default("active")
+  branchId      String   @map("branch_id")
+  gender        String
+  cnic          String?
+  address       String?
+  qualification String?
+  /// "permanent" | "contract" | "visiting"
+  employment    String
+  /// Teaching staff appear in allocations and class incharge lists.
+  teaches       Boolean
+  basicSalary   Int      @map("basic_salary")
+  /// SalaryComponent[]
+  allowances    Json
+  bankAccount   String?  @map("bank_account")
+  /// { date, reason }
+  left          Json?
+
+  @@map("staff_member")
+}
+
+model TeacherAllocation {
+  id            String @id @default(cuid())
+  tenantId      String @map("tenant_id")
+  /// Staff number, e.g. "STF-201".
+  teacherId     String @map("teacher_id")
+  subjectId     String @map("subject_id")
+  classId       String @map("class_id")
+  sectionId     String @map("section_id")
+  weeklyPeriods Int    @map("weekly_periods")
+
+  @@unique([tenantId, sectionId, subjectId])
+  @@map("teacher_allocation")
+}
+
+model Advance {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  /// Staff number.
+  staffId         String   @map("staff_id")
+  amount          Int
+  date            DateTime @db.Date
+  reason          String
+  /// Taken from each month's pay until repaid.
+  monthlyRecovery Int      @map("monthly_recovery")
+  recovered       Int      @default(0)
+
+  @@map("advance")
+}
+
+model PayrollRun {
+  id          String    @id @default(cuid())
+  tenantId    String    @map("tenant_id")
+  branchId    String    @map("branch_id")
+  /// "YYYY-MM"
+  month       String
+  /// "draft" | "finalised" | "paid"
+  status      String    @default("draft")
+  createdAt   DateTime  @map("created_at")
+  createdBy   String    @map("created_by")
+  finalisedAt DateTime? @map("finalised_at")
+  payslips    Payslip[]
+
+  @@unique([tenantId, branchId, month])
+  @@map("payroll_run")
+}
+
+model Payslip {
+  id              String     @id @default(cuid())
+  tenantId        String     @map("tenant_id")
+  runId           String     @map("run_id")
+  /// Staff number.
+  staffId         String     @map("staff_id")
+  month           String
+  basic           Int
+  /// SalaryComponent[]
+  allowances      Json
+  /// One-off additions (positive) or deductions (negative) for the month.
+  adjustments     Json
+  absentDays      Int        @map("absent_days")
+  absentDeduction Int        @map("absent_deduction")
+  advanceRecovery Int        @map("advance_recovery")
+  tax             Int
+  eobi            Int
+  gross           Int
+  totalDeductions Int        @map("total_deductions")
+  net             Int
+  /// Teaching load from allocations, for reference.
+  periodsPerWeek  Int        @map("periods_per_week")
+  /// "draft" | "paid"
+  status          String     @default("draft")
+  paidAt          DateTime?  @map("paid_at")
+  method          String?
+  run             PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@map("payslip")
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   tenantId   String?  @map("tenant_id")
