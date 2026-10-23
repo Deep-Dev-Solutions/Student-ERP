@@ -281,10 +281,13 @@ export const api = createApi({
     getSections: build.query<MockDb["sections"], void>(readOr("getSections", "sections", "Section", "/sections")),
     getSubjects: build.query<MockDb["subjects"], void>(readOr("getSubjects", "subjects", "Subject", "/subjects")),
     getClassSubjects: build.query<MockDb["classSubjects"], void>(readOr("getClassSubjects", "classSubjects", "ClassSubject", "/class-subjects")),
-    // Paper maker: every call goes through the paper service contract (services/paper).
-    getPaperCatalog: build.query<PaperCatalog, void>({ queryFn: () => mockPaperService.getCatalog(paperCaller()), providesTags: ["Paper"] }),
+    // Paper maker: every mock call goes through the paper service contract (services/paper).
+    getPaperCatalog: build.query<PaperCatalog, void>({
+      queryFn: apiOr<void, PaperCatalog>("getPaperCatalog", () => mockPaperService.getCatalog(paperCaller()), () => ({ url: "/paper-catalog" })),
+      providesTags: ["Paper"],
+    }),
     getQuestionBank: build.query<BankQuestion[], void>({
-      queryFn: () => mockPaperService.getQuestionBank(paperCaller(), db.paperCatalog.subTopics.map((t) => t.id)),
+      queryFn: apiOr<void, BankQuestion[]>("getQuestionBank", () => mockPaperService.getQuestionBank(paperCaller(), db.paperCatalog.subTopics.map((t) => t.id)), () => ({ url: "/question-bank" })),
       providesTags: ["Paper"],
     }),
     getMyTenant: build.query<Tenant, string>({
@@ -293,9 +296,16 @@ export const api = createApi({
       providesTags: ["Tenant"],
     }),
     getTenants: build.query<Tenant[], void>({ queryFn: () => mockTenantService.listTenants(platformCaller()), providesTags: ["Tenant"] }),
-    getPapers: build.query<Paper[], void>({ queryFn: () => mockPaperService.listPapers(paperCaller()), providesTags: ["Paper"] }),
+    getPapers: build.query<Paper[], void>({
+      queryFn: apiOr<void, Paper[]>("getPapers", () => mockPaperService.listPapers(paperCaller()), () => ({ url: "/papers" })),
+      providesTags: ["Paper"],
+    }),
     getPrintablePaper: build.query<Paper, { id: string; answerKey: boolean }>({
-      queryFn: ({ id, answerKey }) => mockPaperService.getPrintable(paperCaller(), id, answerKey),
+      queryFn: apiOr<{ id: string; answerKey: boolean }, Paper>(
+        "getPrintablePaper",
+        ({ id, answerKey }) => mockPaperService.getPrintable(paperCaller(), id, answerKey),
+        ({ id }) => ({ url: `/papers/${id}/printable` })
+      ),
       providesTags: ["Paper"],
     }),
     getTeacherDay: build.query<MockDb["teacherDay"], void>(read("teacherDay")),
@@ -889,19 +899,31 @@ export const api = createApi({
 
     // Paper maker -------------------------------------------------------------
     savePaperDraft: build.mutation<Paper, PaperDraftInput>({
-      queryFn: (input) => mockPaperService.saveDraft(paperCaller(input.teacherId), input),
+      queryFn: apiOr<PaperDraftInput, Paper>(
+        "savePaperDraft",
+        (input) => mockPaperService.saveDraft(paperCaller(input.teacherId), input),
+        (input) => ({ url: "/papers", method: input.id ? "PUT" : "POST", body: input })
+      ),
       invalidatesTags: ["Paper"],
     }),
     submitPaper: build.mutation<Paper, { id: string; teacherId: string }>({
-      queryFn: ({ id, teacherId }) => mockPaperService.submit(paperCaller(teacherId), id),
+      queryFn: apiOr<{ id: string; teacherId: string }, Paper>(
+        "submitPaper",
+        ({ id, teacherId }) => mockPaperService.submit(paperCaller(teacherId), id),
+        ({ id }) => ({ url: `/papers/${id}/submit`, method: "POST" })
+      ),
       invalidatesTags: ["Paper"],
     }),
     markPaperPrinted: build.mutation<Paper, string>({
-      queryFn: (id) => mockPaperService.markPrinted(paperCaller(), id),
+      queryFn: apiOr<string, Paper>("markPaperPrinted", (id) => mockPaperService.markPrinted(paperCaller(), id), (id) => ({ url: `/papers/${id}/printed`, method: "POST" })),
       invalidatesTags: ["Paper"],
     }),
     returnPaper: build.mutation<Paper, { id: string; note: string }>({
-      queryFn: ({ id, note }) => mockPaperService.returnToTeacher(paperCaller(), id, note),
+      queryFn: apiOr<{ id: string; note: string }, Paper>(
+        "returnPaper",
+        ({ id, note }) => mockPaperService.returnToTeacher(paperCaller(), id, note),
+        ({ id, note }) => ({ url: `/papers/${id}/return`, method: "POST", body: { note } })
+      ),
       invalidatesTags: ["Paper"],
     }),
 

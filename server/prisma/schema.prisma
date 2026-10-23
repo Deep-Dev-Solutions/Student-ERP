@@ -741,6 +741,101 @@ model ExamMark {
   @@map("exam_mark")
 }
 
+// Paper maker ----------------------------------------------------------------
+// The catalogue and question bank are global reference data, shared by every
+// school and managed by platform admins (Console, Phase 9) — no tenant_id, no RLS.
+
+model PaperBoard {
+  id        String @id
+  name      String
+  shortName String @map("short_name")
+
+  @@map("paper_board")
+}
+
+model PaperClass {
+  id      String @id
+  boardId String @map("board_id")
+  name    String
+
+  @@map("paper_class")
+}
+
+model PaperBook {
+  id      String @id
+  boardId String @map("board_id")
+  classId String @map("class_id")
+  title   String
+  subject String
+
+  @@map("paper_book")
+}
+
+model PaperChapter {
+  id     String @id
+  bookId String @map("book_id")
+  number Int
+  title  String
+
+  @@map("paper_chapter")
+}
+
+model PaperSubTopic {
+  id        String @id
+  chapterId String @map("chapter_id")
+  title     String
+
+  @@map("paper_sub_topic")
+}
+
+model BankQuestion {
+  id         String  @id
+  subTopicId String  @map("sub_topic_id")
+  /// "mcq" | "short" | "long"
+  type       String
+  text       String
+  /// Four choices for multiple choice.
+  options    String[]
+  /// The correct option's letter for multiple choice, or a model answer.
+  answer     String
+
+  @@map("bank_question")
+}
+
+/// A teacher's exam paper. Tenant-scoped and RLS-protected, unlike the catalogue above.
+model Paper {
+  id          String    @id @default(cuid())
+  tenantId    String    @map("tenant_id")
+  branchId    String    @map("branch_id")
+  /// Staff number of the teacher who owns the paper.
+  teacherId   String    @map("teacher_id")
+  teacherName String    @map("teacher_name")
+  /// "draft" | "submitted" | "printed" | "returned"
+  status      String    @default("draft")
+  /// The wizard step to reopen a draft on (1 to 6).
+  step        Int
+  boardId     String    @map("board_id")
+  classId     String    @map("class_id")
+  bookId      String    @map("book_id")
+  subTopicIds String[]  @map("sub_topic_ids")
+  /// BlueprintRow[]
+  blueprint   Json
+  /// PaperQuestion[]
+  questions   Json
+  /// PaperDetails
+  details     Json
+  createdAt   DateTime  @map("created_at")
+  updatedAt   DateTime  @map("updated_at")
+  submittedAt DateTime? @map("submitted_at")
+  printedAt   DateTime? @map("printed_at")
+  /// The note from the last return to the teacher.
+  returnNote  String?   @map("return_note")
+  /// PaperEvent[]
+  history     Json
+
+  @@map("paper")
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   tenantId   String?  @map("tenant_id")

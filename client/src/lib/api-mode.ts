@@ -99,6 +99,14 @@ export const MIGRATED = new Set<string>([
   "saveDateSheet",
   "saveMarks",
   "setResultsPublished",
+  "getPaperCatalog",
+  "getQuestionBank",
+  "getPapers",
+  "getPrintablePaper",
+  "savePaperDraft",
+  "submitPaper",
+  "markPaperPrinted",
+  "returnPaper",
 ]);
 
 export const usesApi = (endpoint: string) => API_MODE && MIGRATED.has(endpoint);

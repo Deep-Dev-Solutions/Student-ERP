@@ -1,5 +1,5 @@
 /* Response shapes matching client/src/types, so the frontend can switch from mocks without changes. */
-import type { AcademicSession, Advance, AttendanceRegister, DayClosing, Exam, ExamMark, ExamPaper, FeeReminder, FeeVoucher, Guardian, Member, Organization, Payment, PayrollRun, Payslip, StaffAttendanceDay, StaffMember, Student, StudentActivity, StudentDocument, TeacherAllocation, TenantEvent, UnlockRequest, User } from "../generated/prisma/client";
+import type { AcademicSession, Advance, AttendanceRegister, BankQuestion, DayClosing, Exam, ExamMark, ExamPaper, FeeReminder, FeeVoucher, Guardian, Member, Organization, Paper, PaperBoard, PaperBook, PaperChapter, PaperClass, PaperSubTopic, Payment, PayrollRun, Payslip, StaffAttendanceDay, StaffMember, Student, StudentActivity, StudentDocument, TeacherAllocation, TenantEvent, UnlockRequest, User } from "../generated/prisma/client";
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
 export const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
@@ -278,4 +278,46 @@ export const toExamMark = (m: ExamMark) => ({
   remark: m.remark ?? undefined,
   updatedAt: m.updatedAt.toISOString(),
   updatedBy: m.updatedBy,
+});
+
+/** client/src/types/paper.ts → PaperCatalog, assembled from the global catalogue tables. */
+export const toPaperCatalog = (rows: { boards: PaperBoard[]; classes: PaperClass[]; books: PaperBook[]; chapters: PaperChapter[]; subTopics: PaperSubTopic[] }) => ({
+  boards: rows.boards.map((b) => ({ id: b.id, name: b.name, shortName: b.shortName })),
+  classes: rows.classes.map((c) => ({ id: c.id, boardId: c.boardId, name: c.name })),
+  books: rows.books.map((b) => ({ id: b.id, boardId: b.boardId, classId: b.classId, title: b.title, subject: b.subject })),
+  chapters: rows.chapters.map((c) => ({ id: c.id, bookId: c.bookId, number: c.number, title: c.title })),
+  subTopics: rows.subTopics.map((s) => ({ id: s.id, chapterId: s.chapterId, title: s.title })),
+});
+
+/** client/src/types/paper.ts → BankQuestion */
+export const toBankQuestion = (q: BankQuestion) => ({
+  id: q.id,
+  subTopicId: q.subTopicId,
+  type: q.type as "mcq" | "short" | "long",
+  text: q.text,
+  options: q.options.length ? q.options : undefined,
+  answer: q.answer,
+});
+
+/** client/src/types/paper.ts → Paper */
+export const toPaper = (p: Paper) => ({
+  id: p.id,
+  branchId: p.branchId,
+  teacherId: p.teacherId,
+  teacherName: p.teacherName,
+  status: p.status as "draft" | "submitted" | "printed" | "returned",
+  step: p.step,
+  boardId: p.boardId,
+  classId: p.classId,
+  bookId: p.bookId,
+  subTopicIds: p.subTopicIds,
+  blueprint: p.blueprint as { type: string; count: number; marks: number }[],
+  questions: p.questions as unknown[],
+  details: p.details as { examName: string; date: string; timeAllowed: string; instructions: string },
+  createdAt: p.createdAt.toISOString(),
+  updatedAt: p.updatedAt.toISOString(),
+  submittedAt: p.submittedAt?.toISOString() ?? undefined,
+  printedAt: p.printedAt?.toISOString() ?? undefined,
+  returnNote: p.returnNote ?? undefined,
+  history: p.history as unknown[],
 });

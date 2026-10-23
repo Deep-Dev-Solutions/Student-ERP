@@ -8,6 +8,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { classSubjects, classes, sections, subjects } from "../../client/src/mocks/academics";
 import { branches, sessions } from "../../client/src/mocks/branches";
 import { examMarks, examPapers, exams } from "../../client/src/mocks/exams";
+import { paperCatalog, papers, questionBank } from "../../client/src/mocks/paper";
 import { concessions, feeHeads, feePlans, payments, vouchers } from "../../client/src/mocks/fees";
 import { registers, staffAttendance, unlockRequests } from "../../client/src/mocks/registers";
 import { campusProfile, rolePermissions, schoolRules } from "../../client/src/mocks/settings";
@@ -33,7 +34,7 @@ async function main() {
   const hash = await ctx.password.hash(DEMO_PASSWORD);
 
   // Start clean (child tables first).
-  for (const table of ["audit_log", "counter", "exam_mark", "exam_paper", "exam", "payslip", "payroll_run", "advance", "teacher_allocation", "staff_member", "payment", "fee_voucher", "fee_plan", "fee_head", "concession", "day_closing", "fee_reminder", "attendance_register", "staff_attendance_day", "student", "subject", "tenant_permissions", "school_rules", "campus_profile", "academic_session", "branch", "tenant_event", "invitation", "member", "organization", "session", "account", "verification", "user"]) {
+  for (const table of ["audit_log", "counter", "paper", "bank_question", "paper_sub_topic", "paper_chapter", "paper_book", "paper_class", "paper_board", "exam_mark", "exam_paper", "exam", "payslip", "payroll_run", "advance", "teacher_allocation", "staff_member", "payment", "fee_voucher", "fee_plan", "fee_head", "concession", "day_closing", "fee_reminder", "attendance_register", "staff_attendance_day", "student", "subject", "tenant_permissions", "school_rules", "campus_profile", "academic_session", "branch", "tenant_event", "invitation", "member", "organization", "session", "account", "verification", "user"]) {
     await prisma.$executeRawUnsafe(`DELETE FROM "${table}"`);
   }
 
@@ -299,6 +300,26 @@ async function main() {
       data: {
         id: m.id, tenantId: DEMO_TENANT_ID, examId: m.examId, subjectId: m.subjectId, studentId: m.studentId,
         obtained: m.obtained, absent: m.absent, remark: m.remark, updatedAt: new Date(m.updatedAt), updatedBy: m.updatedBy,
+      },
+    });
+  }
+
+  // Paper maker (Phase 6): the catalogue and question bank are global, shared by every school.
+  for (const b of paperCatalog.boards) await prisma.paperBoard.create({ data: { id: b.id, name: b.name, shortName: b.shortName } });
+  for (const c of paperCatalog.classes) await prisma.paperClass.create({ data: { id: c.id, boardId: c.boardId, name: c.name } });
+  for (const b of paperCatalog.books) await prisma.paperBook.create({ data: { id: b.id, boardId: b.boardId, classId: b.classId, title: b.title, subject: b.subject } });
+  for (const c of paperCatalog.chapters) await prisma.paperChapter.create({ data: { id: c.id, bookId: c.bookId, number: c.number, title: c.title } });
+  for (const s of paperCatalog.subTopics) await prisma.paperSubTopic.create({ data: { id: s.id, chapterId: s.chapterId, title: s.title } });
+  for (const q of questionBank) await prisma.bankQuestion.create({ data: { id: q.id, subTopicId: q.subTopicId, type: q.type, text: q.text, options: q.options ?? [], answer: q.answer } });
+  // Papers belong to the demo school.
+  for (const p of papers) {
+    await prisma.paper.create({
+      data: {
+        id: p.id, tenantId: DEMO_TENANT_ID, branchId: p.branchId, teacherId: p.teacherId, teacherName: p.teacherName, status: p.status, step: p.step,
+        boardId: p.boardId, classId: p.classId, bookId: p.bookId, subTopicIds: p.subTopicIds,
+        blueprint: p.blueprint as Prisma.InputJsonValue, questions: p.questions as unknown as Prisma.InputJsonValue, details: p.details as Prisma.InputJsonValue,
+        createdAt: new Date(p.createdAt), updatedAt: new Date(p.updatedAt), submittedAt: p.submittedAt ? new Date(p.submittedAt) : null,
+        printedAt: p.printedAt ? new Date(p.printedAt) : null, returnNote: p.returnNote, history: p.history as unknown as Prisma.InputJsonValue,
       },
     });
   }
